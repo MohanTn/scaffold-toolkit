@@ -29,6 +29,14 @@ export interface DescriptorInjection {
   template: string;
   position: 'before-end' | 'after-start';
   hashTrailerPrefix: string;
+  /**
+   * replace (default): the marker block holds exactly one render; re-running
+   * with different content refuses without --force. append: per-entity
+   * accumulation — each distinct rendered snippet is added to the block once,
+   * an already-present snippet is an idempotent no-op, and the hash trailer
+   * covers the accumulated block content.
+   */
+  strategy?: 'replace' | 'append';
   commentSyntax?: CommentSyntaxOverride;
 }
 
@@ -71,6 +79,7 @@ const injectionSchema = {
     template: { type: 'string', minLength: 1 },
     position: { enum: ['before-end', 'after-start'] },
     hashTrailerPrefix: { type: 'string', minLength: 1 },
+    strategy: { enum: ['replace', 'append'] },
     commentSyntax: commentSyntaxSchema,
   },
 } as const;

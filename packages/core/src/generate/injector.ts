@@ -29,6 +29,7 @@ export interface InjectionRequest {
   renderedContent: string;
   hashTrailerPrefix: string;
   position: 'before-end' | 'after-start';
+  strategy: 'replace' | 'append';
   commentSyntaxOverride?: CommentSyntaxOverride;
 }
 
@@ -76,6 +77,26 @@ function buildInteriorLines(request: InjectionRequest, trailerLine: string): str
 
 function interiorText(lines: string[]): string {
   return lines.length > 0 ? `${lines.join('\n')}\n` : '';
+}
+
+function stripTrailingEmptyLines(lines: string[]): string[] {
+  const out = [...lines];
+  while (out.length > 0 && out[out.length - 1].trim().length === 0) out.pop();
+  return out;
+}
+
+/** True when `needle`'s trimmed lines appear as one contiguous run inside `haystack`'s trimmed lines. */
+function containsContiguousLines(haystack: string[], needle: string[]): boolean {
+  if (needle.length === 0) return true;
+  const h = haystack.map((l) => l.trim());
+  const n = needle.map((l) => l.trim());
+  outer: for (let i = 0; i + n.length <= h.length; i += 1) {
+    for (let j = 0; j < n.length; j += 1) {
+      if (h[i + j] !== n[j]) continue outer;
+    }
+    return true;
+  }
+  return false;
 }
 
 interface Replacement {
@@ -130,6 +151,29 @@ export function injectMarkers(filePath: string, originalContent: string, request
         end: location.interiorEndOffset,
         text: originalContent.slice(location.interiorStartOffset, location.interiorEndOffset),
       });
+      continue;
+    }
+
+    if (request.strategy === 'append' && !isEmpty) {
+      const snippetLines = stripTrailingEmptyLines(request.renderedContent.split('\n'));
+      if (containsContiguousLines(existingContentLines, snippetLines)) {
+        outcomes.push({ marker: request.marker, action: 'unchanged' });
+        replacements.push({
+          start: location.interiorStartOffset,
+          end: location.interiorEndOffset,
+          text: originalContent.slice(location.interiorStartOffset, location.interiorEndOffset),
+        });
+        continue;
+      }
+      const existingText = existingContentLines.join('\n');
+      if (existingHex !== contentHash(existingText) && !force) {
+        throw new InjectionRefusedError(filePath, request.marker, existingText, request.renderedContent);
+      }
+      const accumulatedText = `${[...stripTrailingEmptyLines(existingContentLines), ...snippetLines].join('\n')}\n`;
+      const appendTrailerLine = `${request.hashTrailerPrefix}${contentHash(accumulatedText)}`;
+      const appendInteriorText = interiorText(buildInteriorLines({ ...request, renderedContent: accumulatedText }, appendTrailerLine));
+      outcomes.push({ marker: request.marker, action: 'updated' });
+      replacements.push({ start: location.interiorStartOffset, end: location.interiorEndOffset, text: appendInteriorText });
       continue;
     }
 

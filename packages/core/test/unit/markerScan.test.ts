@@ -91,3 +91,18 @@ test('scanAiImplementationBlocks reports non-empty content as not empty', () => 
   assert.equal(blocks[0].empty, false);
   assert.equal(blocks[0].content, '  return 42;');
 });
+
+test('scanAiImplementationBlocks also matches the colon form SCAFFOLD:AI_IMPLEMENTATION:START/END used by the dotnet packs', () => {
+  const content = [
+    'public async Task Handle()',
+    '{',
+    '    // SCAFFOLD:AI_IMPLEMENTATION:START',
+    '    var entity = await _repository.GetByIdAsync(id, ct);',
+    '    // SCAFFOLD:AI_IMPLEMENTATION:END',
+    '}',
+  ].join('\n');
+  const blocks = scanAiImplementationBlocks('InvoiceService.cs', content);
+  assert.equal(blocks.length, 1);
+  assert.equal(blocks[0].empty, false);
+  assert.match(blocks[0].content, /GetByIdAsync/);
+});

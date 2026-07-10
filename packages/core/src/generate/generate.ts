@@ -16,6 +16,7 @@ import type { DescriptorTarget } from '../descriptor/schema.js';
 import { packCacheDir } from '../templates/cache.js';
 import { defaultCacheRoot } from '../templates/sync.js';
 import { renderPathTemplate, renderTemplateFile } from './render.js';
+import { registerPackHelpers } from './packHelpers.js';
 import { resolveInsideRepo } from './pathGuard.js';
 import { injectMarkers } from './injector.js';
 import type { InjectionRequest } from './injector.js';
@@ -50,14 +51,17 @@ interface PlannedInjectionGroup {
   requests: InjectionRequest[];
 }
 
-function buildHandlebarsContext(manifest: { entity: string; fields: unknown; options?: Record<string, unknown> }): Record<string, unknown> {
+export function buildHandlebarsContext(manifest: { entity: string; fields: unknown; options?: Record<string, unknown> } & Record<string, unknown>): Record<string, unknown> {
   const options = manifest.options ?? {};
-  // `entity`/`fields` are spread last so they always win over any same-named
-  // key inside the manifest's free-form, schema-unvalidated `options` object
-  // (e.g. an `options.entity` that doesn't match the PascalCase pattern the
-  // manifest schema enforces on the real `entity` field). `options` itself is
+  // The manifest's top-level fields are spread last so they always win over
+  // any same-named key inside the free-form, schema-unvalidated `options`
+  // object (e.g. an `options.entity` that doesn't match the PascalCase
+  // pattern the manifest schema enforces on the real `entity` field). The
+  // whole manifest is passed through, not just entity/fields — packs like
+  // scaffold-templates-react contract on host-precomputed top-level fields
+  // (entityCamel, entityPlural, primaryKeyField, …). `options` itself is
   // still reachable in templates as `{{options.foo}}`, unshadowed.
-  return { ...options, entity: manifest.entity, fields: manifest.fields, options };
+  return { ...options, ...manifest, options };
 }
 
 export async function runGenerate(options: GenerateOptions): Promise<GenerateReport> {
@@ -85,6 +89,7 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRep
   // Validates the descriptor's own schema and range-checks requires.scaffoldCli
   // against the installed CLI version — fails fast, before any file is touched.
   const descriptor = loadDescriptor(descriptorPath);
+  registerPackHelpers(versionDir);
 
   const context = buildHandlebarsContext(manifest);
 
@@ -138,6 +143,7 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRep
       renderedContent,
       hashTrailerPrefix: injection.hashTrailerPrefix,
       position: injection.position,
+      strategy: injection.strategy ?? 'replace',
       commentSyntaxOverride: injection.commentSyntax,
     });
     groupsByFile.set(absPath, group);

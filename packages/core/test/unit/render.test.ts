@@ -94,3 +94,22 @@ test('renderTemplateFile supports lower case helper', () => {
   const output = renderTemplateFile(templatePath, { entity: 'INVOICE' });
   assert.equal(output, 'invoice');
 });
+
+test('buildHandlebarsContext passes host-precomputed top-level manifest fields (entityCamel, entityPlural, …) through to templates, with manifest fields winning over options keys', async () => {
+  const { buildHandlebarsContext } = await import('../../src/generate/generate.js');
+  const context = buildHandlebarsContext({
+    manifestSchemaVersion: 1,
+    targetStack: 'frontend',
+    entity: 'Invoice',
+    entityCamel: 'invoice',
+    entityPlural: 'Invoices',
+    primaryKeyField: 'id',
+    fields: [{ name: 'id', type: 'guid' }],
+    options: { route: '/api/invoices', entityCamel: 'shadowed' },
+  });
+  assert.equal(context.entityCamel, 'invoice', 'top-level manifest field must win over the options key');
+  assert.equal(context.entityPlural, 'Invoices');
+  assert.equal(context.primaryKeyField, 'id');
+  assert.equal(context.route, '/api/invoices', 'options keys still spread for convenience');
+  assert.equal((context.options as Record<string, unknown>).route, '/api/invoices');
+});

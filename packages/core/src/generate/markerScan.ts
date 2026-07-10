@@ -112,8 +112,10 @@ export interface AiImplementationBlock {
   empty: boolean;
 }
 
-const START_RE = /AI_IMPLEMENTATION_START(?::\s*(\S+))?/;
-const END_RE = /AI_IMPLEMENTATION_END(?::\s*(\S+))?/;
+// Both spellings pack authors use in the wild: `AI_IMPLEMENTATION_START`
+// (react packs) and `SCAFFOLD:AI_IMPLEMENTATION:START` (dotnet packs).
+const START_RE = /AI_IMPLEMENTATION[_:]START(?::\s*(\S+))?/;
+const END_RE = /AI_IMPLEMENTATION[_:]END(?::\s*(\S+))?/;
 
 /**
  * Scans for AI_IMPLEMENTATION_START/END phase-3 fill-in blocks. These are

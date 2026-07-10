@@ -17,6 +17,7 @@ function request(overrides: Partial<InjectionRequest> = {}): InjectionRequest {
     renderedContent: '    services.AddScoped<IInvoiceService, InvoiceService>();',
     hashTrailerPrefix: '// scaffold-hash:',
     position: 'before-end',
+    strategy: 'replace',
     ...overrides,
   };
 }
@@ -53,6 +54,41 @@ test('injectMarkers overwrites differing content on a non-empty block with --for
 test('injectMarkers a hand-edited block (no hash trailer at all) is treated as non-empty differing content and refused without --force', () => {
   const handEdited = ['// SCAFFOLD:SCAFFOLD_DI:START', '    // a human wrote this by hand', '// SCAFFOLD:SCAFFOLD_DI:END'].join('\n');
   assert.throws(() => injectMarkers('Program.cs', handEdited, [request()], false), InjectionRefusedError);
+});
+
+test('append strategy: a second entity\'s snippet is added to the block, keeping the first entity\'s line', () => {
+  const invoice = request({ strategy: 'append', renderedContent: 'public DbSet<Invoice> Invoices { get; set; } = null!;\n' });
+  const customer = request({ strategy: 'append', renderedContent: 'public DbSet<Customer> Customers { get; set; } = null!;\n' });
+  const first = injectMarkers('AppDbContext.cs', cleanFile, [invoice], false);
+  const second = injectMarkers('AppDbContext.cs', first.content, [customer], false);
+  assert.equal(second.outcomes[0].action, 'updated');
+  assert.match(second.content, /DbSet<Invoice>/);
+  assert.match(second.content, /DbSet<Customer>/);
+  // exactly one hash trailer, covering the accumulated block
+  assert.equal(second.content.match(/\/\/ scaffold-hash:/g)?.length, 1);
+});
+
+test('append strategy: re-running an already-appended entity is an idempotent no-op', () => {
+  const invoice = request({ strategy: 'append', renderedContent: 'public DbSet<Invoice> Invoices { get; set; } = null!;\n' });
+  const customer = request({ strategy: 'append', renderedContent: 'public DbSet<Customer> Customers { get; set; } = null!;\n' });
+  const first = injectMarkers('AppDbContext.cs', cleanFile, [invoice], false);
+  const second = injectMarkers('AppDbContext.cs', first.content, [customer], false);
+  const invoiceAgain = injectMarkers('AppDbContext.cs', second.content, [invoice], false);
+  const customerAgain = injectMarkers('AppDbContext.cs', invoiceAgain.content, [customer], false);
+  assert.equal(invoiceAgain.outcomes[0].action, 'unchanged');
+  assert.equal(customerAgain.outcomes[0].action, 'unchanged');
+  assert.equal(customerAgain.content, second.content, 'repeat appends must be byte-identical');
+});
+
+test('append strategy: a hand-edited block (trailer no longer matches content) refuses a new append without --force', () => {
+  const invoice = request({ strategy: 'append', renderedContent: 'public DbSet<Invoice> Invoices { get; set; } = null!;\n' });
+  const customer = request({ strategy: 'append', renderedContent: 'public DbSet<Customer> Customers { get; set; } = null!;\n' });
+  const first = injectMarkers('AppDbContext.cs', cleanFile, [invoice], false);
+  const handEdited = first.content.replace('DbSet<Invoice> Invoices', 'DbSet<Invoice> AllInvoices');
+  assert.throws(() => injectMarkers('AppDbContext.cs', handEdited, [customer], false), InjectionRefusedError);
+  const forced = injectMarkers('AppDbContext.cs', handEdited, [customer], true);
+  assert.match(forced.content, /AllInvoices/, '--force append must preserve the hand edit');
+  assert.match(forced.content, /DbSet<Customer>/);
 });
 
 test('injectMarkers hostile input: missing marker throws and does not return a result', () => {
@@ -96,6 +132,7 @@ test('injectMarkers single-pass rebuild: two independent markers in one file inj
     renderedContent: '    app.MapGet("/api/invoices", () => Results.Ok());',
     hashTrailerPrefix: '// scaffold-hash:',
     position: 'before-end',
+    strategy: 'replace',
   };
 
   const forward = injectMarkers('Program.cs', twoMarkerFile, [diRequest, routesRequest], false);

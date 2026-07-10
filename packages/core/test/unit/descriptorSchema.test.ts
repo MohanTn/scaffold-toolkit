@@ -60,3 +60,13 @@ test('loadDescriptor throws DescriptorRequiresMismatchError when the installed C
   writeFileSync(file, JSON.stringify(baseDescriptor()));
   assert.throws(() => loadDescriptor(file, '2.5.0'), DescriptorRequiresMismatchError);
 });
+
+test('validateDescriptor accepts strategy "append" on an injections[] entry and rejects an unknown strategy value', () => {
+  const withAppend = baseDescriptor();
+  (withAppend.injections[0] as Record<string, unknown>).strategy = 'append';
+  assert.deepEqual(validateDescriptor(withAppend), withAppend);
+
+  const withBogus = baseDescriptor();
+  (withBogus.injections[0] as Record<string, unknown>).strategy = 'merge';
+  assert.throws(() => validateDescriptor(withBogus), DescriptorValidationError);
+});
