@@ -1,0 +1,30 @@
+{
+  "name": "scaffold-toolkit",
+  "private": true,
+  "version": "0.0.0",
+  "license": "MIT",
+  "type": "module",
+  "description": "Deterministic, LLM-agnostic scaffolding CLI plus host adapters (Claude Code, GitHub Copilot CLI) that coding agents shell out to for boilerplate generation.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MohanTn/scaffold-toolkit.git"
+  },
+  "workspaces": [
+    "packages/core",
+    "packages/adapter-claude-code",
+    "packages/adapter-copilot-cli"
+  ],
+  "engines": {
+    "node": ">=20.12"
+  },
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "typescript": "^5.5.0",
+    "typescript-eslint": "^8.0.0"
+  }
+}

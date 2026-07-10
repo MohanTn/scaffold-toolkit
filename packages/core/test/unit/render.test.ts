@@ -1,0 +1,40 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { renderTemplateFile, renderPathTemplate } from '../../src/generate/render.js';
+
+test('renderTemplateFile substitutes entity and field context', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'scaffold-render-'));
+  const templatePath = path.join(dir, 'Endpoint.cs.hbs');
+  writeFileSync(templatePath, 'public class {{entity}}Endpoint { /* route: {{options.route}} */ }');
+  const output = renderTemplateFile(templatePath, { entity: 'Invoice', options: { route: '/api/invoices' } });
+  assert.equal(output, 'public class InvoiceEndpoint { /* route: /api/invoices */ }');
+});
+
+test('renderTemplateFile does not HTML-escape quotes or angle brackets (noEscape: true)', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'scaffold-render-'));
+  const templatePath = path.join(dir, 'Route.cs.hbs');
+  writeFileSync(templatePath, 'app.MapGet("{{options.route}}", () => Results.Ok<{{entity}}>());');
+  const output = renderTemplateFile(templatePath, { entity: 'Invoice', options: { route: '/api/invoices' } });
+  assert.equal(output, 'app.MapGet("/api/invoices", () => Results.Ok<Invoice>());');
+});
+
+test('renderPathTemplate substitutes the entity into an output path', () => {
+  const output = renderPathTemplate('src/Endpoints/{{entity}}Endpoint.cs', { entity: 'Invoice' });
+  assert.equal(output, 'src/Endpoints/InvoiceEndpoint.cs');
+});
+
+test('renderTemplateFile iterates a fields array', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'scaffold-render-'));
+  const templatePath = path.join(dir, 'Dto.cs.hbs');
+  writeFileSync(templatePath, '{{#each fields}}public {{type}} {{name}};\n{{/each}}');
+  const output = renderTemplateFile(templatePath, {
+    fields: [
+      { name: 'Id', type: 'Guid' },
+      { name: 'Amount', type: 'decimal' },
+    ],
+  });
+  assert.equal(output, 'public Guid Id;\npublic decimal Amount;\n');
+});

@@ -1,0 +1,27 @@
+{
+  "name": "@mohantn/scaffold-adapter-copilot-cli",
+  "version": "0.1.0",
+  "description": "gh CLI extension shim that lets GitHub Copilot CLI drive @mohantn/scaffold-core for deterministic scaffolding, with postToolUse/agentStop hooks (install via `gh scaffold install-hooks`) plus a per-invocation scaffold-status precheck as a second, independent layer.",
+  "license": "MIT",
+  "author": "Mohan TN <mohan.tn100@gmail.com>",
+  "type": "module",
+  "engines": {
+    "node": ">=20.12"
+  },
+  "bin": {
+    "gh-scaffold": "bin/gh-scaffold"
+  },
+  "files": [
+    "bin",
+    "src",
+    "hooks",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  }
+}

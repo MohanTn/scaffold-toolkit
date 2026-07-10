@@ -1,0 +1,16 @@
+#!/usr/bin/env node
+/**
+ * gh CLI extension entry: thin shell that hands argv to `dispatch` and exits
+ * with the returned code. Centralised here so subcommand code never deals
+ * directly with process.exit, and so any uncaught throw still produces a
+ * useful diagnostic before quitting.
+ */
+import { dispatch } from '../src/index.mjs';
+
+try {
+  const exitCode = await dispatch(process.argv.slice(2));
+  process.exit(exitCode);
+} catch (error) {
+  console.error('gh-scaffold:', error instanceof Error ? error.message : error);
+  process.exit(1);
+}

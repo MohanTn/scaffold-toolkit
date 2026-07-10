@@ -1,0 +1,153 @@
+#!/usr/bin/env node
+import { createInterface } from 'node:readline/promises';
+import { Command } from 'commander';
+import { readOwnPackageJson } from './version/readPkg.js';
+import { configPath, saveConfig } from './config/loader.js';
+import type { PackConfig } from './config/schema.js';
+import { detectProjectType } from './config/projectTypeDetect.js';
+import { defaultCacheRoot, syncTemplates } from './templates/sync.js';
+import { listTemplateVersions } from './templates/list.js';
+import { runGenerate } from './generate/generate.js';
+import { renderReport } from './generate/report.js';
+import { undoChangeset } from './undo/undo.js';
+import { computeStatus } from './status/status.js';
+import { encodeToon } from './toon/codec.js';
+
+const pkg = readOwnPackageJson(import.meta.url);
+
+const program = new Command();
+program.name('scaffold').description('Deterministic, LLM-agnostic scaffolding CLI: renders templates and injects marker-based boilerplate for any coding agent to drive.');
+program.version(pkg.version, '-v, --version', 'output the installed scaffold-core version');
+
+async function promptProjectType(): Promise<string> {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const answer = await rl.question('scaffold: could not auto-detect a project type — enter one (e.g. dotnet, js-family, go, python): ');
+    const trimmed = answer.trim();
+    if (!trimmed) throw new Error('no project type entered');
+    return trimmed;
+  } finally {
+    rl.close();
+  }
+}
+
+const PACK_SPEC = /^([^=]+)=([^@]+)@(.+)$/;
+
+function parsePackSpecs(specs: string[]): Record<string, PackConfig> {
+  const packs: Record<string, PackConfig> = {};
+  for (const spec of specs) {
+    const match = PACK_SPEC.exec(spec);
+    if (!match) {
+      throw new Error(`invalid --pack "${spec}" — expected name=url@version, e.g. backend=https://github.com/org/scaffold-templates-dotnet.git@v10-minimal-api`);
+    }
+    const [, name, url, version] = match;
+    packs[name] = { url, version };
+  }
+  return packs;
+}
+
+function collect(value: string, previous: string[]): string[] {
+  return [...previous, value];
+}
+
+program
+  .command('init')
+  .description('Write .scaffold/config.json for this repo')
+  .option('--project-type <type>', 'skip auto-detection and use this project type')
+  .option('--pack <spec>', 'seed a template pack as name=url@version (repeatable)', collect, [] as string[])
+  .action(async (opts: { projectType?: string; pack: string[] }) => {
+    try {
+      const repoRoot = process.cwd();
+      const projectType = opts.projectType ?? detectProjectType(repoRoot) ?? (await promptProjectType());
+      const packs = parsePackSpecs(opts.pack);
+      saveConfig(repoRoot, { projectType, packs });
+      console.log(`scaffold: wrote ${configPath(repoRoot)} (projectType: ${projectType}, packs: ${Object.keys(packs).join(', ') || 'none'})`);
+    } catch (error) {
+      console.error('scaffold init failed:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+const templates = program.command('templates').description('Manage template pack caches');
+
+templates
+  .command('sync')
+  .description('Clone or reuse the configured template pack(s) into the local cache')
+  .option('--update', 'move each pack\'s pinned SHA forward to the remote HEAD', false)
+  .action(async (opts: { update: boolean }) => {
+    try {
+      const repoRoot = process.cwd();
+      const results = await syncTemplates(repoRoot, defaultCacheRoot(repoRoot), { update: opts.update });
+      for (const result of results) {
+        console.log(`scaffold: ${result.pack} -> ${result.resolvedSha}${result.changed ? ' (updated)' : ''}`);
+      }
+    } catch (error) {
+      console.error('scaffold templates sync failed:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+templates
+  .command('list')
+  .description('List available version folders for the configured pack(s)')
+  .action(() => {
+    try {
+      const repoRoot = process.cwd();
+      const listings = listTemplateVersions(repoRoot, defaultCacheRoot(repoRoot));
+      console.log(encodeToon(listings as unknown as Record<string, unknown>));
+    } catch (error) {
+      console.error('scaffold templates list failed:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('generate')
+  .description('Render templates and inject marker-based boilerplate from an intent manifest')
+  .requiredOption('--manifest <file>', 'intent manifest file (.toon or .json)')
+  .option('--dry-run', 'plan without writing anything to disk', false)
+  .option('--force', 'overwrite content that would otherwise be refused for differing from a prior injection', false)
+  .option('--json', 'print the report as plain JSON instead of TOON', false)
+  .action(async (opts: { manifest: string; dryRun: boolean; force: boolean; json: boolean }) => {
+    try {
+      const report = await runGenerate({ repoRoot: process.cwd(), manifestPath: opts.manifest, dryRun: opts.dryRun, force: opts.force });
+      console.log(renderReport(report, opts.json ? 'json' : 'toon'));
+    } catch (error) {
+      console.error('scaffold generate failed:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('undo <changesetId>')
+  .description('Revert a prior generate run by its changeset id')
+  .option('--force', 'discard on-disk edits that no longer match the post-generate hash', false)
+  .action((changesetId: string, opts: { force: boolean }) => {
+    try {
+      undoChangeset(process.cwd(), changesetId, opts.force);
+      console.log(`scaffold: undone changeset ${changesetId}`);
+    } catch (error) {
+      console.error('scaffold undo failed:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('status')
+  .description('Report whether any AI_IMPLEMENTATION block from a prior generate is still unfilled')
+  .option('--json', 'print status as plain JSON instead of TOON', false)
+  .action((opts: { json: boolean }) => {
+    try {
+      const result = computeStatus(process.cwd());
+      console.log(opts.json ? JSON.stringify(result, null, 2) : encodeToon(result as unknown as Record<string, unknown>));
+      process.exit(result.resolvedAll ? 0 : 1);
+    } catch (error) {
+      console.error('scaffold status failed:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+program.parseAsync(process.argv).catch((error) => {
+  console.error('scaffold: unexpected error:', error instanceof Error ? error.message : error);
+  process.exit(1);
+});
