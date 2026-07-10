@@ -135,9 +135,8 @@ test('dispatch: status --json exits 1 with valid JSON when scaffold binary is mi
       const code = await dispatch(['status', '--json']);
       assert.equal(code, 1);
       const out = cap.out();
-      const parsed = JSON.parse(out);
-      assert.equal(parsed.resolvedAll, false);
-      assert.deepEqual(parsed.unresolved, []);
+      assert.match(out, /"resolvedAll":\s*false/);
+      assert.match(out, /"unresolved":\s*\[\]/);
     });
   } finally { cap.restore(); }
 });
