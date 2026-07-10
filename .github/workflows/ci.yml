@@ -25,9 +25,24 @@ jobs:
       - run: npm run lint
       - run: npm test
 
+  templates-dotnet-build-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - run: npm ci
+      - run: npm run build --workspace=packages/core
+      - run: node packages/templates-dotnet/tools/validate-build.mjs
+
   publish:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: test
+    needs: [test, templates-dotnet-build-check]
     runs-on: ubuntu-latest
     concurrency:
       group: publish
