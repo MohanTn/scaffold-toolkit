@@ -26,6 +26,7 @@ import { loadDescriptor } from '../descriptor/load.js';
 import type { DescriptorInjection, PackCommentSyntaxMap } from '../descriptor/schema.js';
 import { renderPathTemplate } from '../generate/render.js';
 import { buildHandlebarsContext, runGenerate } from '../generate/generate.js';
+import { registerPackHelpers } from '../generate/packHelpers.js';
 import { resolveMarkerSyntax } from '../generate/commentSyntax.js';
 import { syncTemplates, defaultCacheRoot } from '../templates/sync.js';
 import { saveConfig } from '../config/loader.js';
@@ -78,6 +79,11 @@ export async function validatePackVersion(packDir: string, version: string, mani
     // `runGenerate`'s own call becomes a noop when the manifest already
     // passed this check — defensible duplication, not divergent logic.
     validateManifestInputs(descriptor.packVersion, manifest, descriptor.inputs);
+    // Pack-local helpers (e.g. a `plural` used in target output paths) must be
+    // registered before any renderPathTemplate call below — runGenerate does
+    // this again internally, but by then createdPaths/injectionsByFile here
+    // would already have failed to render.
+    registerPackHelpers(path.join(packDir, version));
     const context = buildHandlebarsContext(manifest as unknown as { entity?: string; fields?: unknown; options?: Record<string, unknown> });
 
     // Files the pack creates itself (rendered paths) never need synthesizing —
