@@ -127,8 +127,13 @@ function rebuildContent(original: string, replacements: Replacement[]): string {
  * existing, non-empty interior content hashes differently from what would
  * be written now and `force` is false — the caller is expected to not write
  * anything for this file (or this whole generate run) when that happens.
+ *
+ * `freshlyCreated` marks a file this same generate call rendered for the
+ * first time (not previously on disk). A marker interior baked in by the
+ * target's own template is then never a protected human edit, so it is
+ * treated like an empty marker regardless of its content.
  */
-export function injectMarkers(filePath: string, originalContent: string, requests: InjectionRequest[], force: boolean): InjectResult {
+export function injectMarkers(filePath: string, originalContent: string, requests: InjectionRequest[], force: boolean, freshlyCreated = false): InjectResult {
   const scanRequests = requests.map((request) => {
     const syntax = resolveMarkerSyntax(filePath, request.marker, request.commentSyntaxOverride, request.packSyntaxMap);
     return { marker: request.marker, startLine: syntax.startLine, endLine: syntax.endLine };
@@ -142,7 +147,7 @@ export function injectMarkers(filePath: string, originalContent: string, request
   for (const request of requests) {
     const location = locations.get(request.marker)!;
     const interiorLines = lines.slice(location.startLineIndex + 1, location.endLineIndex);
-    const isEmpty = interiorLines.every((l) => l.trim().length === 0);
+    const isEmpty = freshlyCreated || interiorLines.every((l) => l.trim().length === 0);
     const { hex: existingHex, contentLines: existingContentLines } = extractExistingHash(interiorLines, request.hashTrailerPrefix);
     const newHash = contentHash(request.renderedContent);
 

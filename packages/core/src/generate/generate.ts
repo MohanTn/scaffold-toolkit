@@ -128,8 +128,18 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRep
   // Files this run creates are visible to injections targeting the same
   // file within the same generate call, without requiring a disk round trip.
   const virtualContent = new Map<string, string>();
+  // A target rendered fresh by *this* run (not previously on disk) may still
+  // ship its marker interior pre-filled by the template author rather than
+  // empty. That content was never a human's hand-edit, so it must not trip
+  // the injector's "protect existing content" refusal the way genuine
+  // pre-existing content would — the injector treats any path in this set
+  // as safe to stamp outright, same as a truly empty marker.
+  const freshlyCreatedPaths = new Set<string>();
   for (const created of plannedCreates) {
-    if (!created.skip) virtualContent.set(created.absPath, created.content);
+    if (!created.skip) {
+      virtualContent.set(created.absPath, created.content);
+      if (!created.existedBefore) freshlyCreatedPaths.add(created.absPath);
+    }
   }
 
   function readOriginalContent(absPath: string): string {
@@ -182,7 +192,7 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRep
   const injectedFiles: InjectedFile[] = [];
   for (const group of groupsByFile.values()) {
     const originalContent = readOriginalContent(group.absPath);
-    const { content: newContent, outcomes } = injectMarkers(group.relPath, originalContent, group.requests, force);
+    const { content: newContent, outcomes } = injectMarkers(group.relPath, originalContent, group.requests, force, freshlyCreatedPaths.has(group.absPath));
     injectedFiles.push({
       absPath: group.absPath,
       relPath: group.relPath,
