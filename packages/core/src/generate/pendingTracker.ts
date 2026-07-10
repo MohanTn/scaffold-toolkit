@@ -10,6 +10,14 @@ import path from 'node:path';
 
 export interface PendingBlock {
   file: string;
+  /**
+   * Zero-based ordinal of this block among *all* AI_IMPLEMENTATION blocks in
+   * its file at generate time. `scaffold status` matches on this rather than
+   * on line numbers, which drift the moment an earlier block is filled, or on
+   * position within the (filtered) pending list, which is only a subset of
+   * the file's blocks.
+   */
+  blockIndex: number;
   startLine: number;
   endLine: number;
   placeholderContent: string;

@@ -28,7 +28,7 @@ test('toon round-trip: report-shaped object with nested arrays of objects', () =
       { file: 'Program.cs', marker: 'SCAFFOLD_ROUTES', action: 'created' },
     ],
     aiImplementation: [
-      { file: 'src/Endpoints/InvoiceEndpoint.cs', startLine: 5, endLine: 7, content: '        // TODO: implement Invoice handling', empty: false },
+      { file: 'src/Endpoints/InvoiceEndpoint.cs', startLine: 5, endLine: 7, content: '        // TODO: implement Invoice handling', empty: false, required: true },
     ],
   };
   const encoded = encodeToon(report);

@@ -29,16 +29,18 @@ export function computeStatus(repoRoot: string): StatusResult {
   for (const record of listPendingRecords(repoRoot)) {
     let anyUnresolvedInRecord = false;
 
-    for (const [index, block] of record.blocks.entries()) {
+    for (const block of record.blocks) {
       const absPath = path.join(repoRoot, block.file);
       if (!existsSync(absPath)) continue; // the file itself is gone — nothing left to check
 
       const content = readFileSync(absPath, 'utf8');
       const currentBlocks = scanAiImplementationBlocks(block.file, content);
-      // Line numbers can drift if unrelated edits shifted the file, so match
-      // by position among this file's blocks (recorded order) first, falling
-      // back to the recorded start line if the block count changed.
-      const match = currentBlocks[index] ?? currentBlocks.find((b) => b.startLine === block.startLine);
+      // Match on the block's ordinal among all blocks in its file (recorded at
+      // generate time). Line numbers drift the moment an earlier block is
+      // filled, and the pending list is only a subset of the file's blocks, so
+      // neither line nor pending-list position is a reliable key. Fall back to
+      // the recorded start line only if the block count changed.
+      const match = currentBlocks[block.blockIndex] ?? currentBlocks.find((b) => b.startLine === block.startLine);
       const stillPlaceholder = match !== undefined && match.content.trim() === block.placeholderContent.trim();
 
       if (!match || stillPlaceholder) {

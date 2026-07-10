@@ -20,6 +20,8 @@ export interface ReportAiImplementationEntry {
   endLine: number;
   content: string;
   empty: boolean;
+  /** The pack marked this block a required business-logic fill-in; a host agent must complete it before the run is considered done (see `scaffold status`). */
+  required: boolean;
 }
 
 export interface GenerateReport {

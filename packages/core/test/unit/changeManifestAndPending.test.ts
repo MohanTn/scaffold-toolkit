@@ -51,7 +51,7 @@ test('writePending is a no-op for zero blocks, then listPendingRecords/removePen
   writePending(repoRoot, id, []);
   assert.deepEqual(listPendingRecords(repoRoot), []);
 
-  const blocks = [{ file: 'src/Endpoints/InvoiceEndpoint.cs', startLine: 4, endLine: 6, placeholderContent: '// TODO' }];
+  const blocks = [{ file: 'src/Endpoints/InvoiceEndpoint.cs', blockIndex: 0, startLine: 4, endLine: 6, placeholderContent: '// TODO' }];
   writePending(repoRoot, id, blocks);
   const records = listPendingRecords(repoRoot);
   assert.equal(records.length, 1);

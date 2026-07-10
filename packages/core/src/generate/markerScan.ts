@@ -110,12 +110,31 @@ export interface AiImplementationBlock {
   endLine: number;
   content: string;
   empty: boolean;
+  /**
+   * True when the pack author tagged the START marker with the reserved
+   * `required` token (`AI_IMPLEMENTATION_START:required` /
+   * `SCAFFOLD:AI_IMPLEMENTATION:START:required`). A required block is tracked
+   * by `scaffold status` until its content changes from the shipped
+   * placeholder, even though the placeholder already compiles — this is the
+   * seam a host agent must fill with real business logic. Untagged blocks are
+   * optional extension points, tracked only when they ship empty.
+   */
+  required: boolean;
 }
 
 // Both spellings pack authors use in the wild: `AI_IMPLEMENTATION_START`
 // (react packs) and `SCAFFOLD:AI_IMPLEMENTATION:START` (dotnet packs).
 const START_RE = /AI_IMPLEMENTATION[_:]START(?::\s*(\S+))?/;
 const END_RE = /AI_IMPLEMENTATION[_:]END(?::\s*(\S+))?/;
+
+/** The one trailing token that is a flag, not a start/end pairing id. */
+const REQUIRED_TOKEN = 'required';
+
+/** Splits a captured trailing token into its pairing id and the required flag. */
+function parseMarkerToken(token: string | undefined): { id?: string; required: boolean } {
+  if (token === REQUIRED_TOKEN) return { id: undefined, required: true };
+  return { id: token, required: false };
+}
 
 /**
  * Scans for AI_IMPLEMENTATION_START/END phase-3 fill-in blocks. These are
@@ -128,12 +147,13 @@ const END_RE = /AI_IMPLEMENTATION[_:]END(?::\s*(\S+))?/;
 export function scanAiImplementationBlocks(filePath: string, content: string): AiImplementationBlock[] {
   const lines = content.split('\n');
   const blocks: AiImplementationBlock[] = [];
-  const stack: { id?: string; startLine: number }[] = [];
+  const stack: { id?: string; required: boolean; startLine: number }[] = [];
 
   lines.forEach((line, idx) => {
     const startMatch = START_RE.exec(line);
     if (startMatch) {
-      stack.push({ id: startMatch[1], startLine: idx });
+      const { id, required } = parseMarkerToken(startMatch[1]);
+      stack.push({ id, required, startLine: idx });
       return;
     }
     const endMatch = END_RE.exec(line);
@@ -142,18 +162,20 @@ export function scanAiImplementationBlocks(filePath: string, content: string): A
       if (!open) {
         throw new Error(`${filePath}:${idx + 1}: AI_IMPLEMENTATION_END with no matching START`);
       }
-      if (open.id && endMatch[1] && open.id !== endMatch[1]) {
+      const endId = parseMarkerToken(endMatch[1]).id;
+      if (open.id && endId && open.id !== endId) {
         throw new Error(
-          `${filePath}:${idx + 1}: AI_IMPLEMENTATION_END id "${endMatch[1]}" does not match START id "${open.id}" at line ${open.startLine + 1}`,
+          `${filePath}:${idx + 1}: AI_IMPLEMENTATION_END id "${endId}" does not match START id "${open.id}" at line ${open.startLine + 1}`,
         );
       }
       const innerLines = lines.slice(open.startLine + 1, idx);
       blocks.push({
-        id: open.id ?? endMatch[1],
+        id: open.id ?? endId,
         startLine: open.startLine,
         endLine: idx,
         content: innerLines.join('\n'),
         empty: innerLines.every((l) => l.trim().length === 0),
+        required: open.required,
       });
     }
   });

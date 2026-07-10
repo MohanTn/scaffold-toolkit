@@ -229,6 +229,52 @@ export function buildRealMarkerFixturePackRepo(): string {
   return dir;
 }
 
+// An endpoint template whose AI block is tagged :required and ships a
+// compilable default (non-empty). It must still be tracked by status — the
+// business-logic seam the host agent has to complete — until its content
+// changes, which the empty-only tracking rule would have missed.
+const REQUIRED_BLOCK_ENDPOINT_TEMPLATE = `namespace Fixture.Endpoints;
+
+public class {{entity}}Endpoint
+{
+    public void Handle()
+    {
+        // SCAFFOLD:AI_IMPLEMENTATION:START:required
+        var result = _service.Get();
+        // SCAFFOLD:AI_IMPLEMENTATION:END
+    }
+}
+`;
+
+/** A fixture pack whose single create target ships a required, non-empty AI block (see REQUIRED_BLOCK_ENDPOINT_TEMPLATE). */
+export function buildRequiredBlockFixturePackRepo(): string {
+  const dir = mkdtempSync(path.join(tmpdir(), 'scaffold-required-pack-'));
+  git(dir, ['init', '-q']);
+  git(dir, ['config', 'user.email', 'test@example.com']);
+  git(dir, ['config', 'user.name', 'Scaffold Test']);
+
+  const versionDir = path.join(dir, 'v1');
+  mkdirSync(versionDir, { recursive: true });
+  writeFileSync(
+    path.join(versionDir, 'manifest.templates.json'),
+    JSON.stringify(
+      {
+        descriptorSchemaVersion: 2,
+        packVersion: 'v1',
+        requires: { scaffoldCli: '>=0.0.0' },
+        targets: [{ output: 'src/Endpoints/{{entity}}Endpoint.cs', template: 'Endpoint.cs.hbs', mode: 'create' }],
+        injections: [],
+      },
+      null,
+      2,
+    ),
+  );
+  writeFileSync(path.join(versionDir, 'Endpoint.cs.hbs'), REQUIRED_BLOCK_ENDPOINT_TEMPLATE);
+  git(dir, ['add', '-A']);
+  git(dir, ['commit', '-q', '-m', 'required-block pack']);
+  return dir;
+}
+
 // A pack version with no ANCHOR_CATALOG entry (e.g. a frontend pack version) — used by bootstrap-markers' honest-empty-slot test.
 export const UNCATALOGED_PACK_VERSION = 'tanstack-query';
 

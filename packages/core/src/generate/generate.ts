@@ -180,19 +180,36 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRep
   }
 
   // --- AI_IMPLEMENTATION scan, over files this run actually created/modified -----
-  const aiImplementation: ReportAiImplementationEntry[] = [];
+  // blockIndex is the block's ordinal among all blocks in its file, kept so
+  // the pending record survives line drift as earlier blocks get filled.
+  interface ScannedAiBlock extends ReportAiImplementationEntry {
+    blockIndex: number;
+  }
+  const aiBlocks: ScannedAiBlock[] = [];
+  function collectAiBlocks(relPath: string, content: string): void {
+    for (const [blockIndex, block] of scanAiImplementationBlocks(relPath, content).entries()) {
+      aiBlocks.push({
+        file: relPath,
+        blockIndex,
+        startLine: block.startLine,
+        endLine: block.endLine,
+        content: block.content,
+        empty: block.empty,
+        required: block.required,
+      });
+    }
+  }
   for (const created of plannedCreates) {
     if (created.skip) continue;
-    for (const block of scanAiImplementationBlocks(created.relPath, created.content)) {
-      aiImplementation.push({ file: created.relPath, startLine: block.startLine, endLine: block.endLine, content: block.content, empty: block.empty });
-    }
+    collectAiBlocks(created.relPath, created.content);
   }
   for (const injected of injectedFiles) {
     if (!injected.changed) continue;
-    for (const block of scanAiImplementationBlocks(injected.relPath, injected.newContent)) {
-      aiImplementation.push({ file: injected.relPath, startLine: block.startLine, endLine: block.endLine, content: block.content, empty: block.empty });
-    }
+    collectAiBlocks(injected.relPath, injected.newContent);
   }
+  const aiImplementation: ReportAiImplementationEntry[] = aiBlocks.map(
+    ({ file, startLine, endLine, content, empty, required }) => ({ file, startLine, endLine, content, empty, required }),
+  );
 
   const created: ReportCreatedEntry[] = plannedCreates.map((c) => ({ file: c.relPath, mode: c.mode, skipped: c.skip }));
   const injected: ReportInjectedEntry[] = injectedFiles.flatMap((f) => f.outcomes);
@@ -234,7 +251,12 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRep
     writePending(
       repoRoot,
       changesetId,
-      aiImplementation.filter((b) => b.empty).map((b) => ({ file: b.file, startLine: b.startLine, endLine: b.endLine, placeholderContent: b.content })),
+      // Track a block when it ships empty (an unfilled stub) or when the pack
+      // explicitly marked it `required` (a business-logic seam the host agent
+      // must complete even though the shipped placeholder already compiles).
+      aiBlocks
+        .filter((b) => b.empty || b.required)
+        .map((b) => ({ file: b.file, blockIndex: b.blockIndex, startLine: b.startLine, endLine: b.endLine, placeholderContent: b.content })),
     );
     report.changesetId = changesetId;
   }

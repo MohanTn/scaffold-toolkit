@@ -13,6 +13,7 @@ import { undoChangeset } from './undo/undo.js';
 import { computeStatus } from './status/status.js';
 import { runBootstrapMarkers } from './bootstrapMarkers/bootstrapMarkers.js';
 import { renderBootstrapMarkersReport } from './bootstrapMarkers/bootstrapMarkersReport.js';
+import { validatePack } from './validatePack/validatePack.js';
 import { encodeToon } from './toon/codec.js';
 
 const pkg = readOwnPackageJson(import.meta.url);
@@ -162,6 +163,28 @@ program
       process.exit(report.needsManual.length > 0 ? 1 : 0);
     } catch (error) {
       console.error('scaffold bootstrap-markers failed:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('validate-pack')
+  .description('Run a real generate against a synthesized target repo to smoke-test a local template pack (exercises injection, not just rendering)')
+  .requiredOption('--pack <dir>', 'path to the local template pack repo')
+  .option('--pack-version <version>', 'validate only this version folder (default: every version folder in the pack)')
+  .requiredOption('--manifest <file>', 'sample intent manifest (.toon or .json) to drive the generate')
+  .option('--json', 'print the report as plain JSON instead of TOON', false)
+  .action(async (opts: { pack: string; packVersion?: string; manifest: string; json: boolean }) => {
+    try {
+      const results = await validatePack({ packDir: opts.pack, version: opts.packVersion, manifestPath: opts.manifest });
+      const report = { results, allValid: results.every((r) => r.ok) };
+      console.log(opts.json ? JSON.stringify(report, null, 2) : encodeToon(report as unknown as Record<string, unknown>));
+      for (const failed of results.filter((r) => !r.ok)) {
+        console.error(`scaffold validate-pack: version "${failed.version}" failed: ${failed.error}`);
+      }
+      process.exit(report.allValid ? 0 : 1);
+    } catch (error) {
+      console.error('scaffold validate-pack failed:', error instanceof Error ? error.message : error);
       process.exit(1);
     }
   });

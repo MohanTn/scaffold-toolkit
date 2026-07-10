@@ -106,3 +106,26 @@ test('scanAiImplementationBlocks also matches the colon form SCAFFOLD:AI_IMPLEME
   assert.equal(blocks[0].empty, false);
   assert.match(blocks[0].content, /GetByIdAsync/);
 });
+
+test('scanAiImplementationBlocks marks a block required when its START carries the reserved :required token, in both spellings', () => {
+  const react = ['// AI_IMPLEMENTATION_START:required', '  return derive();', '// AI_IMPLEMENTATION_END'].join('\n');
+  const dotnet = ['// SCAFFOLD:AI_IMPLEMENTATION:START:required', '  var x = 1;', '// SCAFFOLD:AI_IMPLEMENTATION:END'].join('\n');
+  assert.equal(scanAiImplementationBlocks('hooks.ts', react)[0].required, true);
+  assert.equal(scanAiImplementationBlocks('Service.cs', dotnet)[0].required, true);
+});
+
+test('scanAiImplementationBlocks: an untagged block is not required, and the required token is a flag not a pairing id (END may stay plain)', () => {
+  const untagged = ['// AI_IMPLEMENTATION_START', '  x', '// AI_IMPLEMENTATION_END'].join('\n');
+  assert.equal(scanAiImplementationBlocks('f.ts', untagged)[0].required, false);
+  // START tagged :required, END plain — must still pair without a mismatch throw.
+  const startOnly = ['// AI_IMPLEMENTATION_START:required', '  x', '// AI_IMPLEMENTATION_END'].join('\n');
+  const blocks = scanAiImplementationBlocks('f.ts', startOnly);
+  assert.equal(blocks.length, 1);
+  assert.equal(blocks[0].required, true);
+  assert.equal(blocks[0].id, undefined, 'the required flag is not surfaced as a pairing id');
+});
+
+test('scanAiImplementationBlocks still enforces genuine id pairing (a non-required id must match)', () => {
+  const mismatched = ['// AI_IMPLEMENTATION_START:one', '  x', '// AI_IMPLEMENTATION_END:two'].join('\n');
+  assert.throws(() => scanAiImplementationBlocks('f.ts', mismatched), /does not match START id/);
+});
