@@ -1,6 +1,6 @@
 {
   "name": "@mohantn/scaffold-core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Deterministic, LLM-agnostic scaffolding CLI: renders Handlebars templates and injects marker-based boilerplate into existing files for any coding agent to drive.",
   "license": "MIT",
   "author": "Mohan TN <mohan.tn100@gmail.com>",
