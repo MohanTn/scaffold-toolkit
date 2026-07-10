@@ -4,6 +4,13 @@
   "description": "Claude Code Skill plus hooks that let Claude drive @mohantn/scaffold-core for deterministic scaffolding, with hard enforcement that every AI_IMPLEMENTATION block is filled before the turn ends.",
   "license": "MIT",
   "author": "Mohan TN <mohan.tn100@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MohanTn/scaffold-toolkit.git",
+    "directory": "packages/adapter-claude-code"
+  },
+  "bugs": "https://github.com/MohanTn/scaffold-toolkit/issues",
+  "homepage": "https://github.com/MohanTn/scaffold-toolkit#readme",
   "private": true,
   "type": "module",
   "scripts": {
