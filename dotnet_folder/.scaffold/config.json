@@ -1,0 +1,17 @@
+{
+  "projectType": "dotnet",
+  "packs": {
+    "backend": {
+      "url": "/tmp/dotnet-scaffold-test/pack",
+      "version": "v1",
+      "pinnedSha": "546487b9000d5266320c273891e7df27fd62152c"
+    }
+  },
+  "provenance": {
+    "src/AcmeCorp.Api/Program.cs": {
+      "packUrl": "/tmp/dotnet-scaffold-test/pack",
+      "packVersion": "v1",
+      "resolvedSha": "546487b9000d5266320c273891e7df27fd62152c"
+    }
+  }
+}

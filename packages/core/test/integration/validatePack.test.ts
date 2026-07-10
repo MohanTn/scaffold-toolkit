@@ -5,7 +5,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { validatePack } from '../../src/validatePack/validatePack.js';
-import { buildFixturePackRepo, writeManifestFile, buildFixtureTargetRepo } from './testHarness.js';
+import { buildFixturePackRepo, writeManifestFile, buildFixtureTargetRepo, buildPackDrivenPythonPackRepo } from './testHarness.js';
 
 function writeManifest(dir: string): string {
   return writeManifestFile(dir, 'Invoice');
@@ -66,4 +66,47 @@ test('validate-pack: discovers every version folder when no version is given', a
   const versions = results.map((r) => r.version).sort();
   assert.deepEqual(versions, ['v1', 'v2', 'v3']);
   assert.ok(results.every((r) => r.ok), JSON.stringify(results));
+});
+
+// --- Axis 1+2+3 end-to-end: a non-dotnet pack exercising all three new optional descriptor fields ---
+// inputs[] declares an `aggregate` + `events[]` vocabulary (no `entity`/`fields`); the pack's
+// commentSyntax map covers `.py` (a built-in-TABLE-unlisted extension); bootstrapAnchors declares
+// brownfield anchors for both app.py and models.py. validatePackVersion must drive all the way
+// through — end-to-end — meaning all three axes compose cleanly.
+
+test('validate-pack: a non-dotnet pack with inputs[] + pack commentSyntax + bootstrapAnchors passes end-to-end', async () => {
+  const packRepo = buildPackDrivenPythonPackRepo();
+  // The manifest just needs a place on disk; validate-pack synthesizes
+  // its own throwaway target repo, so we only need a scratch location
+  // for the manifest file itself.
+  const manifestDir = mkdtempSync(path.join(tmpdir(), 'scaffold-python-manifest-'));
+  const manifestPath = path.join(manifestDir, 'order-placed.manifest.json');
+  writeFileSync(manifestPath, JSON.stringify({
+    manifestSchemaVersion: 1,
+    targetStack: 'python-events',
+    aggregate: 'OrderPlaced',
+    events: [{ name: 'Created', type: 'Guid' }],
+  }));
+  const results = await validatePack({ packDir: packRepo, version: 'v1', manifestPath });
+  assert.equal(results.length, 1);
+  assert.equal(results[0].ok, true, results[0].error);
+  // The Python pack's app.py injection target must be synthesized (the
+  // pack's `targets[]` only creates `src/aggregates/{{aggregate}}.py`,
+  // not app.py).
+  assert.ok(results[0].synthesizedFiles.includes('app.py'), `expected app.py to be synthesized, got: ${results[0].synthesizedFiles.join(', ')}`);
+  assert.ok(results[0].injectionsExercised >= 1);
+});
+
+test('validate-pack: existing dotnet v1 fixture still passes unchanged under the relaxed manifest schema and new fields', async () => {
+  // The legacy default contract (PascalCase entity + non-empty fields) still applies for any
+  // descriptor without an `inputs[]` declaration — the dotnet fixtures are unchanged at the
+  // descriptor level. This guards against accidental regressions of the relaxed base schema.
+  const packRepo = buildFixturePackRepo('create');
+  const scratch = buildFixtureTargetRepo();
+  const manifestPath = writeManifest(scratch);
+
+  const results = await validatePack({ packDir: packRepo, version: 'v1', manifestPath });
+  assert.equal(results.length, 1);
+  assert.equal(results[0].ok, true, results[0].error);
+  assert.equal(results[0].injectionsExercised, 2);
 });

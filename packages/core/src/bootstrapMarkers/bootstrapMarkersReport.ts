@@ -34,12 +34,25 @@ export interface BootstrapMarkersUnsupportedPackEntry {
   reason: string;
 }
 
+/**
+ * Non-fatal warnings (e.g. descriptor load failed but the command still
+ * makes the legacy built-in catalog work). Treated as information only —
+ * they never gate the command's exit code the way `needsManual` does, so
+ * a broken descriptor doesn't surface as a CI failure when the built-in
+ * fallback still produced placements.
+ */
+export interface BootstrapMarkersWarningEntry {
+  packSlot: string;
+  message: string;
+}
+
 export interface BootstrapMarkersReport {
   dryRun: boolean;
   placed: BootstrapMarkersPlacedEntry[];
   alreadyPresent: BootstrapMarkersAlreadyPresentEntry[];
   needsManual: BootstrapMarkersNeedsManualEntry[];
   unsupportedPacks: BootstrapMarkersUnsupportedPackEntry[];
+  warnings: BootstrapMarkersWarningEntry[];
 }
 
 export function renderBootstrapMarkersReport(report: BootstrapMarkersReport, format: 'toon' | 'json'): string {

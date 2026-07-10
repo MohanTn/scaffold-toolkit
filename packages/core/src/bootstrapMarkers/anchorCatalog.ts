@@ -13,6 +13,15 @@
  *
  * This module only holds data and a namespace guard; the actual anchor
  * resolution and splicing logic lives in markerPlacement.ts.
+ *
+ * **Pack-driven fallback chain** (axis 3 of the pack-driven plan): a pack
+ * may declare its own anchors directly in `manifest.templates.json` via
+ * the optional `bootstrapAnchors` field; if absent, this built-in
+ * `ANCHOR_CATALOG[version]` is the fallback. `compileBootstrapAnchors`
+ * compiles a pack's raw `string`-pattern declaration into the same
+ * runtime `AnchorGroup[]` shape this module's built-in `ANCHOR_CATALOG`
+ * already uses, so `markerPlacement.ts` can consume either source
+ * uniformly.
  */
 
 export type PackVersion = 'v8-controller' | 'v8-controller-gcp' | 'v10-minimal-api' | 'v10-minimal-api-gcp';
@@ -104,3 +113,77 @@ export function validateCatalog(catalog: Record<string, AnchorGroup[]>): void {
 }
 
 validateCatalog(ANCHOR_CATALOG);
+
+/**
+ * Compiles a pack-declared `bootstrapAnchors[]` (string patterns) into
+ * the same `AnchorGroup[]` shape this module's built-in `ANCHOR_CATALOG`
+ * already exposes. Runs `assertValidMarkerId` on every marker so a pack
+ * authoring a reserved-name marker fails fast at descriptor-load time.
+ * `Object.hasOwn(b, 'declarationPattern')` distinguishes
+ * `after-class-brace` vs `after-line` so the two anchor kinds stay
+ * exhaustive — ajv's `oneOf` schema check has already enforced this at
+ * descriptor-load time, but a hand-authored call site (not going
+ * through ajv) still gets a clear error rather than a silent taper to
+ * the wrong shape.
+ */
+export function compileBootstrapAnchors(raw: unknown): AnchorGroup[] {
+  if (!Array.isArray(raw)) {
+    throw new Error('bootstrapAnchors must be an array');
+  }
+  const compiled: AnchorGroup[] = [];
+  for (const [i, entry] of raw.entries()) {
+    if (typeof entry !== 'object' || entry === null) {
+      throw new Error(`bootstrapAnchors[${i}] must be an object`);
+    }
+    const e = entry as Record<string, unknown>;
+    const filenames = e.candidateFilenames;
+    const anchor = e.anchor as Record<string, unknown> | undefined;
+    const markers = e.markers;
+    if (!Array.isArray(filenames) || filenames.length === 0 || !filenames.every((v) => typeof v === 'string' && v.length > 0)) {
+      throw new Error(`bootstrapAnchors[${i}].candidateFilenames must be a non-empty array of non-empty strings`);
+    }
+    if (!Array.isArray(markers) || markers.length === 0) {
+      throw new Error(`bootstrapAnchors[${i}].markers must be a non-empty array`);
+    }
+    for (const m of markers) {
+      if (typeof m !== 'string') throw new Error(`bootstrapAnchors[${i}].markers entries must be strings`);
+      assertValidMarkerId(m);
+    }
+    if (typeof anchor !== 'object' || anchor === null) {
+      throw new Error(`bootstrapAnchors[${i}].anchor must be an object`);
+    }
+    if (anchor.kind === 'after-line') {
+      if (typeof anchor.pattern !== 'string' || anchor.pattern.length === 0) {
+        throw new Error(`bootstrapAnchors[${i}].anchor.pattern must be a non-empty string for kind "after-line"`);
+      }
+      compiled.push({
+        candidateFilenames: filenames.slice(),
+        anchor: { kind: 'after-line', pattern: compileRegExp(`bootstrapAnchors[${i}].anchor.pattern`, anchor.pattern) },
+        markers: markers.slice(),
+      });
+      continue;
+    }
+    if (anchor.kind === 'after-class-brace') {
+      if (typeof anchor.declarationPattern !== 'string' || anchor.declarationPattern.length === 0) {
+        throw new Error(`bootstrapAnchors[${i}].anchor.declarationPattern must be a non-empty string for kind "after-class-brace"`);
+      }
+      compiled.push({
+        candidateFilenames: filenames.slice(),
+        anchor: { kind: 'after-class-brace', declarationPattern: compileRegExp(`bootstrapAnchors[${i}].anchor.declarationPattern`, anchor.declarationPattern) },
+        markers: markers.slice(),
+      });
+      continue;
+    }
+    throw new Error(`bootstrapAnchors[${i}].anchor.kind must be "after-line" or "after-class-brace" (got ${JSON.stringify(anchor.kind)})`);
+  }
+  return compiled;
+}
+
+function compileRegExp(fieldPath: string, source: string): RegExp {
+  try {
+    return new RegExp(source);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`${fieldPath} is not a valid RegExp source: ${source} (${message})`);
+  }
+}

@@ -13,6 +13,7 @@
 
 import { resolveMarkerSyntax } from '../generate/commentSyntax.js';
 import type { AnchorGroup } from './anchorCatalog.js';
+import type { PackCommentSyntaxMap } from '../descriptor/schema.js';
 
 export type PlacementOutcomeKind = 'placed' | 'already-present' | 'needs-manual';
 
@@ -105,12 +106,17 @@ function resolveAfterClassBraceAnchor(lines: string[], declarationPattern: RegEx
   return { error: `no opening brace found within ${CLASS_BRACE_LOOKAHEAD} lines after declaration at line ${declIdx + 1}` };
 }
 
-export function placeMarkerGroup(filePath: string, content: string, group: AnchorGroup): PlaceMarkerGroupResult {
+export function placeMarkerGroup(filePath: string, content: string, group: AnchorGroup, packSyntaxMap?: PackCommentSyntaxMap): PlaceMarkerGroupResult {
   // (a) Resolve marker comment syntax for every marker up front; an
   // untabled extension fails identically for every marker in the group.
+  // The pack-level `commentSyntax` map (if supplied) is consulted before
+  // the built-in TABLE, mirroring the precedence in `generate/injector.ts`,
+  // so a brownfield file in a non-table extension (e.g. `.py`, `.swift`)
+  // bootstraps markers using the pack's declared syntax rather than
+  // failing as "no known comment syntax".
   let syntaxes: Map<string, { startLine: string; endLine: string }>;
   try {
-    syntaxes = new Map(group.markers.map((marker) => [marker, resolveMarkerSyntax(filePath, marker)]));
+    syntaxes = new Map(group.markers.map((marker) => [marker, resolveMarkerSyntax(filePath, marker, undefined, packSyntaxMap)]));
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     return needsManualForAll(group, reason, content);

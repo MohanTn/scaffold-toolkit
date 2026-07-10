@@ -6,6 +6,21 @@ All notable changes to this project are documented here. The format is based on 
 
 ### Added
 
+- Implements descriptor v2 additive features (inputs, commentSyntax, bootstrapAnchors) that allow packs to define their own contracts and marker placement rules. Relaxes the base manifest schema to only require manifestSchemaVersion and targetStack, with per-pack input validation (including prototype-pollution defenses) enforced after descriptor load. Existing dotnet packs remain byte-for-byte compatible.
+- **Pack-driven scaffolding (descriptor v2 additive)**: three new optional descriptor fields let a pack declare its own input vocabulary, comment syntax, and brownfield anchors, so the CLI engine drives any language or architecture without engine code changes:
+  - `inputs`: per-pack contract for the intent manifest (e.g. `aggregate` + `events[]` for an event-sourced backend; `entity` + `fields[]` is the legacy default and stays the contract for any descriptor without an `inputs` declaration). Enforced after the descriptor loads by a new `validateManifestInputs` step in `manifest/inputValidation.ts`, with `Object.create(null)` + `Object.defineProperty` defending against prototype-pollution-style hostile pack declarations.
+  - `commentSyntax`: pack-level extension-to-comment-syntax map, with `{prefix}` or `{wrap: [open, close]}` shapes. Resolved by `generate/commentSyntax.ts`'s `resolveMarkerSyntax` with precedence **per-injection override → pack map → built-in TABLE → hard error**, mirroring the built-in rules. Threads through `generate/injector.ts` via a new `InjectionRequest.packSyntaxMap` and through `validatePack`'s host-file synthesizer.
+  - `bootstrapAnchors`: brownfield anchor declarations per pack. A new `compileBootstrapAnchors` converts raw string patterns to RegExp anchor groups, runs the reserved-namespace guard on every marker, and falls back to the built-in `ANCHOR_CATALOG` whenever the descriptor omits the field — preserving byte-for-byte compatibility with every existing dotnet pack. `bootstrap-markers` now loads the relevant descriptor from cache (or from a local `--pack <dir>` override) and emits non-fatal load failures to a new `warnings` channel so the command stays useful when the cached descriptor is broken. Adds a `--pack <dir>` option to `scaffold bootstrap-markers` for pack authors testing against an un-synced local descriptor.
+- **Relaxed base manifest schema**: `entity`/`fields` are no longer universally required at the base-schema layer. Only `manifestSchemaVersion` + `targetStack` are, with their shape still validated when present. Per-pack enforcement of the declared input contract (or the legacy default) happens after the pack descriptor loads.
+
+### Fixed
+
+- The `bootstrap-markers` fallback chain (descriptor-declared → built-in `ANCHOR_CATALOG` → `unsupportedPacks`) now gracefully handles a descriptor that exists but fails to load (e.g. `requires.scaffoldCli` mismatch): the failure is recorded on a `warnings` channel and the command falls through to the built-in catalog, so a pack with an out-of-sync CLI version today doesn't silently regress a path that previously worked.
+
+### Security
+
+- `manifest/inputValidation.ts`'s ajv schema-fragment construction defends against a hostile pack declaring `{ name: "__proto__" }` (or other prototype-namespaced keys) in its `inputs[]`: `properties` is built via `Object.create(null)` plus `Object.defineProperty` for own-property semantics, so the fragment cannot pollute `Object.prototype`. A regression test asserts `Object.prototype` integrity after running the compile-validate cycle with hostile input.
+
 - Implements pack-local Handlebars helper registration so template packs can ship a `helpers.js` that defines custom helpers for use in their templates. Refactors built-in helper registration from lazy (on first compile) to eager (at module load), ensuring pack helpers always override built-ins of the same name.
 
 ## [0.2.0]

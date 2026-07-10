@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ANCHOR_CATALOG, assertValidMarkerId, validateCatalog } from '../../src/bootstrapMarkers/anchorCatalog.js';
+import { ANCHOR_CATALOG, assertValidMarkerId, validateCatalog, compileBootstrapAnchors } from '../../src/bootstrapMarkers/anchorCatalog.js';
 import type { AnchorGroup } from '../../src/bootstrapMarkers/anchorCatalog.js';
 
 test('assertValidMarkerId passes for every marker in every catalog group', () => {
@@ -92,4 +92,44 @@ test('v10-minimal-api and v10-minimal-api-gcp have an app-zone group with marker
     assert.ok(appZone, `${version} should have an app-zone group`);
     assert.deepEqual(appZone!.markers, ['MIDDLEWARE', 'ROUTES']);
   }
+});
+
+// --- compileBootstrapAnchors (axis 3 of the pack-driven plan) ---
+
+test('compileBootstrapAnchors turns a string after-line pattern into a working RegExp', () => {
+  const compiled = compileBootstrapAnchors([{ candidateFilenames: ['app.py'], anchor: { kind: 'after-line', pattern: '\\bdef\\s+main\\b' }, markers: ['REGISTRY'] }]);
+  assert.equal(compiled.length, 1);
+  assert.equal(compiled[0].anchor.kind, 'after-line');
+  assert.ok((compiled[0].anchor as { pattern: RegExp }).pattern instanceof RegExp);
+  assert.ok((compiled[0].anchor as { pattern: RegExp }).pattern.test('def main():'));
+  assert.equal(compiled[0].markers[0], 'REGISTRY');
+});
+
+test('compileBootstrapAnchors turns a string after-class-brace declarationPattern into a working RegExp', () => {
+  const compiled = compileBootstrapAnchors([{ candidateFilenames: ['models.py'], anchor: { kind: 'after-class-brace', declarationPattern: '\\bclass\\s+Order\\b' }, markers: ['REPO'] }]);
+  assert.equal(compiled[0].anchor.kind, 'after-class-brace');
+  assert.ok((compiled[0].anchor as { declarationPattern: RegExp }).declarationPattern instanceof RegExp);
+  assert.ok((compiled[0].anchor as { declarationPattern: RegExp }).declarationPattern.test('class Order(BaseModel):'));
+});
+
+test('compileBootstrapAnchors runs the reserved-namespace guard on every marker', () => {
+  assert.throws(() => compileBootstrapAnchors([
+    { candidateFilenames: ['app.py'], anchor: { kind: 'after-line', pattern: 'x' }, markers: ['AI_IMPLEMENTATION_X'] },
+  ]), /reserved/);
+});
+
+test('compileBootstrapAnchors throws on a malformed (invalid RegExp source) pattern', () => {
+  assert.throws(() => compileBootstrapAnchors([
+    { candidateFilenames: ['app.py'], anchor: { kind: 'after-line', pattern: '[invalid' }, markers: ['X'] },
+  ]), /not a valid RegExp/);
+});
+
+test('compileBootstrapAnchors throws on an unknown anchor kind', () => {
+  assert.throws(() => compileBootstrapAnchors([
+    { candidateFilenames: ['app.py'], anchor: { kind: 'before-class', pattern: 'x' }, markers: ['X'] },
+  ]), /after-line|after-class-brace/);
+});
+
+test('compileBootstrapAnchors returns an empty array for an empty input array', () => {
+  assert.deepEqual(compileBootstrapAnchors([]), []);
 });
