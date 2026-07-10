@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format is based on 
 
 ## [Unreleased]
 
+### Added
+
+- Implements pack-local Handlebars helper registration so template packs can ship a `helpers.js` that defines custom helpers for use in their templates. Refactors built-in helper registration from lazy (on first compile) to eager (at module load), ensuring pack helpers always override built-ins of the same name.
+
 ## [0.2.0]
 
 ### Added

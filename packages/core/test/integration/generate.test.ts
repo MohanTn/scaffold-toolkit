@@ -181,3 +181,60 @@ public class {{entity}} {
   assert.match(content, /public InvoiceEndpoint GetInstance/);
   assert.match(content, /invoice_endpoint_instance/);
 });
+
+test('scaffold generate: a pack-local helpers.js is loaded and its helpers are usable in that pack\'s templates', async () => {
+  const packRepo = buildFixturePackRepo();
+  const targetRepo = buildFixtureTargetRepo();
+  writeInitialConfig(targetRepo, packRepo);
+
+  // Add a version whose templates depend on a helper this pack alone supplies
+  // (`plural`) — the CLI has no built-in `plural`, so this only renders if
+  // the pack's own helpers.js is actually loaded before the template compiles.
+  const versionDirWithPackHelpers = path.join(packRepo, 'v-with-pack-helpers');
+  mkdirSync(versionDirWithPackHelpers, { recursive: true });
+
+  const descriptorWithPackHelpers = {
+    descriptorSchemaVersion: 2,
+    packVersion: 'v-with-pack-helpers',
+    requires: { scaffoldCli: '>=0.0.0' },
+    targets: [
+      { output: 'src/{{entity}}Repository.cs', template: 'Repository.cs.hbs', mode: 'create' },
+    ],
+    injections: [],
+  };
+
+  const repositoryTemplate = `public class {{entity}}Repository {
+  public DbSet<{{entity}}> {{plural entity}} { get; set; }
+}`;
+
+  const helpersJs = `module.exports = { register(handlebars) {
+    handlebars.registerHelper('plural', function (s) {
+      const str = String(s == null ? '' : s);
+      if (/y$/i.test(str)) return str.slice(0, -1) + 'ies';
+      return str + 's';
+    });
+  } };`;
+
+  writeFileSync(path.join(versionDirWithPackHelpers, 'manifest.templates.json'), JSON.stringify(descriptorWithPackHelpers, null, 2));
+  writeFileSync(path.join(versionDirWithPackHelpers, 'Repository.cs.hbs'), repositoryTemplate);
+  writeFileSync(path.join(versionDirWithPackHelpers, 'helpers.js'), helpersJs);
+
+  execFileSync('git', ['add', '-A'], { cwd: packRepo, stdio: 'pipe' });
+  execFileSync('git', ['commit', '-q', '-m', 'add v-with-pack-helpers'], { cwd: packRepo, stdio: 'pipe' });
+
+  saveConfig(targetRepo, { projectType: 'dotnet', packs: { backend: { url: packRepo, version: 'v-with-pack-helpers' } } });
+  await syncTemplates(targetRepo, defaultCacheRoot(targetRepo));
+
+  const manifest = {
+    manifestSchemaVersion: 1,
+    targetStack: 'backend',
+    entity: 'Company',
+    fields: [{ name: 'id', type: 'guid' }],
+  };
+  const manifestFile = path.join(targetRepo, 'Company.manifest.json');
+  writeFileSync(manifestFile, JSON.stringify(manifest, null, 2));
+
+  const report = await runGenerate({ repoRoot: targetRepo, manifestPath: manifestFile, dryRun: true, force: false });
+
+  assert.equal(report.created[0].file, 'src/CompanyRepository.cs');
+});
