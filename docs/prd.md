@@ -74,6 +74,7 @@ Commands:
 - **`scaffold undo <changeset-id>`** — reverts a prior `generate` run. Before touching a file, compares its current on-disk hash against the post-generate hash stored in the change-manifest; if they differ (meaning something else edited the file since), it refuses and prints a diff unless `--force`. This closes a real gap the original draft didn't address: blind restoration could otherwise silently discard a developer's manual edit made after generation. Two further semantics, also gaps in the original draft:
   - **Created files are deleted, not just "reverted."** If the change-manifest records a file as created (no prior content), undo — after the hash check above passes — deletes the file rather than leaving it with stale content, since "restore prior state" for a created file means it shouldn't exist.
   - **Undo is strictly reverse-chronological per file.** Before reverting, the CLI checks whether any *later* changeset also touched the same file(s) as the one being undone (e.g. changeset A creates `X.cs`, changeset B later injects into it). If so, it refuses and names the later changeset id(s) that must be undone first, rather than silently deleting or corrupting a file that a subsequent run also depends on.
+- **`scaffold bootstrap-markers [--pack-version <version>] [--dry-run] [--json]`** — bootstraps empty `SCAFFOLD:<marker>:START/END` marker pairs into a brownfield repo's existing source files, keyed by the exact configured template-pack version rather than the coarse `projectType` bucket, so a plain `scaffold generate` (unmodified) can later find and fill them by marker ID. Without `--pack-version`, it requires `.scaffold/config.json` and runs one pass per entry in `packs`, tagging every report entry with that entry's slot name; `--pack-version` runs exactly one pass against the given version directly, no config file required, tagged `(--pack-version override)`. See "Marker bootstrapping for brownfield repos" below for the anchor catalog and placement rules. Exits non-zero while any marker is left `needs-manual`.
 - **`scaffold -v` / `--version`** — reads the installed version from `package.json` at runtime relative to the compiled entry file, per this project's standing convention.
 
 Per-file provenance: `.scaffold/config.json` records, per injected file, which pack **identity** last touched it — not just the version-folder name. Provenance is stored as `{ packUrl: <normalized git URL>, packVersion: <folder name>, resolvedSha: <commit SHA> }`, not `packVersion` alone. This closes a real ambiguity: if a pack's URL is repointed to a different repository that happens to also contain a `v10-minimal-api` folder, or the pinned SHA moves via `--update`, folder-name-only provenance would wrongly treat that as "the same template" and inject blindly. With the full identity recorded, any of those changes makes the recorded provenance not match, and the CLI refuses ("this file was scaffolded under v8-controller; migrating to v10-minimal-api requires a manual marker migration") rather than guessing. A `--migrate` auto-rewrite flag was considered and rejected: no two real pack versions yet demonstrate a common enough migration shape to justify a generic migration engine; revisit only if one does.
@@ -155,6 +156,36 @@ The injector needs the actual comment syntax per target file to render a logical
 
 An injection entry in `manifest.templates.json` may override this with an explicit `commentSyntax: { start: "...", end: "..." }` for edge cases the table doesn't cover (e.g. a `.cs` file with embedded Razor markup) — the table handles the common case, override is the escape hatch. A target file whose extension has no table entry and no override is a hard error naming the file and suggesting an explicit `commentSyntax` override, rather than guessing at a syntax that could corrupt the file.
 
+## Marker bootstrapping for brownfield repos (`packages/core/src/bootstrapMarkers`)
+
+`scaffold bootstrap-markers` solves a distinct problem from `generate`: a brownfield repo that already has real `Program.cs`/`AppDbContext.cs`/`ApplicationServiceCollectionExtensions.cs` files, written before this tool was adopted, has nowhere for the injector to find a `SCAFFOLD:<marker>:START/END` pair. This feature inserts *empty* marker pairs at the right spot so the untouched injector (`injector.ts`, `markerScan.ts`) can then find and fill them exactly as it would in a repo scaffolded from scratch — it never writes marker content itself, only the empty START/END shell.
+
+`bootstrapMarkers/anchorCatalog.ts` hand-encodes where each marker belongs, keyed by the **exact** pack version (not the coarse `projectType` bucket used elsewhere), because the marker set and `Program.cs` zones differ between a base pack and its GCP sibling. This mirrors `scaffold-templates-dotnet`'s own README marker table (kept in sync by hand; the two documents should never drift):
+
+| Marker | File | `v8-controller` | `v10-minimal-api` | `v8-controller-gcp` | `v10-minimal-api-gcp` |
+|---|---|---|---|---|---|
+| `GSM` | `Program.cs` (builder zone) | — | — | ✓ | ✓ |
+| `DI` | `Program.cs` (builder zone) | ✓ | ✓ | ✓ | ✓ |
+| `PUBSUB` | `Program.cs` (builder zone) | — | — | ✓ | ✓ |
+| `SAGAS` | `Program.cs` (builder zone) | — | — | ✓ | ✓ |
+| `MIDDLEWARE` | `Program.cs` (app zone) | — | ✓ | — | ✓ |
+| `ROUTES` | `Program.cs` (app zone) | — | ✓ | — | ✓ |
+| `DBSETS` | `AppDbContext.cs` | ✓ | ✓ | ✓ | ✓ |
+| `REPOSITORIES` | `ApplicationServiceCollectionExtensions.cs` | ✓ | ✓ | ✓ | ✓ |
+
+Two anchor kinds, both single-occurrence and never-guess:
+
+- **`after-line`** (the builder zone, anchored on `.CreateBuilder(`; the app zone, anchored on `.Build();`): a single-occurrence regex line search. Zero or multiple matches falls every marker in the group back to `needs-manual`.
+- **`after-class-brace`** (`DBSETS` on `AppDbContext`'s class declaration, `REPOSITORIES` on `AddApplication(this IServiceCollection services)`'s signature): no universal single-line anchor exists in either file, so this finds the single-occurrence declaration line, then scans forward a bounded few lines for the first opening brace and takes it as the class body's start. Zero or multiple declaration matches, or no brace found within the lookahead, falls back to `needs-manual` the same way.
+
+Within one zone, markers are always placed as a single contiguous block, in `ANCHOR_CATALOG`'s declared order, immediately after the anchor: `GSM` precedes `DI` precedes `PUBSUB` precedes `SAGAS` in the builder zone, because `InfrastructureServiceCollectionExtensions.cs`'s `AddInfrastructure` reads a connection-string config key at registration time that `GSM` populates — placing `DI` first would register infrastructure before its configuration exists. `MIDDLEWARE` precedes `ROUTES` in the app zone to match ASP.NET Core's request-pipeline registration order.
+
+Idempotent, one-time, never-overwrite: each marker's existing occurrence is checked independently (a tolerant trimmed-line count of its START/END text, the same technique `markerScan.ts` uses but re-implemented locally rather than imported, since this module intentionally never touches `markerScan.ts`). Present exactly once on both sides → `already-present`, left untouched wherever it is in the file (a developer may have hand-moved it). Present on only one side, or duplicated → `needs-manual` with a `markerScan.ts`-style `file:line` reason. Absent on both sides → queued for placement. A repeat run of an already-bootstrapped file is therefore byte-identical.
+
+Git safety net: inside a git working tree, a candidate file must be tracked and have an empty `git status --porcelain` before it is touched; a dirty or untracked file is reported `needs-manual` with a git-state reason instead of being silently skipped or, worse, written over uncommitted work. Outside a git working tree (the target repo is a plain directory) this check is skipped entirely — `scaffold` never requires the target to be a git repo. `isInsideGitWorkTree` distinguishes git's own clean "not a git repository" signal from any other execution failure (a missing `git` binary, a permissions error): only the former is treated as "no repo here, skip the check"; anything else throws, so the command fails loud rather than silently disabling its own safety net.
+
+A configured pack slot whose version has no `ANCHOR_CATALOG` entry at all (e.g. a `frontend` slot in a `dotnet+react` config) is reported under `BootstrapMarkersReport.unsupportedPacks`, a field kept separate from `needsManual` on purpose: there is no per-marker remediation available for a slot the catalog simply doesn't cover, so `cli.ts` gates its exit code on `needsManual.length > 0` alone — an unsupported pack slot never blocks a clean exit once every actionable marker elsewhere is placed or already-present.
+
 ## Rejected feature: pre/post-process shell hooks
 
 A template pack descriptor field allowing arbitrary shell commands to run before or after rendering was proposed during review and is explicitly rejected, not deferred. A pack is fetched from a separately-versioned (often third-party) git repo, and `scaffold generate` is designed to run unattended on a host agent's behalf. Letting a pack maintainer's descriptor declare shell commands that execute unattended is an unattended remote-code-execution vector that directly undermines this tool's core value proposition of deterministic, safe, no-LLM-in-the-loop scaffolding. If a pack needs computed values, Handlebars helpers (pure functions, no shell/filesystem/network access) cover that need safely.
@@ -196,6 +227,13 @@ generate/report.ts                # builds the TOON/JSON report, incl. AI_IMPLEM
 generate/generate.ts              # orchestrates all steps; single code path, dry-run gates only the final write steps
 
 status/status.ts                  # `scaffold status [--json]` — rescans .scaffold/pending/*.json, updates resolved state, non-zero exit while any block remains unfilled
+
+bootstrapMarkers/anchorCatalog.ts      # per-pack-version marker placement data (after-line / after-class-brace anchors); reserved-namespace guard
+bootstrapMarkers/repoWalk.ts           # hand-rolled recursive filename walker (no glob dependency), skips .git/node_modules/bin/obj/dist/build/.scaffold
+bootstrapMarkers/gitSafety.ts          # hand-rolled execFile('git', [...]) wrapper (sync): tracked-and-clean check before touching a brownfield file
+bootstrapMarkers/markerPlacement.ts    # resolves one AnchorGroup's insertion point in one file and splices its markers as one contiguous block
+bootstrapMarkers/bootstrapMarkersReport.ts # builds the TOON/JSON report `scaffold bootstrap-markers` prints, mirrors generate/report.ts's format switch
+bootstrapMarkers/bootstrapMarkers.ts   # orchestrates `scaffold bootstrap-markers`: resolves pack version(s), walks candidate files, threads per-file content across groups, writes once
 
 undo/undo.ts                      # revert via change-manifest id; hash-compares current content against stored post-write hash; deletes created files after the hash check; refuses if a later changeset touched the same file(s)
 

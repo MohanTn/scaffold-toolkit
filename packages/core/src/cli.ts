@@ -11,6 +11,8 @@ import { runGenerate } from './generate/generate.js';
 import { renderReport } from './generate/report.js';
 import { undoChangeset } from './undo/undo.js';
 import { computeStatus } from './status/status.js';
+import { runBootstrapMarkers } from './bootstrapMarkers/bootstrapMarkers.js';
+import { renderBootstrapMarkersReport } from './bootstrapMarkers/bootstrapMarkersReport.js';
 import { encodeToon } from './toon/codec.js';
 
 const pkg = readOwnPackageJson(import.meta.url);
@@ -143,6 +145,23 @@ program
       process.exit(result.resolvedAll ? 0 : 1);
     } catch (error) {
       console.error('scaffold status failed:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('bootstrap-markers')
+  .description("Bootstrap empty SCAFFOLD marker pairs into a brownfield repo's existing source files, keyed by the exact configured template-pack version")
+  .option('--pack-version <version>', 'override the configured pack version(s), e.g. for a repo without .scaffold/config.json yet or for manual testing')
+  .option('--dry-run', 'plan without writing anything to disk', false)
+  .option('--json', 'print the report as plain JSON instead of TOON', false)
+  .action((opts: { packVersion?: string; dryRun: boolean; json: boolean }) => {
+    try {
+      const report = runBootstrapMarkers({ repoRoot: process.cwd(), packVersion: opts.packVersion, dryRun: opts.dryRun });
+      console.log(renderBootstrapMarkersReport(report, opts.json ? 'json' : 'toon'));
+      process.exit(report.needsManual.length > 0 ? 1 : 0);
+    } catch (error) {
+      console.error('scaffold bootstrap-markers failed:', error instanceof Error ? error.message : error);
       process.exit(1);
     }
   });

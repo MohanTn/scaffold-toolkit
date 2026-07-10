@@ -108,11 +108,129 @@ export function advancePackRepo(packRepo: string): void {
   git(packRepo, ['commit', '-q', '-m', 'advance']);
 }
 
-export function buildFixtureTargetRepo(): string {
+export function buildFixtureTargetRepo(withMarkers = true): string {
   const dir = mkdtempSync(path.join(tmpdir(), 'scaffold-target-'));
-  writeFileSync(path.join(dir, 'Program.cs'), PROGRAM_CS);
+  writeFileSync(path.join(dir, 'Program.cs'), withMarkers ? PROGRAM_CS : BROWNFIELD_PROGRAM_CS);
   return dir;
 }
+
+// A brownfield Program.cs: the CreateBuilder/Build/Run structure any minimal
+// hosting-model .NET app has, but no SCAFFOLD marker comments yet — the
+// starting point bootstrap-markers is meant to operate on.
+export const BROWNFIELD_PROGRAM_CS = `namespace Fixture;
+
+public static class Program
+{
+    public static void Main(string[] args)
+    {
+        var builder = WebApplication.CreateBuilder(args);
+
+        var app = builder.Build();
+
+        app.Run();
+    }
+}
+`;
+
+/** A real, committed git working tree containing the brownfield Program.cs — used by bootstrap-markers' git-safety tests. */
+export function buildGitFixtureTargetRepo(): string {
+  const dir = mkdtempSync(path.join(tmpdir(), 'scaffold-git-target-'));
+  git(dir, ['init', '-q']);
+  git(dir, ['config', 'user.email', 'test@example.com']);
+  git(dir, ['config', 'user.name', 'Scaffold Test']);
+  writeFileSync(path.join(dir, 'Program.cs'), BROWNFIELD_PROGRAM_CS);
+  git(dir, ['add', '-A']);
+  git(dir, ['commit', '-q', '-m', 'initial brownfield']);
+  return dir;
+}
+
+// A brownfield AppDbContext.cs matching the real pack's shape closely enough
+// for the after-class-brace anchor's declaration pattern to match exactly
+// once, with an unambiguous opening brace within the lookahead.
+export const BROWNFIELD_APP_DB_CONTEXT_CS = `namespace Fixture.Infrastructure.Persistence;
+
+public class AppDbContext : DbContext
+{
+    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
+    {
+    }
+}
+`;
+
+// Two "class AppDbContext" declarations — makes the after-class-brace
+// anchor's declaration-pattern search ambiguous (matches twice), exercising
+// the needs-manual fallback rather than guessing between candidates.
+export const AMBIGUOUS_APP_DB_CONTEXT_CS = `namespace Fixture.Infrastructure.Persistence;
+
+public class AppDbContext : DbContext
+{
+}
+
+public class AppDbContext : OtherDbContext
+{
+}
+`;
+
+// A brownfield ApplicationServiceCollectionExtensions.cs matching the real
+// pack's AddApplication(this IServiceCollection services) signature exactly.
+export const BROWNFIELD_APPLICATION_SERVICE_COLLECTION_EXTENSIONS_CS = `namespace Fixture.Application;
+
+public static class ApplicationServiceCollectionExtensions
+{
+    public static IServiceCollection AddApplication(this IServiceCollection services)
+    {
+        return services;
+    }
+}
+`;
+
+const REAL_MARKER_DI_TEMPLATE = `        services.AddApplication();
+        services.AddInfrastructure(builder.Configuration);`;
+const REAL_MARKER_ROUTE_TEMPLATE = `        app.Map{{entity}}Endpoints();`;
+
+/**
+ * A small, network-free fixture pack (mirroring buildFixturePackRepo) that
+ * declares injections[] for the real pack's DI/ROUTES marker names, distinct
+ * from the pre-existing synthetic SCAFFOLD_DI/SCAFFOLD_ROUTES fixture used
+ * by generate's own unrelated tests. Proves a real `scaffold generate` run
+ * injects cleanly into a bootstrap-placed marker using the real pack's
+ * naming — the key bootstrap-markers/generate compatibility proof.
+ */
+export function buildRealMarkerFixturePackRepo(): string {
+  const dir = mkdtempSync(path.join(tmpdir(), 'scaffold-real-marker-pack-'));
+  git(dir, ['init', '-q']);
+  git(dir, ['config', 'user.email', 'test@example.com']);
+  git(dir, ['config', 'user.name', 'Scaffold Test']);
+
+  const versionDir = path.join(dir, 'v10-minimal-api-gcp');
+  mkdirSync(versionDir, { recursive: true });
+  writeFileSync(
+    path.join(versionDir, 'manifest.templates.json'),
+    JSON.stringify(
+      {
+        descriptorSchemaVersion: 2,
+        packVersion: 'v10-minimal-api-gcp',
+        requires: { scaffoldCli: '>=0.0.0' },
+        targets: [],
+        injections: [
+          { file: 'Program.cs', marker: 'DI', template: 'di-registration.hbs', position: 'before-end', hashTrailerPrefix: '// scaffold-hash:' },
+          { file: 'Program.cs', marker: 'ROUTES', template: 'route-registration.hbs', position: 'before-end', hashTrailerPrefix: '// scaffold-hash:' },
+        ],
+      },
+      null,
+      2,
+    ),
+  );
+  writeFileSync(path.join(versionDir, 'di-registration.hbs'), REAL_MARKER_DI_TEMPLATE);
+  writeFileSync(path.join(versionDir, 'route-registration.hbs'), REAL_MARKER_ROUTE_TEMPLATE);
+
+  git(dir, ['add', '-A']);
+  git(dir, ['commit', '-q', '-m', 'real-marker pack']);
+  return dir;
+}
+
+// A pack version with no ANCHOR_CATALOG entry (e.g. a frontend pack version) — used by bootstrap-markers' honest-empty-slot test.
+export const UNCATALOGED_PACK_VERSION = 'tanstack-query';
 
 export function writeInitialConfig(targetRepo: string, packUrl: string, pack: Partial<PackConfig> = {}): void {
   saveConfig(targetRepo, { projectType: 'dotnet', packs: { backend: { url: packUrl, version: 'v1', ...pack } } });

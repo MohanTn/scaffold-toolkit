@@ -18,6 +18,22 @@ or invoke it without installing via `npx @mohantn/scaffold-core`.
 - `scaffold generate --manifest <file.toon|.json> [--dry-run] [--force] [--json]` — validates the intent manifest and the resolved pack's descriptor, renders `create`-mode targets, injects registration snippets at paired text markers, and prints a report of what was created/injected plus any `AI_IMPLEMENTATION` blocks still needing a host agent's attention.
 - `scaffold status [--json]` — rescans `.scaffold/pending/*.json`; exits non-zero while any `AI_IMPLEMENTATION` block from a prior `generate` is still unfilled.
 - `scaffold undo <changesetId> [--force]` — reverts a prior `generate` run: deletes files it created, restores files it modified to their exact prior content. Refuses on a hash mismatch (something else edited the file since) or if a later changeset also touched the same file, unless `--force`.
+- `scaffold bootstrap-markers [--pack-version <version>] [--dry-run] [--json]` — bootstraps empty `SCAFFOLD:<marker>:START/END` pairs into a brownfield repo's existing source files, one-time and idempotent, so a plain `scaffold generate` can later find and fill them. Without `--pack-version`, it reads every entry in `.scaffold/config.json`'s `packs` map and runs one pass per configured pack; `--pack-version` runs a single pass against that version directly (no config file required). Exits non-zero while any marker is left `needs-manual`.
+
+  The catalog is keyed by the exact configured pack version, not the coarse `projectType` bucket, since the marker set and `Program.cs` zones differ between a base pack and its GCP sibling. Four versions are known, matching `scaffold-templates-dotnet`'s own marker table:
+
+  | Pack version | `Program.cs` builder-zone markers | `Program.cs` app-zone markers |
+  |---|---|---|
+  | `v8-controller` | `DI` | *(none)* |
+  | `v10-minimal-api` | `DI` | `MIDDLEWARE`, `ROUTES` |
+  | `v8-controller-gcp` | `GSM`, `DI`, `PUBSUB`, `SAGAS` | *(none)* |
+  | `v10-minimal-api-gcp` | `GSM`, `DI`, `PUBSUB`, `SAGAS` | `MIDDLEWARE`, `ROUTES` |
+
+  Every version also places `DBSETS` into `AppDbContext.cs` and `REPOSITORIES` into `ApplicationServiceCollectionExtensions.cs`, both found by locating the class's own opening brace rather than a single-line anchor (no universal single-line anchor exists in either file). Within a zone, markers are always placed as one contiguous block in the order listed above: `GSM` precedes `DI` because `InfrastructureServiceCollectionExtensions.cs`'s `AddInfrastructure` reads a connection-string config key at registration time that `GSM` populates, and `MIDDLEWARE` precedes `ROUTES` to match request-pipeline ordering.
+
+  Placement never guesses: zero or multiple candidate files for a marker group, an ambiguous anchor line, or a one-sided/duplicated existing marker all fall back to a `needs-manual` report entry (with a reason) rather than writing anything for that marker. A marker already present anywhere in the file — even hand-moved by a developer — is left untouched and reported `already-present`, never duplicated. Inside a git working tree, a target file must be tracked and clean (`git status --porcelain` empty) before it's touched; a dirty or untracked file is reported `needs-manual` with a git-state reason instead. Outside a git working tree this check is skipped entirely.
+
+  A configured pack slot whose version has no catalog entry at all (e.g. a `frontend` slot pointing at a non-dotnet pack) is reported under a separate `unsupportedPacks` field, never `needsManual` — there is no per-marker action to take for a slot the catalog doesn't cover, so it never blocks a clean exit once every actionable marker elsewhere is resolved.
 - `scaffold -v` / `--version` — prints the installed version.
 
 ## `.scaffold/config.json`

@@ -1,0 +1,18 @@
+{
+  "branch": "pipeline-worker/tmp-0a964278",
+  "targetBranch": "main",
+  "worktreePath": "/tmp/pipeline-worker-jPcymj/worktree",
+  "ciFixAttempt": 0,
+  "conflictAttempt": 0,
+  "phase": "diff",
+  "startedAt": "2026-07-10T11:08:01.038Z",
+  "updatedAt": "2026-07-10T11:08:01.038Z",
+  "history": [
+    {
+      "at": "2026-07-10T11:08:01.038Z",
+      "phase": "diff",
+      "level": "info",
+      "message": "Created worktree at /tmp/pipeline-worker-jPcymj/worktree (temp branch pipeline-worker/tmp-0a964278)"
+    }
+  ]
+}

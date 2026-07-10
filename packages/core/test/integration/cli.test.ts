@@ -10,7 +10,27 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { syncTemplates, defaultCacheRoot } from '../../src/templates/sync.js';
-import { buildFixturePackRepo, buildFixtureTargetRepo, writeManifestFile } from './testHarness.js';
+import { saveConfig } from '../../src/config/loader.js';
+import { buildFixturePackRepo, buildFixtureTargetRepo, UNCATALOGED_PACK_VERSION, writeManifestFile } from './testHarness.js';
+
+interface BootstrapMarkersReportEntry {
+  marker: string;
+  file?: string;
+  packSlot: string;
+  reason?: string;
+}
+interface BootstrapMarkersUnsupportedPackEntry {
+  packSlot: string;
+  version: string;
+  reason: string;
+}
+interface BootstrapMarkersReportShape {
+  dryRun: boolean;
+  placed: BootstrapMarkersReportEntry[];
+  alreadyPresent: BootstrapMarkersReportEntry[];
+  needsManual: BootstrapMarkersReportEntry[];
+  unsupportedPacks: BootstrapMarkersUnsupportedPackEntry[];
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const cliPath = path.join(__dirname, '..', '..', 'dist', 'cli.js');
@@ -90,4 +110,89 @@ test('scaffold status prints a friendly error and exits 1 instead of a raw stack
   assert.equal(result.status, 1);
   assert.match(result.stderr, /scaffold status failed:/);
   assert.doesNotMatch(result.stderr, /at computeStatus/, 'should print a friendly message, not a raw stack trace');
+});
+
+test('scaffold bootstrap-markers --help shows --pack-version', () => {
+  const { stdout, status } = runCli(['bootstrap-markers', '--help'], __dirname);
+  assert.equal(status, 0);
+  assert.match(stdout, /--pack-version/);
+});
+
+test('scaffold bootstrap-markers with neither a config nor --pack-version prints a friendly error and exits 1, not a stack trace', () => {
+  const targetRepo = buildFixtureTargetRepo();
+  const result = runCli(['bootstrap-markers'], targetRepo);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /scaffold bootstrap-markers failed:/);
+  assert.match(result.stderr, /scaffold init|--pack-version/);
+  assert.doesNotMatch(result.stderr, /at runBootstrapMarkers/, 'should print a friendly message, not a raw stack trace');
+});
+
+test('scaffold bootstrap-markers --pack-version v10-minimal-api-gcp --json places markers into a brownfield Program.cs and exits 0', () => {
+  const targetRepo = buildFixtureTargetRepo(false);
+  const result = runCli(['bootstrap-markers', '--pack-version', 'v10-minimal-api-gcp', '--json'], targetRepo);
+  const report = JSON.parse(result.stdout) as BootstrapMarkersReportShape;
+
+  const di = report.placed.find((p) => p.marker === 'DI');
+  assert.ok(di, 'expected DI to be placed');
+  assert.equal(di!.file, 'Program.cs');
+  assert.equal(di!.packSlot, '(--pack-version override)');
+  assert.ok(report.needsManual.length > 0, 'DBSETS/REPOSITORIES should be needs-manual since this fixture has no matching files');
+  assert.equal(result.status, 1, 'exit code reflects the remaining needs-manual entries');
+});
+
+test('scaffold bootstrap-markers exits 0 once every group in the pack has a matching candidate file and nothing is left needs-manual', async () => {
+  const targetRepo = buildFixtureTargetRepo(false); // brownfield Program.cs, no markers
+  const { mkdirSync, writeFileSync } = await import('node:fs');
+  mkdirSync(path.join(targetRepo, 'src', 'Infrastructure', 'Persistence'), { recursive: true });
+  mkdirSync(path.join(targetRepo, 'src', 'Application'), { recursive: true });
+  writeFileSync(
+    path.join(targetRepo, 'src', 'Infrastructure', 'Persistence', 'AppDbContext.cs'),
+    'public class AppDbContext : DbContext\n{\n}\n',
+  );
+  writeFileSync(
+    path.join(targetRepo, 'src', 'Application', 'ApplicationServiceCollectionExtensions.cs'),
+    'public static class ApplicationServiceCollectionExtensions\n{\n    public static IServiceCollection AddApplication(this IServiceCollection services)\n    {\n        return services;\n    }\n}\n',
+  );
+
+  // v8-controller: DI (builder-zone only), DBSETS, REPOSITORIES — every candidate file is present, so nothing should be needs-manual.
+  const result = runCli(['bootstrap-markers', '--pack-version', 'v8-controller', '--json'], targetRepo);
+  const report = JSON.parse(result.stdout) as BootstrapMarkersReportShape;
+  assert.equal(report.needsManual.length, 0, JSON.stringify(report.needsManual));
+  assert.ok(report.placed.find((p) => p.marker === 'DI'));
+  assert.ok(report.placed.find((p) => p.marker === 'DBSETS'));
+  assert.ok(report.placed.find((p) => p.marker === 'REPOSITORIES'));
+  assert.equal(result.status, 0);
+});
+
+test('scaffold bootstrap-markers exits 0 for a backend: v8-controller (fully placeable) + frontend: <uncataloged> config — an unsupported pack slot must never block a clean exit', async () => {
+  const targetRepo = buildFixtureTargetRepo(false); // brownfield Program.cs, no markers
+  const { mkdirSync, writeFileSync } = await import('node:fs');
+  mkdirSync(path.join(targetRepo, 'src', 'Infrastructure', 'Persistence'), { recursive: true });
+  mkdirSync(path.join(targetRepo, 'src', 'Application'), { recursive: true });
+  writeFileSync(path.join(targetRepo, 'src', 'Infrastructure', 'Persistence', 'AppDbContext.cs'), 'public class AppDbContext : DbContext\n{\n}\n');
+  writeFileSync(
+    path.join(targetRepo, 'src', 'Application', 'ApplicationServiceCollectionExtensions.cs'),
+    'public static class ApplicationServiceCollectionExtensions\n{\n    public static IServiceCollection AddApplication(this IServiceCollection services)\n    {\n        return services;\n    }\n}\n',
+  );
+  saveConfig(targetRepo, {
+    projectType: 'dotnet+react',
+    packs: {
+      backend: { url: 'https://example.com/scaffold-templates-dotnet.git', version: 'v8-controller' },
+      frontend: { url: 'https://example.com/scaffold-templates-react.git', version: UNCATALOGED_PACK_VERSION },
+    },
+  });
+
+  const result = runCli(['bootstrap-markers', '--json'], targetRepo);
+  const report = JSON.parse(result.stdout) as BootstrapMarkersReportShape;
+
+  assert.equal(report.needsManual.length, 0, JSON.stringify(report.needsManual));
+  assert.ok(report.placed.find((p) => p.marker === 'DI' && p.packSlot === 'backend'));
+  assert.ok(report.placed.find((p) => p.marker === 'DBSETS' && p.packSlot === 'backend'));
+  assert.ok(report.placed.find((p) => p.marker === 'REPOSITORIES' && p.packSlot === 'backend'));
+
+  const frontendUnsupported = report.unsupportedPacks.find((u) => u.packSlot === 'frontend');
+  assert.ok(frontendUnsupported, 'the frontend slot should be reported under unsupportedPacks');
+  assert.equal(frontendUnsupported!.version, UNCATALOGED_PACK_VERSION);
+
+  assert.equal(result.status, 0, 'an unsupported pack slot must not block a clean exit once every actionable marker is resolved');
 });
