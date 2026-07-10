@@ -1,0 +1,11 @@
+namespace {{ns}}.Application.Features.{{plural entity}}.Commands.Update{{entity}};
+
+public class Update{{entity}}CommandValidator : AbstractValidator<Update{{entity}}Command>
+{
+    public Update{{entity}}CommandValidator()
+    {
+        RuleFor(x => x.Id).NotEmpty();
+{{#each fields}}{{#unless (eq (pascal name) "Id")}}        RuleFor(x => x.{{pascal name}}).NotEmpty();
+{{/unless}}{{/each}}
+    }
+}

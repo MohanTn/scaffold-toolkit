@@ -1,0 +1,23 @@
+namespace {{ns}}.Application.Features.{{plural entity}}.Commands.Create{{entity}};
+
+public class Create{{entity}}CommandHandler : IRequestHandler<Create{{entity}}Command, {{ns}}.Application.Features.{{plural entity}}.{{entity}}Dto>
+{
+    private readonly {{ns}}.Application.Common.Interfaces.I{{entity}}Repository _repository;
+    private readonly {{ns}}.Application.Common.Interfaces.IUnitOfWork _unitOfWork;
+
+    public Create{{entity}}CommandHandler({{ns}}.Application.Common.Interfaces.I{{entity}}Repository repository, {{ns}}.Application.Common.Interfaces.IUnitOfWork unitOfWork)
+    {
+        _repository = repository;
+        _unitOfWork = unitOfWork;
+    }
+
+    public async Task<{{ns}}.Application.Features.{{plural entity}}.{{entity}}Dto> Handle(Create{{entity}}Command request, CancellationToken cancellationToken)
+    {
+        // SCAFFOLD:AI_IMPLEMENTATION:START:required
+        var entity = new {{ns}}.Domain.Entities.{{entity}} { Id = Guid.NewGuid() };
+        await _repository.AddAsync(entity, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        // SCAFFOLD:AI_IMPLEMENTATION:END
+        return new {{ns}}.Application.Features.{{plural entity}}.{{entity}}Dto({{#each fields}}{{#unless (eq (pascal name) "Id")}}entity.{{pascal name}}{{#unless @last}}, {{/unless}}{{/unless}}{{/each}});
+    }
+}

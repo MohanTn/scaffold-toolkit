@@ -1,0 +1,1564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Architecture — Multi-Tenancy with Dual DbContext</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+      background: #f8fafc;
+      color: #1e293b;
+      line-height: 1.6;
+    }
+    :root { --accent: #2563eb; }
+    nav#toc {
+      position: sticky;
+      top: 0;
+      width: 220px;
+      height: 100vh;
+      background: white;
+      border-right: 1px solid #e2e8f0;
+      padding: 24px 16px;
+      overflow-y: auto;
+      z-index: 100;
+    }
+    nav#toc .brand {
+      font-weight: 700;
+      font-size: 14px;
+      color: #64748b;
+      margin-bottom: 20px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    nav#toc ul { list-style: none; }
+    nav#toc li { margin: 8px 0; }
+    nav#toc a {
+      display: block;
+      padding: 8px 12px;
+      text-decoration: none;
+      color: #475569;
+      font-size: 13px;
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+    nav#toc a:hover { color: var(--accent); background: #f1f5f9; }
+    nav#toc a.active { color: white; background: var(--accent); font-weight: 600; }
+    main {
+      margin-left: 220px;
+      padding: 40px;
+      max-width: 1100px;
+    }
+    header {
+      margin-bottom: 40px;
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 24px;
+    }
+    header h1 {
+      font-size: 32px;
+      margin-bottom: 8px;
+      color: #0f172a;
+    }
+    header .subtitle {
+      color: #64748b;
+      font-size: 14px;
+    }
+    section {
+      margin: 48px 0;
+      scroll-margin-top: 100px;
+    }
+    section h2 {
+      font-size: 24px;
+      margin-bottom: 24px;
+      padding-left: 16px;
+      border-left: 4px solid var(--accent);
+      color: #0f172a;
+    }
+    .status-banner {
+      display: inline-flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 24px;
+    }
+    .status-banner.draft { background: #f1f5f9; color: #64748b; }
+    .status-banner.in-review { background: #fef3c7; color: #92400e; }
+    .status-banner.approved { background: #dcfce7; color: #166534; }
+    .status-badge { font-weight: 700; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 13px;
+    }
+    table thead {
+      background: #f1f5f9;
+      font-weight: 600;
+    }
+    table th, table td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid #e2e8f0;
+      overflow-wrap: break-word;
+      word-break: break-word;
+    }
+    table tbody tr:nth-child(odd) { background: #fafbfc; }
+    table tbody tr:hover { background: #f8fafc; }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      margin: 20px 0;
+    }
+    .mermaid {
+      display: flex;
+      justify-content: center;
+      margin: 24px 0;
+    }
+    .mermaid svg { max-width: 100%; }
+    .table-wrap {
+      overflow-x: auto;
+      margin: 20px 0;
+    }
+    code, pre {
+      background: #f1f5f9;
+      border-radius: 6px;
+      padding: 2px 6px;
+      font-family: 'Monaco', 'Courier New', monospace;
+      font-size: 12px;
+    }
+    pre {
+      padding: 16px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    details {
+      margin: 16px 0;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 16px;
+      background: white;
+    }
+    details summary {
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--accent);
+    }
+    details[open] summary { margin-bottom: 12px; }
+    ul, ol { margin: 12px 0 12px 24px; }
+    li { margin: 6px 0; }
+    .wireframe {
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 16px 0;
+      background: #fafbfc;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      line-height: 1.4;
+      white-space: pre;
+    }
+    @media (max-width: 900px) {
+      nav#toc {
+        position: fixed;
+        width: 200px;
+        transform: translateX(-100%);
+        transition: transform 0.3s;
+      }
+      nav#toc.open { transform: translateX(0); }
+      main { margin-left: 0; padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <nav id="toc">
+    <div class="brand">Architecture</div>
+    <ul>
+      <li><a href="#s0">0 · Document Control</a></li>
+      <li><a href="#s1">1 · Overview</a></li>
+      <li><a href="#s2">2 · Use Cases &amp; Scope</a></li>
+      <li><a href="#s3">3 · C4 Context &amp; Containers</a></li>
+      <li><a href="#s4">4 · Domain &amp; Data Model</a></li>
+      <li><a href="#s5">5 · API Design (.NET)</a></li>
+      <li><a href="#s6">6 · UI/UX (React)</a></li>
+      <li><a href="#s7">7 · Behaviour — State &amp; Process</a></li>
+      <li><a href="#s8">8 · Deployment</a></li>
+      <li><a href="#s9">9 · Monitoring &amp; Alerts</a></li>
+      <li><a href="#s10">10 · Open Questions &amp; Risks</a></li>
+    </ul>
+  </nav>
+
+  <main>
+    <header>
+      <h1>🏛️ Architecture — Multi-Tenancy with Dual DbContext</h1>
+      <p class="subtitle">Support ApplicationDbContext + TenantDbContext in v8-controller scaffold templates · ASP.NET Core 8 + MediatR + EF Core</p>
+    </header>
+
+    <!-- SECTION 0 -->
+    <section id="s0">
+      <h2>0 · Document Control</h2>
+
+      <div class="status-banner draft">
+        <span class="status-badge">Status: DRAFT</span>
+        <span>·</span>
+        <span>Version: v1</span>
+        <span>·</span>
+        <span>Last updated: 2026-07-10</span>
+        <span>·</span>
+        <span>Author: Claude Haiku 4.5</span>
+      </div>
+
+      <p style="margin-bottom: 16px;"><strong>Approval gate:</strong> This document must reach APPROVED status before implementation of multi-tenancy features in the v8-controller scaffold pack begins.</p>
+
+      <div class="card">
+        <h3 style="margin-bottom: 12px;">Revision Log</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Version</th>
+              <th>Date</th>
+              <th>Summary</th>
+              <th>Driven by</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>v1</td>
+              <td>2026-07-10</td>
+              <td>Initial architecture for dual DbContext multi-tenancy support: ApplicationDbContext (shared schema) + TenantDbContext (tenant-scoped). Configurable context naming, per-entity context assignment, updated DI registration, and template changes.</td>
+              <td>User requirement: multi-tenant solutions pattern</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- SECTION 1 -->
+    <section id="s1">
+      <h2>1 · Overview — Feature, Audience &amp; Dependencies</h2>
+
+      <h3 style="margin-top: 24px; margin-bottom: 12px;">Feature Summary</h3>
+      <p><strong>Multi-Tenancy with Dual DbContext</strong> extends the v8-controller scaffold templates to generate projects with two separate Entity Framework DbContext classes: an <code>ApplicationDbContext</code> for shared, non-tenant-specific data (users, system settings, audit logs) and a configurable <code>TenantDbContext</code> (default name: <code>RetailerDbContext</code>) for tenant-scoped business data (invoices, products, orders). Entities are explicitly assigned to one context via a <code>context</code> field in the scaffolding manifest. This solves the problem of multi-tenant SaaS systems where shared and tenant-isolated data must be physically separated for security, compliance, and performance isolation.</p>
+
+      <h3 style="margin-top: 24px; margin-bottom: 12px;">Audience &amp; Actors</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Actor</th>
+            <th>Role / Responsibility</th>
+            <th>Interaction</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Backend Developer</td>
+            <td>Uses v8-controller scaffold to generate multi-tenant projects</td>
+            <td>Provides manifest with <code>options.enableMultiTenancy</code>, <code>options.tenantContextName</code>, and per-entity <code>context</code> assignment</td>
+          </tr>
+          <tr>
+            <td>Scaffold CLI Engine</td>
+            <td>Renders templates based on manifest + entity config</td>
+            <td>Consumes multi-tenancy options and generates two DbContext classes, separate repository/service layers, and dual DI registration</td>
+          </tr>
+          <tr>
+            <td>Database Administrator</td>
+            <td>Manages schema, migrations, and database connections</td>
+            <td>Operates two separate databases or two schemas with distinct connection strings</td>
+          </tr>
+          <tr>
+            <td>DevOps / Platform Engineer</td>
+            <td>Deploys containerized app with environment variables for both DB connections</td>
+            <td>Configures <code>ApplicationDb:ConnectionString</code> and <code>TenantDb:ConnectionString</code> in Kubernetes/Docker</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 style="margin-top: 24px; margin-bottom: 12px;">Dependencies</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>System / Library</th>
+            <th>Version</th>
+            <th>Purpose</th>
+            <th>Type</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>.NET SDK</td>
+            <td>8.0+</td>
+            <td>Language runtime, project build system</td>
+            <td>Build-time</td>
+          </tr>
+          <tr>
+            <td>Entity Framework Core</td>
+            <td>8.0.0+</td>
+            <td>ORM, DbContext, migrations</td>
+            <td>Runtime</td>
+          </tr>
+          <tr>
+            <td>MediatR</td>
+            <td>12.1.1+</td>
+            <td>CQRS command/query dispatch, pipeline behaviors</td>
+            <td>Runtime</td>
+          </tr>
+          <tr>
+            <td>FluentValidation</td>
+            <td>11.8.0+</td>
+            <td>Command/query input validation</td>
+            <td>Runtime</td>
+          </tr>
+          <tr>
+            <td>Microsoft.AspNetCore</td>
+            <td>8.0.0+</td>
+            <td>Web API, middleware, DI container</td>
+            <td>Runtime</td>
+          </tr>
+          <tr>
+            <td>Docker</td>
+            <td>Latest</td>
+            <td>Container runtime for deployment</td>
+            <td>Deployment-time</td>
+          </tr>
+          <tr>
+            <td>Kubernetes / Docker Compose</td>
+            <td>Latest</td>
+            <td>Orchestration, networking, secret management</td>
+            <td>Deployment-time</td>
+          </tr>
+          <tr>
+            <td>SQLite / PostgreSQL / SQL Server</td>
+            <td>As per provider</td>
+            <td>Database engine (two instances or two databases)</td>
+            <td>Runtime</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 style="margin-top: 24px; margin-bottom: 12px;">Assumptions</h3>
+      <ul>
+        <li>Developers have basic familiarity with Entity Framework Core, DbContext, and EF migrations.</li>
+        <li>The scaffold CLI engine (@mohantn/scaffold-core) is already built and supports reading custom <code>options</code> fields in the manifest (confirmed: free-form <code>options</code> are passed to Handlebars context).</li>
+        <li>Two separate database connections/schemas are provisioned and their connection strings are injected at runtime (not hardcoded).</li>
+        <li>The <code>TenantContext</code> (configurable) can have the same or different provider (Sqlite, PostgreSQL, SQL Server) as <code>ApplicationContext</code>.</li>
+        <li>Repositories and handlers will be updated to accept and route queries to the correct DbContext (via constructor injection of both contexts).</li>
+      </ul>
+
+      <h3 style="margin-top: 24px; margin-bottom: 12px;">Out of Scope</h3>
+      <ul>
+        <li><strong>Tenant isolation enforcement:</strong> This design assumes connection string separation; row-level security (RLS) or query filters for isolation within a shared database are not covered (future enhancement).</li>
+        <li><strong>Tenant provisioning / onboarding:</strong> Creating new tenants, database setup, schema migration per tenant — deferred to application code, not scaffold templates.</li>
+        <li><strong>Multi-database failover / replication:</strong> Backup/restore and high-availability strategies are infrastructure decisions, not scaffold concerns.</li>
+        <li><strong>Offline/sync scenarios:</strong> Replication and offline sync for mobile/edge clients out of scope.</li>
+      </ul>
+
+      <h3 style="margin-top: 24px; margin-bottom: 12px;">At a Glance</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Attribute</th>
+            <th>Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Owner</strong></td>
+            <td>Backend Platform / Mohan TN</td>
+          </tr>
+          <tr>
+            <td><strong>Repos touched</strong></td>
+            <td>scaffold-templates-dotnet (v8-controller pack)</td>
+          </tr>
+          <tr>
+            <td><strong>Data stores</strong></td>
+            <td>Two DbContexts (ApplicationDbContext + configurable TenantDbContext); separate connection strings</td>
+          </tr>
+          <tr>
+            <td><strong>Auth method</strong></td>
+            <td>No auth changes; tenant context routing is transparent to auth layer</td>
+          </tr>
+          <tr>
+            <td><strong>Environments</strong></td>
+            <td>Dev (SQLite), Stage (PostgreSQL), Prod (PostgreSQL / SQL Server); both contexts replicated per env</td>
+          </tr>
+          <tr>
+            <td><strong>Stack</strong></td>
+            <td>ASP.NET Core 8 (.NET 8), EF Core 8, MediatR, Docker, Kubernetes</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- SECTION 2 -->
+    <section id="s2">
+      <h2>2 · Use Cases &amp; Scope</h2>
+
+      <h3 style="margin-bottom: 12px;">Use Cases (User Flows)</h3>
+      <div class="mermaid">
+        flowchart TD
+          A["Developer"] -->|"Runs scaffold with<br/>enableMultiTenancy: true"| B["Scaffold CLI"]
+          B -->|"Reads manifest:<br/>- entity + context assignment<br/>- tenantContextName"| C["Template Engine"]
+          C -->|"Generates two DbContext<br/>classes + repos per context"| D["Generated Project"]
+          D -->|"Developer writes<br/>handlers + migration code"| E["Application"]
+          E -->|"Queries route to<br/>correct context<br/>via DI"| F["ApplicationDbContext"]
+          E -->|"Tenant queries route<br/>via DI"| G["TenantDbContext<br/>(e.g. RetailerDbContext)"]
+          F -->|"Schema: shared<br/>data"| H["Application DB"]
+          G -->|"Schema: tenant-<br/>scoped data"| I["Tenant DB"]
+      </div>
+
+      <h3 style="margin-top: 24px; margin-bottom: 12px;">Functional Requirements</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Requirement</th>
+            <th>Acceptance Criteria</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>FR1</strong></td>
+            <td>Manifest configuration for multi-tenancy</td>
+            <td>Manifest supports <code>options.enableMultiTenancy: true/false</code> and <code>options.tenantContextName: "string"</code> (default: "RetailerDbContext"). When enabled, scaffold generates two DbContext classes.</td>
+          </tr>
+          <tr>
+            <td><strong>FR2</strong></td>
+            <td>Per-entity context assignment</td>
+            <td>Entity definition in manifest includes optional <code>context: "Application" | "Tenant"</code> field. If omitted, defaults to "Tenant". Scaffold generates entities in the assigned context's folder and DbSet collection.</td>
+          </tr>
+          <tr>
+            <td><strong>FR3</strong></td>
+            <td>Dual DbContext generation</td>
+            <td>Templates generate <code>ApplicationDbContext.cs</code> (with <code>DBSETS_APPLICATION</code> marker) and <code>{TenantContextName}DbContext.cs</code> (with <code>DBSETS_TENANT</code> marker). Both inherit <code>DbContext</code>, apply EF configurations from assembly, and have separate connection string configuration.</td>
+          </tr>
+          <tr>
+            <td><strong>FR4</strong></td>
+            <td>Dual repository layers per context</td>
+            <td>Scaffold generates repositories for tenant entities under <code>Infrastructure/Persistence/Repositories</code> and for application entities under a separate <code>Application</code> folder or shared <code>Common</code>. Each repository is injected with the correct DbContext via constructor DI.</td>
+          </tr>
+          <tr>
+            <td><strong>FR5</strong></td>
+            <td>DI registration for both contexts</td>
+            <td><code>InfrastructureDependencyInjection.cs</code> registers both <code>AddDbContext&lt;ApplicationDbContext&gt;(...)</code> and <code>AddDbContext&lt;{TenantContextName}&gt;(...)</code> with separate connection string keys: <code>ConnectionStrings:Application</code> and <code>ConnectionStrings:Tenant</code>.</td>
+          </tr>
+          <tr>
+            <td><strong>FR6</strong></td>
+            <td>Handler/Query routing to correct context</td>
+            <td>Command/Query handlers for tenant entities receive <code>I{Entity}Repository</code> which is injected with the correct DbContext. Handlers for application entities use the application context. No handler code changes required; routing is transparent.</td>
+          </tr>
+          <tr>
+            <td><strong>FR7</strong></td>
+            <td>Configuration file support</td>
+            <td><code>appsettings.json</code> includes two connection string keys: <code>ConnectionStrings:Application</code> and <code>ConnectionStrings:Tenant</code>. Scaffold template generates both in the skeleton file.</td>
+          </tr>
+          <tr>
+            <td><strong>FR8</strong></td>
+            <td>EF Migration awareness</td>
+            <td>Documentation and generated <code>Readme.md</code> (or comments in DependencyInjection.cs) notes that migrations must be created separately for each context using <code>dotnet ef migrations add --context ApplicationDbContext</code> and <code>dotnet ef migrations add --context {TenantContextName}</code>.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 style="margin-top: 24px; margin-bottom: 12px;">Non-Functional Requirements</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>NFR</th>
+            <th>Metric</th>
+            <th>Target</th>
+            <th>Rationale</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Performance</strong></td>
+            <td>Query latency (p95)</td>
+            <td>&lt;100ms (local)/&lt;200ms (remote) per DbContext query</td>
+            <td>Two separate connection pools ensure no cross-tenant contention; acceptable latency per best practice.</td>
+          </tr>
+          <tr>
+            <td><strong>Security</strong></td>
+            <td>Data isolation</td>
+            <td>Zero cross-tenant data leakage via connection string separation</td>
+            <td>Separate databases/schemas + credentials prevent accidental queries to wrong context.</td>
+          </tr>
+          <tr>
+            <td><strong>Availability</strong></td>
+            <td>Connection pool health</td>
+            <td>Auto-recovery on DB restart; max 3 retries before circuit-break</td>
+            <td>Resilience for production DB failover scenarios.</td>
+          </tr>
+          <tr>
+            <td><strong>Compliance</strong></td>
+            <td>Data residency</td>
+            <td>Tenant data in tenant DB region; application data in app DB region</td>
+            <td>GDPR / data residency requirements satisfied via schema/DB separation.</td>
+          </tr>
+          <tr>
+            <td><strong>Testability</strong></td>
+            <td>Unit test isolation</td>
+            <td>SQLite in-memory DbContexts for both contexts in unit tests</td>
+            <td>Fast, isolated tests without external DB dependencies.</td>
+          </tr>
+          <tr>
+            <td><strong>Maintainability</strong></td>
+            <td>Template code duplication</td>
+            <td>&lt;5% duplicate code between application and tenant context paths</td>
+            <td>Reuse helpers and shared components; minimize hardcoded context names.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- SECTION 3 -->
+    <section id="s3">
+      <h2>3 · C4 — Context &amp; Containers</h2>
+
+      <h3 style="margin-bottom: 12px;">C4 Level 1: System Context</h3>
+      <div class="mermaid">
+        graph TB
+          Developer["👤 Backend Developer"]
+          ScaffoldCLI["Scaffold CLI<br/>(@mohantn/scaffold-core)"]
+          Templates["Template Pack<br/>(v8-controller)"]
+          GenProject["Generated<br/>Multi-Tenant Project"]
+          AppDB["📊 Application<br/>Database<br/>(Shared Schema)"]
+          TenantDB["📊 Tenant<br/>Database<br/>(Tenant-Scoped)"]
+          Docker["🐳 Docker<br/>Registry"]
+          K8s["☸️ Kubernetes<br/>Cluster"]
+          Monitor["📈 New Relic<br/>Observability"]
+          ITSM["🎫 ServiceNow<br/>Incident Management"]
+
+          Developer -->|"provides manifest<br/>+ entity definitions"| ScaffoldCLI
+          ScaffoldCLI -->|"consumes"| Templates
+          ScaffoldCLI -->|"generates"| GenProject
+          GenProject -->|"reads/writes<br/>shared entities"| AppDB
+          GenProject -->|"reads/writes<br/>tenant entities"| TenantDB
+          GenProject -->|"pushed to"| Docker
+          Docker -->|"deployed by"| K8s
+          GenProject -->|"sends telemetry"| Monitor
+          Monitor -->|"alert webhook"| ITSM
+      </div>
+
+      <h3 style="margin-top: 24px; margin-bottom: 12px;">C4 Level 2: Containers (Generated Project)</h3>
+      <div class="mermaid">
+        graph TB
+          subgraph "Generated Multi-Tenant API Container"
+            Api["ASP.NET Core API"]
+            Controllers["Controllers"]
+            Handlers["MediatR Handlers"]
+            Services["Services /Queries"]
+            DIContainer["DI Container"]
+            AppContext["ApplicationDbContext"]
+            TenantContext["RetailerDbContext"]
+            Repos["Repositories<br/>(dual set)"]
+          end
+
+          ReactApp["🔷 React SPA<br/>(browser)"]
+          AppDB["📊 AppDB<br/>(PostgreSQL)"]
+          TenantDB["📊 TenantDB<br/>(PostgreSQL)"]
+
+          ReactApp -->|"HTTPS REST"| Controllers
+          Controllers -->|"dispatch"| Handlers
+          Handlers -->|"query/persist"| Services
+          Services -->|"resolve<br/>context"| DIContainer
+          DIContainer -->|"inject"| Repos
+          Repos -->|"read/write"| AppContext
+          Repos -->|"read/write"| TenantContext
+          AppContext -->|"SQL (Connection A)"| AppDB
+          TenantContext -->|"SQL (Connection B)"| TenantDB
+      </div>
+
+      <p style="margin-top: 16px;"><strong>Key relationships:</strong> Both DbContexts are wired into the DI container and injected into repositories. Each repository knows which context it talks to (via typed constructor parameters). Controllers dispatch via MediatR; handlers delegate to repositories, which route to the correct context transparently.</p>
+    </section>
+
+    <!-- SECTION 4 -->
+    <section id="s4">
+      <h2>4 · Domain &amp; Data Model</h2>
+
+      <h3 style="margin-bottom: 12px;">Domain Entity Class Diagram (Conceptual)</h3>
+      <div class="mermaid">
+        classDiagram
+          class DomainEntity {
+            Guid Id
+            DateTime CreatedAt
+            DateTime ModifiedAt
+          }
+          class ApplicationEntity {
+            string Name
+            string Description
+          }
+          class TenantEntity {
+            Guid TenantId
+            string Value
+          }
+          class User {
+            string Email
+            string PasswordHash
+            List Roles
+          }
+          class Invoice {
+            string InvoiceNumber
+            decimal Amount
+            DateTime DueDate
+          }
+          class Product {
+            string Sku
+            decimal Price
+            int StockLevel
+          }
+
+          DomainEntity <|-- ApplicationEntity : extends
+          DomainEntity <|-- TenantEntity : extends
+          User --|> ApplicationEntity : is-a
+          Invoice --|> TenantEntity : is-a
+          Product --|> TenantEntity : is-a
+          TenantEntity --> "belongs to" User : has-tenant-fk
+      </div>
+
+      <h3 style="margin-top: 24px; margin-bottom: 12px;">Entity-Relationship Diagram (Physical Schema)</h3>
+      <div class="mermaid">
+        erDiagram
+          APPLICATIONDBCONTEXT ||--|| USERS : "DbSet&lt;User&gt;"
+          APPLICATIONDBCONTEXT ||--|| ROLES : "DbSet&lt;Role&gt;"
+          TENANTDBCONTEXT ||--|| INVOICES : "DbSet&lt;Invoice&gt;"
+          TENANTDBCONTEXT ||--|| PRODUCTS : "DbSet&lt;Product&gt;"
+          USERS ||--o{ ROLES : has
+          INVOICES ||--|| PRODUCTS : references
+          INVOICES ||--|| USERS : "created_by_user_id"
+
+          USERS {
+            guid id PK
+            string email UK
+            string password_hash
+            datetime created_at
+            datetime modified_at
+          }
+
+          ROLES {
+            guid id PK
+            string name
+          }
+
+          INVOICES {
+            guid id PK
+            string invoice_number UK
+            decimal amount
+            datetime due_date
+            guid created_by_user_id FK
+            datetime created_at
+            datetime modified_at
+          }
+
+          PRODUCTS {
+            guid id PK
+            string sku UK
+            decimal price
+            int stock_level
+            datetime created_at
+            datetime modified_at
+          }
+      </div>
+
+      <h3 style="margin-top: 24px; margin-bottom: 12px;">Migration Impact &amp; Notes</h3>
+      <ul>
+        <li><strong>ApplicationDbContext migrations:</strong> Separate migration history from TenantDbContext. Create user-facing entities (User, Role) here. Run migrations with <code>--context ApplicationDbContext</code>.</li>
+        <li><strong>TenantDbContext migrations:</strong> Separate migration folder. Create tenant-scoped entities (Invoice, Product) here. Run migrations with <code>--context RetailerDbContext</code> (or configured name).</li>
+        <li><strong>No FK constraints across contexts:</strong> Foreign keys may reference users by ID (TenantDbContext.Invoice.CreatedByUserId) but the actual User object lives in ApplicationDbContext. Resolve via application code, not DB constraints.</li>
+        <li><strong>Seed data:</strong> Application context seeds (users, roles) run once per app deployment. Tenant context seeds (demo products) run per-tenant during onboarding.</li>
+        <li><strong>Connection string changes:</strong> If connection string changes at runtime (disaster recovery), both contexts reconnect independently; no schema synchronization needed.</li>
+      </ul>
+    </section>
+
+    <!-- SECTION 5 -->
+    <section id="s5">
+      <h2>5 · API Design (.NET)</h2>
+
+      <h3 style="margin-bottom: 12px;">Endpoints Summary</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th>Route</th>
+            <th>Auth</th>
+            <th>Request Body</th>
+            <th>Response</th>
+            <th>Context</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>GET</td>
+            <td>/api/invoices</td>
+            <td>Bearer JWT</td>
+            <td>—</td>
+            <td>200 List&lt;InvoiceDto&gt;</td>
+            <td>Tenant</td>
+          </tr>
+          <tr>
+            <td>GET</td>
+            <td>/api/invoices/{id}</td>
+            <td>Bearer JWT</td>
+            <td>—</td>
+            <td>200 InvoiceDto | 404</td>
+            <td>Tenant</td>
+          </tr>
+          <tr>
+            <td>POST</td>
+            <td>/api/invoices</td>
+            <td>Bearer JWT</td>
+            <td>CreateInvoiceCommand</td>
+            <td>201 InvoiceDto</td>
+            <td>Tenant</td>
+          </tr>
+          <tr>
+            <td>PUT</td>
+            <td>/api/invoices/{id}</td>
+            <td>Bearer JWT</td>
+            <td>UpdateInvoiceCommand</td>
+            <td>204 NoContent | 404</td>
+            <td>Tenant</td>
+          </tr>
+          <tr>
+            <td>DELETE</td>
+            <td>/api/invoices/{id}</td>
+            <td>Bearer JWT</td>
+            <td>—</td>
+            <td>204 NoContent | 404</td>
+            <td>Tenant</td>
+          </tr>
+          <tr>
+            <td>GET</td>
+            <td>/api/products</td>
+            <td>Bearer JWT</td>
+            <td>—</td>
+            <td>200 List&lt;ProductDto&gt;</td>
+            <td>Tenant</td>
+          </tr>
+          <tr>
+            <td>GET</td>
+            <td>/api/users</td>
+            <td>Bearer JWT (Admin)</td>
+            <td>—</td>
+            <td>200 List&lt;UserDto&gt;</td>
+            <td>Application</td>
+          </tr>
+          <tr>
+            <td>POST</td>
+            <td>/api/auth/login</td>
+            <td>—</td>
+            <td>LoginRequest</td>
+            <td>200 { token, refreshToken }</td>
+            <td>Application</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 style="margin-top: 24px; margin-bottom: 12px;">OpenAPI Specification (YAML)</h3>
+      <details>
+        <summary>Click to expand OpenAPI 3.0 snippet</summary>
+        <pre>openapi: 3.0.0
+info:
+  title: Multi-Tenant API
+  version: 1.0.0
+servers:
+  - url: https://api.example.com
+paths:
+  /api/invoices:
+    get:
+      summary: List invoices (tenant-scoped)
+      operationId: getInvoices
+      tags: [Invoices]
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: List of invoices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InvoiceDto'
+        401:
+          description: Unauthorized
+    post:
+      summary: Create invoice
+      operationId: createInvoice
+      tags: [Invoices]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInvoiceCommand'
+      responses:
+        201:
+          description: Invoice created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoiceDto'
+        400:
+          description: Validation error
+        401:
+          description: Unauthorized
+  /api/users:
+    get:
+      summary: List users (application-scoped, admin only)
+      operationId: getUsers
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: role
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        200:
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserDto'
+        403:
+          description: Forbidden (admin only)
+components:
+  schemas:
+    InvoiceDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        invoiceNumber:
+          type: string
+        amount:
+          type: number
+          format: decimal
+        dueDate:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, invoiceNumber, amount, dueDate]
+    CreateInvoiceCommand:
+      type: object
+      properties:
+        invoiceNumber:
+          type: string
+        amount:
+          type: number
+          format: decimal
+        dueDate:
+          type: string
+          format: date-time
+      required: [invoiceNumber, amount, dueDate]
+    UserDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+      required: [id, email]
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT</pre>
+      </details>
+
+      <h3 style="margin-top: 24px; margin-bottom: 12px;">Primary Sequence: Create Invoice (Tenant Context)</h3>
+      <div class="mermaid">
+        sequenceDiagram
+          participant Client as React Client
+          participant API as API / Controller
+          participant Handler as MediatR Handler
+          participant Repo as Invoice<br/>Repository
+          participant TenantCtx as Tenant<br/>DbContext
+          participant TenantDB as Tenant DB<br/>(PostgreSQL)
+
+          Client ->>+ API: POST /api/invoices<br/>(CreateInvoiceCommand)
+          API ->>+ Handler: Send(command)
+          Handler ->>+ Repo: AddAsync(invoice)
+          Repo ->>+ TenantCtx: Invoices.AddAsync(...)
+          TenantCtx ->>+ TenantDB: INSERT INTO invoices
+          TenantDB ->>- TenantCtx: OK
+          TenantCtx ->>- Repo: void
+          Repo ->>+ TenantCtx: SaveChangesAsync()
+          TenantCtx ->>+ TenantDB: COMMIT
+          TenantDB ->>- TenantCtx: OK
+          TenantCtx ->>- Repo: int rows
+          Repo ->>- Handler: void
+          Handler ->>- API: InvoiceDto
+          API ->>- Client: 201 Created
+      </div>
+
+      <p style="margin-top: 16px;"><strong>Key point:</strong> The handler injects <code>IInvoiceRepository</code>, which itself is constructed with <code>RetailerDbContext</code> (the tenant context). The handler code doesn't know which context is used; routing is transparent via DI.</p>
+    </section>
+
+    <!-- SECTION 6 -->
+    <section id="s6">
+      <h2>6 · UI/UX (React)</h2>
+
+      <h3 style="margin-bottom: 12px;">User Flow (Screen Navigation)</h3>
+      <div class="mermaid">
+        flowchart TD
+          Start["📱 App Start"] -->|"Check JWT"| Dash["Dashboard"]
+          Dash -->|"Click 'Invoices'"| InvList["Invoice List"]
+          InvList -->|"Click 'New Invoice'"| InvForm["Create Invoice Form"]
+          InvForm -->|"Submit valid"| InvCreate["API: POST /api/invoices"]
+          InvCreate -->|"Success"| InvDetail["Invoice Detail"]
+          InvDetail -->|"Click 'Edit'"| InvEdit["Edit Invoice Form"]
+          InvEdit -->|"Submit"| InvUpdate["API: PUT /api/invoices/{id}"]
+          InvUpdate -->|"Success"| InvDetail
+          InvDetail -->|"Click 'Back'"| InvList
+          Dash -->|"Click 'Products'"| ProdList["Product List<br/>(Tenant-scoped)"]
+          Dash -->|"Click 'Users'<br/>(admin only)"| UserList["User List<br/>(Application-scoped)"]
+          InvForm -->|"Validation Error"| InvForm
+      </div>
+
+      <h3 style="margin-top: 24px; margin-bottom: 12px;">Component Hierarchy &amp; API Bindings</h3>
+      <div class="mermaid">
+        graph TB
+          App["App Component"]
+          Dash["Dashboard Page"]
+          Nav["Navigation"]
+          InvMod["Invoices Module"]
+          ProdMod["Products Module"]
+          UserMod["Users Module"]
+          InvList["InvoiceList Component"]
+          InvForm["InvoiceForm Component"]
+          ProdList["ProductList Component"]
+          UserList["UserList Component"]
+
+          App --> Nav
+          App --> Dash
+          Dash -->|routes to| InvMod
+          Dash -->|routes to| ProdMod
+          Dash -->|routes to| UserMod
+          InvMod --> InvList
+          InvMod --> InvForm
+          ProdMod --> ProdList
+          UserMod --> UserList
+          InvList -->|"GET /api/invoices"| API["API"]
+          InvForm -->|"POST /api/invoices<br/>PUT /api/invoices/{id}"| API
+          ProdList -->|"GET /api/products"| API
+          UserList -->|"GET /api/users<br/>(requires admin)"| API
+          API -->|"routes to Tenant or App context"| BackendLogic["Backend<br/>(MediatR handlers)"]
+      </div>
+
+      <h3 style="margin-top: 24px; margin-bottom: 12px;">Wireframes</h3>
+      <div class="wireframe">
+┌─────────────────────────────────────────────────────┐
+│ DASHBOARD - Multi-Tenant App                        │
+├─────────────────────────────────────────────────────┤
+│ [Logo]  Invoicing System  [ User Dropdown ] [Logout]│
+├─────────────────────────────────────────────────────┤
+│ ┌─────────────────┐ ┌─────────────────────────────┐ │
+│ │ NAVIGATION      │ │ MAIN CONTENT AREA           │ │
+│ ├─────────────────┤ │                             │ │
+│ │ • Dashboard     │ │ Invoices (Tenant Context)   │ │
+│ │ • Invoices      │ │ ┌──────────────────────────┐ │
+│ │ • Products      │ │ │ [New Invoice] [Search  ] │ │
+│ │ • Users (admin) │ │ ├──────────────────────────┤ │
+│ │ • Settings      │ │ │ #  | Amount | Due Date  │ │
+│ │                 │ │ ├──────────────────────────┤ │
+│ │                 │ │ │INV-001|$1,000|2026-08-01│ │
+│ │                 │ │ │INV-002|$2,500|2026-08-15│ │
+│ │                 │ │ │ [Edit] [Delete]         │ │
+│ │                 │ │ └──────────────────────────┘ │
+│ └─────────────────┘ └─────────────────────────────┘ │
+└─────────────────────────────────────────────────────┘
+      </div>
+
+      <div class="wireframe">
+┌─────────────────────────────────────────────────────┐
+│ CREATE INVOICE FORM (Tenant Context)                │
+├─────────────────────────────────────────────────────┤
+│ Invoice Number: [________________]                  │
+│ Amount:         [$________________] (USD)           │
+│ Due Date:       [____-__-__]                        │
+│ Description:    [____________________]              │
+│                 [____________________]              │
+│                                                     │
+│ [Cancel] [Create]                                   │
+├─────────────────────────────────────────────────────┤
+│ ✓ Form validates client-side (MUI/React Hook Form) │
+│ ✓ Submits to POST /api/invoices                     │
+│ ✓ Handler uses Tenant DbContext to persist         │
+└─────────────────────────────────────────────────────┘
+      </div>
+
+      <p style="margin-top: 16px;"><strong>Multi-Tenancy visibility:</strong> The React UI does not display or manage context selection. Routing to the correct database happens transparently on the backend via DI. If a user tries to access /api/users without admin role, the API returns 403 (enforced server-side).</p>
+    </section>
+
+    <!-- SECTION 7 -->
+    <section id="s7">
+      <h2>7 · Behaviour — State &amp; Process</h2>
+
+      <h3 style="margin-bottom: 12px;">Entity Lifecycle (Simplified State Machine)</h3>
+      <div class="mermaid">
+        stateDiagram-v2
+          [*] --> Created: New invoice created<br/>(POST /api/invoices)
+          Created --> Active: Confirmed by user
+          Active --> Invoiced: Sent to customer
+          Invoiced --> Paid: Payment received
+          Invoiced --> Overdue: Due date passed
+          Overdue --> Paid: Payment received
+          Paid --> Archived: Closed
+          Archived --> [*]
+          Created --> Cancelled: User cancels<br/>before confirming
+          Cancelled --> [*]
+      </div>
+
+      <h3 style="margin-top: 24px; margin-bottom: 12px;">Context Routing Activity Diagram</h3>
+      <div class="mermaid">
+        flowchart TD
+          Start["Request arrives at Controller"]
+          Auth["Authenticate JWT token"]
+          AuthOK{Token valid?}
+          Route["Determine target entity<br/>(e.g., Invoice)"]
+          ContextLookup["Scaffold config:<br/>context = Tenant or Application?"]
+          TenantYes["context = Tenant?"]
+          TenantRoute["Inject TenantDbContext<br/>into handler"]
+          AppRoute["Inject ApplicationDbContext<br/>into handler"]
+          Execute["Handler executes query/command"]
+          Result["Return result to client"]
+
+          Start --> Auth
+          Auth --> AuthOK
+          AuthOK -->|"No"| Unauthorized["401 Unauthorized"]
+          AuthOK -->|"Yes"| Route
+          Route --> ContextLookup
+          ContextLookup --> TenantYes
+          TenantYes -->|"Yes"| TenantRoute
+          TenantYes -->|"No"| AppRoute
+          TenantRoute --> Execute
+          AppRoute --> Execute
+          Execute --> Result
+          Unauthorized --> [*]
+          Result --> [*]
+      </div>
+
+      <h3 style="margin-top: 24px; margin-bottom: 12px;">DI Resolution for Dual Contexts</h3>
+      <ul>
+        <li><strong>Service resolution:</strong> When a handler requests <code>IInvoiceRepository</code>, the DI container retrieves the singleton instance bound to that interface. That instance was constructed with <code>TenantDbContext</code> (because Invoice is a tenant entity).</li>
+        <li><strong>Context lifetime:</strong> Each DbContext is scoped to the request (created at request start, disposed at request end). This ensures connection pool reuse and proper async tracking.</li>
+        <li><strong>Connection pool management:</strong> Each DbContext maintains its own connection pool (connection string A for ApplicationDbContext, connection string B for TenantDbContext). No cross-contamination.</li>
+        <li><strong>Transaction boundaries:</strong> If a handler must write to both contexts, it uses <code>TransactionScope</code> or manual distributed transaction logic (complex; usually avoided by keeping writes to one context per request).</li>
+      </ul>
+    </section>
+
+    <!-- SECTION 8 -->
+    <section id="s8">
+      <h2>8 · Deployment — Docker, Terraform, GitLab CI/CD</h2>
+
+      <h3 style="margin-bottom: 12px;">Deployment Architecture (Mermaid Flowchart)</h3>
+      <div class="mermaid">
+        flowchart TB
+          subgraph Local["Local Development"]
+            DockerCompose["docker-compose.yml<br/>(2x PostgreSQL)"]
+            LocalAPI["API Container<br/>(dotnet run)"]
+            LocalAppDB["AppDB<br/>(postgres:15)"]
+            LocalTenantDB["TenantDB<br/>(postgres:15)"]
+          end
+
+          subgraph Stage["Staging (Kubernetes)"]
+            IngressStage["Ingress / LoadBalancer"]
+            APIStageReplicas["API Pod (replicas: 2)"]
+            StageAppDB["CloudSQL<br/>(PostgreSQL)"]
+            StageTenantDB["CloudSQL<br/>(PostgreSQL)"]
+          end
+
+          subgraph Prod["Production (Kubernetes)"]
+            IngressProd["Ingress / LoadBalancer<br/>(SSL/TLS)"]
+            APIProdReplicas["API Pod (replicas: 3+)"]
+            ProdAppDB["CloudSQL HA<br/>(PostgreSQL)"]
+            ProdTenantDB["CloudSQL HA<br/>(PostgreSQL)"]
+          end
+
+          LocalAPI -->|"localhost:5000"| LocalAppDB
+          LocalAPI -->|"localhost:5001"| LocalTenantDB
+          LocalCompose -->|"orchestrates"| LocalAPI
+
+          IngressStage -->|"HTTPS"| APIStageReplicas
+          APIStageReplicas -->|"env: ApplicationDb:ConnectionString"| StageAppDB
+          APIStageReplicas -->|"env: TenantDb:ConnectionString"| StageTenantDB
+
+          IngressProd -->|"HTTPS (*.prod.com)"| APIProdReplicas
+          APIProdReplicas -->|"env: ApplicationDb:ConnectionString"| ProdAppDB
+          APIProdReplicas -->|"env: TenantDb:ConnectionString"| ProdTenantDB
+      </div>
+
+      <h3 style="margin-top: 24px; margin-bottom: 12px;">Docker Compose (Local Dev)</h3>
+      <details>
+        <summary>docker-compose.yml snippet</summary>
+        <pre>version: "3.8"
+
+services:
+  api:
+    build: .
+    ports:
+      - "5000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__Application=Host=app-db;Port=5432;Database=acme_billing_app;Username=postgres;Password=secret
+      - ConnectionStrings__Tenant=Host=tenant-db;Port=5432;Database=acme_billing_tenant;Username=postgres;Password=secret
+    depends_on:
+      - app-db
+      - tenant-db
+
+  app-db:
+    image: postgres:15
+    environment:
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: acme_billing_app
+    volumes:
+      - app-db-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  tenant-db:
+    image: postgres:15
+    environment:
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: acme_billing_tenant
+    volumes:
+      - tenant-db-data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+
+volumes:
+  app-db-data:
+  tenant-db-data:</pre>
+      </details>
+
+      <h3 style="margin-top: 24px; margin-bottom: 12px;">Terraform Infrastructure (Kubernetes + CloudSQL)</h3>
+      <details>
+        <summary>Terraform module structure</summary>
+        <pre>terraform/
+├── main.tf              # Provider config, outputs
+├── variables.tf         # Input variables (env, region, etc.)
+├── modules/
+│   ├── kubernetes/
+│   │   ├── cluster.tf   # GKE cluster, node pools
+│   │   ├── namespace.tf # staging, production namespaces
+│   │   └── ingress.tf   # Ingress, certificates
+│   ├── database/
+│   │   ├── app-db.tf    # CloudSQL for ApplicationDbContext
+│   │   ├── tenant-db.tf # CloudSQL for TenantDbContext
+│   │   ├── backups.tf   # Automated backups
+│   │   └── versions.tf  # Major version targets
+│   └── networking/
+│       ├── vpc.tf       # VPC, subnets
+│       └── firewall.tf  # Firewall rules
+└── environments/
+    ├── staging.tfvars
+    └── production.tfvars
+
+Key resources:
+- google_container_cluster (GKE cluster)
+- google_sql_database_instance (x2: app-db, tenant-db)
+- google_sql_user (database credentials)
+- kubernetes_secret (DB connection strings → K8s secrets)
+- kubernetes_deployment (API service)</pre>
+      </details>
+
+      <h3 style="margin-top: 24px; margin-bottom: 12px;">GitLab CI/CD Pipeline</h3>
+      <div class="mermaid">
+        flowchart LR
+          Push["🔀 Git Push<br/>to branch"]
+          Trigger["GitLab CI<br/>triggered"]
+          Build["🔨 Build Stage<br/>- dotnet build<br/>- Run unit tests"]
+          BuildOK{Build OK?}
+          Lint["🧹 Lint Stage<br/>- Code style<br/>- Sonarqube"]
+          LintOK{Lint OK?}
+          Security["🔒 Security Stage<br/>- SAST scan<br/>- Dependency check"]
+          SecOK{Sec OK?}
+          Docker["🐳 Docker Stage<br/>- Build image<br/>- Push to registry"]
+          Terraform["🏗️ Terraform Stage<br/>- terraform plan<br/>- (manual approve)"]
+          TFOk{Approved?}
+          Deploy["🚀 Deploy Stage<br/>- kubectl apply<br/>- Run migrations<br/>- Health check"}
+          Success["✅ Pipeline Complete"]
+          Failure["❌ Pipeline Failed<br/>(notify Slack)"]
+
+          Push --> Trigger
+          Trigger --> Build
+          Build --> BuildOK
+          BuildOK -->|"Yes"| Lint
+          BuildOK -->|"No"| Failure
+          Lint --> LintOK
+          LintOK -->|"Yes"| Security
+          LintOK -->|"No"| Failure
+          Security --> SecOK
+          SecOK -->|"Yes"| Docker
+          SecOK -->|"No"| Failure
+          Docker --> Terraform
+          Terraform --> TFOk
+          TFOk -->|"Yes (manual)"| Deploy
+          TFOk -->|"No"| Failure
+          Deploy --> Success
+      </div>
+
+      <p style="margin-top: 16px;"><strong>Migration strategy:</strong> After deployment, the GitLab pipeline runs <code>dotnet ef database update --context ApplicationDbContext</code> and <code>dotnet ef database update --context RetailerDbContext</code> to apply pending migrations to both databases before health checks. Both contexts are backward compatible; migrations run in order per context.</p>
+    </section>
+
+    <!-- SECTION 9 -->
+    <section id="s9">
+      <h2>9 · Monitoring &amp; Custom Alerts</h2>
+
+      <h3 style="margin-bottom: 12px;">Golden Signals Baseline (New Relic NRQL)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Signal</th>
+            <th>Metric</th>
+            <th>NRQL Query</th>
+            <th>Target Threshold</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Latency</strong> (API)</td>
+            <td>p95 request duration</td>
+            <td>SELECT percentile(duration, 95) FROM Transaction WHERE appName='billing-api' FACET context</td>
+            <td>&lt;100ms (app), &lt;200ms (tenant)</td>
+          </tr>
+          <tr>
+            <td><strong>Latency</strong> (DB)</td>
+            <td>p95 query duration per context</td>
+            <td>SELECT percentile(duration, 95) FROM Datastore WHERE dbContext=ApplicationDbContext OR dbContext=RetailerDbContext</td>
+            <td>&lt;50ms</td>
+          </tr>
+          <tr>
+            <td><strong>Traffic</strong> (Requests)</td>
+            <td>Requests per second by context</td>
+            <td>SELECT rate(count(*), 1 minute) FROM Transaction WHERE appName='billing-api' FACET dbContext</td>
+            <td>&gt;=50 RPS in prod</td>
+          </tr>
+          <tr>
+            <td><strong>Traffic</strong> (Connections)</td>
+            <td>Active DB connections per context</td>
+            <td>SELECT average(pool.activeConnections) FROM DatabaseConnections FACET dbName</td>
+            <td>&lt;80 of max 100 per pool</td>
+          </tr>
+          <tr>
+            <td><strong>Errors</strong> (App)</td>
+            <td>Error rate (5xx / total)</td>
+            <td>SELECT (count(httpResponseCode) WHERE httpResponseCode>=500) / count(*) FROM Transaction WHERE appName='billing-api'</td>
+            <td>&lt;0.1% (0.001)</td>
+          </tr>
+          <tr>
+            <td><strong>Errors</strong> (DB)</td>
+            <td>DB connection failures per context</td>
+            <td>SELECT count(*) FROM Datastore WHERE dbConnection.error!=null FACET dbName</td>
+            <td>0 (alert on any)</td>
+          </tr>
+          <tr>
+            <td><strong>Saturation</strong> (CPU)</td>
+            <td>Container CPU usage</td>
+            <td>SELECT average(cpuPercent) FROM SystemSample WHERE pod='billing-api-*'</td>
+            <td>&lt;70%</td>
+          </tr>
+          <tr>
+            <td><strong>Saturation</strong> (Memory)</td>
+            <td>Container memory usage</td>
+            <td>SELECT average(memoryPercent) FROM SystemSample WHERE pod='billing-api-*'</td>
+            <td>&lt;80%</td>
+          </tr>
+          <tr>
+            <td><strong>Saturation</strong> (Connection Pool)</td>
+            <td>Available connections (remaining capacity)</td>
+            <td>SELECT (maxPoolSize - activeConnections) FROM DatabaseConnections FACET dbName</td>
+            <td>&gt;20 (warn at &lt;30)</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 style="margin-top: 24px; margin-bottom: 12px;">Custom Alerts &amp; Notifications</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Alert Name</th>
+            <th>NRQL Condition</th>
+            <th>Threshold</th>
+            <th>Severity</th>
+            <th>Notification</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>High API Latency</strong></td>
+            <td><code>SELECT percentile(duration, 95) FROM Transaction WHERE appName='billing-api'</code></td>
+            <td>&gt;200ms for 5min</td>
+            <td>CRITICAL</td>
+            <td>Slack #incidents, PagerDuty</td>
+          </tr>
+          <tr>
+            <td><strong>High Error Rate</strong></td>
+            <td><code>SELECT (count(httpResponseCode WHERE httpResponseCode>=500) / count(*)) FROM Transaction WHERE appName='billing-api'</code></td>
+            <td>&gt;1% for 2min</td>
+            <td>CRITICAL</td>
+            <td>Slack #incidents, PagerDuty</td>
+          </tr>
+          <tr>
+            <td><strong>DB Connection Pool Exhaustion</strong></td>
+            <td><code>SELECT (maxPoolSize - activeConnections) FROM DatabaseConnections FACET dbName</code></td>
+            <td>&lt;10 available for 1min</td>
+            <td>WARNING</td>
+            <td>Slack #ops</td>
+          </tr>
+          <tr>
+            <td><strong>Application DB Down</strong></td>
+            <td><code>SELECT count(*) FROM Datastore WHERE dbName='app_db' AND status='failed'</code></td>
+            <td>&gt;0 events in 1min</td>
+            <td>CRITICAL</td>
+            <td>Slack #incidents, PagerDuty</td>
+          </tr>
+          <tr>
+            <td><strong>Tenant DB Down</strong></td>
+            <td><code>SELECT count(*) FROM Datastore WHERE dbName='tenant_db' AND status='failed'</code></td>
+            <td>&gt;0 events in 1min</td>
+            <td>CRITICAL</td>
+            <td>Slack #incidents, PagerDuty</td>
+          </tr>
+          <tr>
+            <td><strong>High Memory Usage</strong></td>
+            <td><code>SELECT average(memoryPercent) FROM SystemSample WHERE pod='billing-api-*'</code></td>
+            <td>&gt;90% for 5min</td>
+            <td>WARNING</td>
+            <td>Slack #ops</td>
+          </tr>
+          <tr>
+            <td><strong>Slow Query Detected</strong></td>
+            <td><code>SELECT count(*) FROM Datastore WHERE duration &gt; 1000 FACET query</code></td>
+            <td>&gt;10 slow queries in 5min</td>
+            <td>WARNING</td>
+            <td>Slack #backend</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 style="margin-top: 24px; margin-bottom: 12px;">Incident Response Flow (New Relic → ServiceNow)</h3>
+      <div class="mermaid">
+        sequenceDiagram
+          participant NewRelic as New Relic Alert
+          participant Webhook as Webhook Receiver<br/>(API)
+          participant ServiceNow as ServiceNow ITSM
+          participant Slack as Slack Notification
+          participant OnCall as On-Call Engineer
+          participant Engineer as Assigned Engineer
+
+          NewRelic ->>+ Webhook: HTTP POST alert payload<br/>(alert name, severity, metric)
+          Webhook ->> ServiceNow: Create Incident<br/>(title, description, priority)
+          ServiceNow ->>- Webhook: Incident # created
+          Webhook ->> Slack: Post message to #incidents<br/>(alert + incident link)
+          Slack ->>+ OnCall: @oncall-billing (paging)
+          OnCall ->>+ Engineer: Receives PagerDuty notification<br/>(acknowledge / snooze)
+          Engineer ->> ServiceNow: Open incident<br/>(view logs in New Relic)
+          Engineer ->> ServiceNow: Investigate + Diagnose
+          Engineer ->>- ServiceNow: Update incident<br/>(resolution notes)
+          ServiceNow ->> Slack: Incident resolved<br/>(close message)
+          OnCall ->>- Engineer: Resolved (log resolution)
+          NewRelic ->>+ NewRelic: Alert clears<br/>(condition no longer met)
+          NewRelic ->>- Webhook: Clear notification sent
+      </div>
+
+      <h3 style="margin-top: 24px; margin-bottom: 12px;">Suggested Dashboard Widgets</h3>
+      <ul>
+        <li><strong>API Health Card:</strong> Uptime %, error rate, avg latency (bar chart per endpoint)</li>
+        <li><strong>Database Performance:</strong> Query duration p50/p95/p99 for each DbContext (line graph, dual-axis)</li>
+        <li><strong>Request Volume:</strong> Requests per second by HTTP method and DbContext (area chart)</li>
+        <li><strong>Error Tracking:</strong> Error rate + top 5 error types (table, sortable by count)</li>
+        <li><strong>Infrastructure:</strong> CPU/Memory usage (pod-level, line graph) + Container restart count</li>
+        <li><strong>Connection Pool Health:</strong> Active vs. available connections per DbContext (gauge)</li>
+        <li><strong>Recent Incidents:</strong> Last 10 ServiceNow incidents linked from this dashboard (table)</li>
+        <li><strong>Slow Queries:</strong> Top 10 slowest queries per DbContext (table, with query text)</li>
+      </ul>
+    </section>
+
+    <!-- SECTION 10 -->
+    <section id="s10">
+      <h2>10 · Open Questions, Decisions &amp; Risks</h2>
+
+      <h3 style="margin-bottom: 12px;">Open Questions</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Question</th>
+            <th>Why It Matters</th>
+            <th>Proposed Default</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>OQ1</strong></td>
+            <td>Should the manifest support multiple tenant contexts (e.g., <code>RetailerDbContext</code>, <code>DistributorDbContext</code>)? Or just one tenant context?</td>
+            <td>Affects template complexity and scaffold flexibility. Multiple contexts = different templates and DI registration patterns.</td>
+            <td>Start with single tenant context; document path for future multi-context support.</td>
+            <td>Open</td>
+          </tr>
+          <tr>
+            <td><strong>OQ2</strong></td>
+            <td>Should entity definitions in the manifest support a <code>tenantId</code> field (e.g., a Guid foreign key to a Tenant table)? Or does the tenant identity come from JWT claims at runtime?</td>
+            <td>Affects query filtering logic and whether repositories need tenant-aware filtering. Early design choice impacts handler code.</td>
+            <td>Tenant identity comes from JWT claims; repositories don't auto-filter. Handlers optionally enforce filters based on claims.</td>
+            <td>Open</td>
+          </tr>
+          <tr>
+            <td><strong>OQ3</strong></td>
+            <td>For migrations, should the scaffold generate a script that auto-detects new entities and creates migrations for both contexts? Or require manual <code>dotnet ef migrations add</code> per context?</td>
+            <td>User experience — manual is safer, but script-based is faster. Affects onboarding docs and CI/CD pipeline.</td>
+            <td>Require manual; document the two-context migration pattern clearly in generated Readme.md.</td>
+            <td>Open</td>
+          </tr>
+          <tr>
+            <td><strong>OQ4</strong></td>
+            <td>Should cross-context foreign keys (e.g., <code>Invoice.CreatedByUserId</code> → User in ApplicationDbContext) be enforced at DB level or app level?</td>
+            <td>DB-level enforcement is safer but adds complexity. App-level is easier to test and refactor, but risky.</td>
+            <td>App-level only (no DB FK constraints across contexts); document the assumption; consider runtime validation in handlers.</td>
+            <td>Open</td>
+          </tr>
+          <tr>
+            <td><strong>OQ5</strong></td>
+            <td>Should both DbContexts share the same Sqlite file in dev, or separate files? Currently assumed separate (LocalAppDB on 5432, LocalTenantDB on 5433).</td>
+            <td>Affects local dev setup simplicity and whether devs accidentally query the wrong context.</td>
+            <td>Separate databases (separate connection strings) even in dev; encourages good habits and mirrors prod architecture.</td>
+            <td>Open</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 style="margin-top: 24px; margin-bottom: 12px;">Decision Log (ADR-Style)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Decision</th>
+            <th>Options Considered</th>
+            <th>Choice + Rationale</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>ADR1: Single vs. Multiple Tenant Contexts</strong></td>
+            <td>A) Single configurable tenant context (RetailerDbContext)<br/>B) Multiple tenant contexts (Retailer + Distributor + ...)<br/>C) No tenant context, user manages manually</td>
+            <td><strong>A (Single configurable tenant context).</strong> Balances flexibility (name is configurable via <code>options.tenantContextName</code>) with simplicity. Multi-context can be added later without breaking existing templates.</td>
+            <td>2026-07-10</td>
+          </tr>
+          <tr>
+            <td><strong>ADR2: Context Assignment Strategy</strong></td>
+            <td>A) Manifest includes <code>context</code> field per entity (explicit)<br/>B) Infer from entity name (e.g., starts with "Tenant*")<br/>C) Create all entities in both contexts, filter at query time</td>
+            <td><strong>A (Explicit <code>context</code> field).</strong> No magic, clear to developers. Errors are caught at scaffold time, not runtime. Supports future rule engines if needed.</td>
+            <td>2026-07-10</td>
+          </tr>
+          <tr>
+            <td><strong>ADR3: Cross-Context Foreign Keys</strong></td>
+            <td>A) DB-level FK constraints<br/>B) App-level validation only<br/>C) No FK support, manual reference handling</td>
+            <td><strong>B (App-level validation).</strong> FK constraints across different database connections are impossible at DB level. App-level is simpler, more testable, and aligns with multi-DB reality.</td>
+            <td>2026-07-10</td>
+          </tr>
+          <tr>
+            <td><strong>ADR4: DbContext Naming Convention</strong></td>
+            <td>A) ApplicationDbContext + TenantDbContext (fixed)<br/>B) ApplicationDbContext + {TenantContextName}DbContext (configurable suffix)<br/>C) AppContext + TenantContext (shorter)</td>
+            <td><strong>B (Configurable suffix).</strong> "ApplicationDbContext" is clear and follows EF convention. Tenant context name is user-configurable (e.g., "RetailerDbContext", "DistributorDbContext") for flexibility. Solves the user's need for multi-tenant naming variations.</td>
+            <td>2026-07-10</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 style="margin-top: 24px; margin-bottom: 12px;">Risks &amp; Mitigation</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Risk</th>
+            <th>Likelihood</th>
+            <th>Impact</th>
+            <th>Mitigation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Data cross-contamination:</strong> Developer accidentally queries application data in tenant context or vice versa.</td>
+            <td>Medium</td>
+            <td>Critical (data breach, regulatory fine)</td>
+            <td>1) Separate connection strings enforce isolation at DB layer. 2) Code review + tests. 3) Generated comments in handlers warn about context selection. 4) Runtime logging tags queries by context for audit.</td>
+          </tr>
+          <tr>
+            <td><strong>Migration chaos:</strong> Migrations for two contexts get out of sync; one context lags in schema updates.</td>
+            <td>Medium</td>
+            <td>High (data corruption, app crashes)</td>
+            <td>1) Generated Readme documents the two-context migration pattern. 2) CI/CD pipeline runs both <code>dotnet ef database update</code> commands in sequence with explicit <code>--context</code> flags. 3) Monitoring alerts on migration failures.</td>
+          </tr>
+          <tr>
+            <td><strong>Connection pool exhaustion:</strong> One DbContext's pool runs out of connections, blocking all queries.</td>
+            <td>Low (cloud-managed DB auto-scales)</td>
+            <td>High (API unavailability)</td>
+            <td>1) Each DbContext has independent connection pool (not shared). 2) Alerts on pool saturation (&gt;80% used). 3) Kubernetes pod autoscaling on latency percentile.</td>
+          </tr>
+          <tr>
+            <td><strong>Scaffold template bugs on first pass:</strong> Generated code has syntax errors or missing imports.</td>
+            <td>High (new feature)</td>
+            <td>High (broken generated project)</td>
+            <td>1) Comprehensive Mermaid test of template generation against the example Invoice + User entities before release. 2) Unit tests in scaffold CLI (if applicable). 3) Early community feedback on generated output.</td>
+          </tr>
+          <tr>
+            <td><strong>Deployment downtime during dual-DB migration:</strong> One DB migrates faster than the other; app tries to use new schema against old DB momentarily.</td>
+            <td>Medium</td>
+            <td>High (transient API 500 errors)</td>
+            <td>1) Migrations are backward compatible (add column before use). 2) Deployment waits for both contexts to complete before health check. 3) Canary/blue-green deployment on staging before prod.</td>
+          </tr>
+          <tr>
+            <td><strong>Tenant context naming collision:</strong> User sets <code>tenantContextName: "ApplicationDbContext"</code>, causing duplicate class names.</td>
+            <td>Low</td>
+            <td>Medium (compilation failure, confusing error)</td>
+            <td>1) Scaffold CLI validates that <code>tenantContextName != "ApplicationDbContext"</code> and raises early error. 2) Manifest schema includes regex constraint on the name.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+  </main>
+
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true, theme: 'default', securityLevel: 'loose' });
+  </script>
+
+  <script>
+    // Scrollspy: highlight active TOC link
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const id = entry.target.id;
+          const link = document.querySelector(`#toc a[href="#${id}"]`);
+          document.querySelectorAll('#toc a').forEach(a => a.classList.remove('active'));
+          if (link) link.classList.add('active');
+        }
+      });
+    }, { threshold: 0.3 });
+
+    document.querySelectorAll('section').forEach(sec => observer.observe(sec));
+  </script>
+</body>
+</html>

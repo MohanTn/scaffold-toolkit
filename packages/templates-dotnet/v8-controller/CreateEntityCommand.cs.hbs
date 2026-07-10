@@ -1,0 +1,6 @@
+namespace {{ns}}.Application.Features.{{plural entity}}.Commands.Create{{entity}};
+
+public record Create{{entity}}Command(
+{{#each fields}}{{#unless (eq (pascal name) "Id")}}    {{type}} {{pascal name}}{{#unless @last}},{{/unless}}
+{{/unless}}{{/each}}
+) : IRequest<{{ns}}.Application.Features.{{plural entity}}.{{entity}}Dto>;

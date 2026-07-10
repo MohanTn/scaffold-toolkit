@@ -1,0 +1,8 @@
+namespace {{ns}}.Domain.Entities;
+
+public class {{entity}}
+{
+{{#each fields}}
+    public {{type}} {{pascal name}} { get; set; }
+{{/each}}
+}

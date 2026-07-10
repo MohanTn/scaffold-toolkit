@@ -1,0 +1,10 @@
+namespace {{ns}}.Application.Features.{{plural entity}}.Commands.Create{{entity}};
+
+public class Create{{entity}}CommandValidator : AbstractValidator<Create{{entity}}Command>
+{
+    public Create{{entity}}CommandValidator()
+    {
+{{#each fields}}{{#unless (eq (pascal name) "Id")}}        RuleFor(x => x.{{pascal name}}).NotEmpty();
+{{/unless}}{{/each}}
+    }
+}

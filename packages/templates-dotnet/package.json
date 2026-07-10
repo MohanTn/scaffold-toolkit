@@ -1,0 +1,19 @@
+{
+  "name": "scaffold-templates-dotnet",
+  "version": "1.0.0",
+  "description": "A versioned Handlebars template pack for the `@mohantn/scaffold-core` CLI, covering two .NET target stacks:",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "example": "examples"
+  },
+  "scripts": {
+    "test": "node tools/validate-all.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "handlebars": "^4.7.8"
+  }
+}

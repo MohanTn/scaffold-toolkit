@@ -1,0 +1,17 @@
+using {{ns}}.Application;
+using {{ns}}.Infrastructure;
+using {{ns}}.Api;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// SCAFFOLD:DI:START
+builder.Services.AddApplication();
+builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddApi();
+// SCAFFOLD:DI:END
+
+var app = builder.Build();
+
+app.UseApiMiddleware();
+
+app.Run();

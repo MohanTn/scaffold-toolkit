@@ -1,0 +1,368 @@
+{
+  "descriptorSchemaVersion": 2,
+  "packVersion": "v8-controller",
+  "requires": {
+    "scaffoldCli": ">=0.2.0 <1.0.0"
+  },
+  "pathConfig": {
+    "domainEntities": "Entities",
+    "applicationCommonInterfaces": "Common/Interfaces",
+    "applicationCommonBehaviors": "Common/Behaviors",
+    "applicationCommonExceptions": "Common/Exceptions",
+    "applicationFeatures": "Features",
+    "infrastructurePersistence": "Persistence",
+    "infrastructureConfigurations": "Persistence/Configurations",
+    "infrastructureRepositories": "Persistence/Repositories",
+    "apiControllers": "Controllers",
+    "apiMiddleware": "Middleware",
+    "testsApplicationFeatures": "Features"
+  },
+  "targets": [
+    {
+      "_comment": "Solution file, wires all 7 projects",
+      "output": "{{companyProjectName}}.sln",
+      "template": "Solution.sln.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "Shared build properties (net8.0, ImplicitUsings, Nullable)",
+      "output": "Directory.Build.props",
+      "template": "Directory.Build.props.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "Domain project file",
+      "output": "src/{{companyProjectName}}.Domain/{{companyProjectName}}.Domain.csproj",
+      "template": "DomainCsproj.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "Application project file, MediatR + FluentValidation",
+      "output": "src/{{companyProjectName}}.Application/{{companyProjectName}}.Application.csproj",
+      "template": "ApplicationCsproj.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "Infrastructure project file, EF Core",
+      "output": "src/{{companyProjectName}}.Infrastructure/{{companyProjectName}}.Infrastructure.csproj",
+      "template": "InfrastructureCsproj.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "API project file, thin controller layer",
+      "output": "src/{{companyProjectName}}.Api/{{companyProjectName}}.Api.csproj",
+      "template": "ApiCsproj.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "Domain unit test project",
+      "output": "tests/{{companyProjectName}}.Domain.UnitTests/{{companyProjectName}}.Domain.UnitTests.csproj",
+      "template": "DomainUnitTestsCsproj.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "Application unit test project",
+      "output": "tests/{{companyProjectName}}.Application.UnitTests/{{companyProjectName}}.Application.UnitTests.csproj",
+      "template": "ApplicationUnitTestsCsproj.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "Infrastructure integration test project",
+      "output": "tests/{{companyProjectName}}.Infrastructure.IntegrationTests/{{companyProjectName}}.Infrastructure.IntegrationTests.csproj",
+      "template": "InfrastructureIntegrationTestsCsproj.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "Global usings for Application unit test project",
+      "output": "tests/{{companyProjectName}}.Application.UnitTests/GlobalUsings.cs",
+      "template": "GlobalUsingsApplicationUnitTests.cs.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "Global usings for Domain layer",
+      "output": "src/{{companyProjectName}}.Domain/GlobalUsings.cs",
+      "template": "GlobalUsingsDomain.cs.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "Global usings for Application layer",
+      "output": "src/{{companyProjectName}}.Application/GlobalUsings.cs",
+      "template": "GlobalUsingsApplication.cs.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "Global usings for Infrastructure layer",
+      "output": "src/{{companyProjectName}}.Infrastructure/GlobalUsings.cs",
+      "template": "GlobalUsingsInfrastructure.cs.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "Global usings for API layer",
+      "output": "src/{{companyProjectName}}.Api/GlobalUsings.cs",
+      "template": "GlobalUsingsApi.cs.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "ValidationBehavior for MediatR pipeline",
+      "output": "src/{{companyProjectName}}.Application/{{pathConfig.applicationCommonBehaviors}}/ValidationBehavior.cs",
+      "template": "ValidationBehavior.cs.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "LoggingBehavior for MediatR pipeline",
+      "output": "src/{{companyProjectName}}.Application/{{pathConfig.applicationCommonBehaviors}}/LoggingBehavior.cs",
+      "template": "LoggingBehavior.cs.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "Base repository interface",
+      "output": "src/{{companyProjectName}}.Application/{{pathConfig.applicationCommonInterfaces}}/IRepository.cs",
+      "template": "IRepositoryBase.cs.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "Unit of Work interface",
+      "output": "src/{{companyProjectName}}.Application/{{pathConfig.applicationCommonInterfaces}}/IUnitOfWork.cs",
+      "template": "IUnitOfWork.cs.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "NotFoundException",
+      "output": "src/{{companyProjectName}}.Application/{{pathConfig.applicationCommonExceptions}}/NotFoundException.cs",
+      "template": "NotFoundException.cs.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "ValidationException",
+      "output": "src/{{companyProjectName}}.Application/{{pathConfig.applicationCommonExceptions}}/ValidationException.cs",
+      "template": "ValidationException.cs.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "Application layer DI setup",
+      "output": "src/{{companyProjectName}}.Application/DependencyInjection.cs",
+      "template": "ApplicationDependencyInjection.cs.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "DbContext, injection target DBSETS",
+      "output": "src/{{companyProjectName}}.Infrastructure/{{pathConfig.infrastructurePersistence}}/ApplicationDbContext.cs",
+      "template": "ApplicationDbContext.cs.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "Unit of Work implementation",
+      "output": "src/{{companyProjectName}}.Infrastructure/{{pathConfig.infrastructurePersistence}}/UnitOfWork.cs",
+      "template": "UnitOfWork.cs.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "Infrastructure layer DI setup, injection target REPOSITORIES",
+      "output": "src/{{companyProjectName}}.Infrastructure/DependencyInjection.cs",
+      "template": "InfrastructureDependencyInjection.cs.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "Exception handling middleware",
+      "output": "src/{{companyProjectName}}.Api/{{pathConfig.apiMiddleware}}/ExceptionHandlingMiddleware.cs",
+      "template": "ExceptionHandlingMiddleware.cs.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "API layer DI setup",
+      "output": "src/{{companyProjectName}}.Api/DependencyInjection.cs",
+      "template": "ApiDependencyInjection.cs.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "Program.cs entry point, injection target DI",
+      "output": "src/{{companyProjectName}}.Api/Program.cs",
+      "template": "Program.cs.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "Application settings (connection string)",
+      "output": "src/{{companyProjectName}}.Api/appsettings.json",
+      "template": "appsettings.json.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "Development-specific appsettings",
+      "output": "src/{{companyProjectName}}.Api/appsettings.Development.json",
+      "template": "appsettings.Development.json.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "Launch settings for IIS Express / Kestrel",
+      "output": "src/{{companyProjectName}}.Api/Properties/launchSettings.json",
+      "template": "launchSettings.json.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "Per-entity: Domain entity",
+      "output": "src/{{companyProjectName}}.Domain/{{pathConfig.domainEntities}}/{{entity}}.cs",
+      "template": "DomainEntity.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: DTO in feature folder",
+      "output": "src/{{companyProjectName}}.Application/{{pathConfig.applicationFeatures}}/{{plural entity}}/{{entity}}Dto.cs",
+      "template": "EntityDto.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: Repository interface",
+      "output": "src/{{companyProjectName}}.Application/{{pathConfig.applicationCommonInterfaces}}/I{{entity}}Repository.cs",
+      "template": "IEntityRepository.cs.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "Per-entity: EF Core configuration",
+      "output": "src/{{companyProjectName}}.Infrastructure/{{pathConfig.infrastructureConfigurations}}/{{entity}}Configuration.cs",
+      "template": "EntityConfiguration.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: Repository implementation",
+      "output": "src/{{companyProjectName}}.Infrastructure/{{pathConfig.infrastructureRepositories}}/{{entity}}Repository.cs",
+      "template": "EntityRepository.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: Create command",
+      "output": "src/{{companyProjectName}}.Application/{{pathConfig.applicationFeatures}}/{{plural entity}}/Commands/Create{{entity}}/Create{{entity}}Command.cs",
+      "template": "CreateEntityCommand.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: Create command handler",
+      "output": "src/{{companyProjectName}}.Application/{{pathConfig.applicationFeatures}}/{{plural entity}}/Commands/Create{{entity}}/Create{{entity}}CommandHandler.cs",
+      "template": "CreateEntityCommandHandler.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: Create command validator",
+      "output": "src/{{companyProjectName}}.Application/{{pathConfig.applicationFeatures}}/{{plural entity}}/Commands/Create{{entity}}/Create{{entity}}CommandValidator.cs",
+      "template": "CreateEntityCommandValidator.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: Update command",
+      "output": "src/{{companyProjectName}}.Application/{{pathConfig.applicationFeatures}}/{{plural entity}}/Commands/Update{{entity}}/Update{{entity}}Command.cs",
+      "template": "UpdateEntityCommand.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: Update command handler",
+      "output": "src/{{companyProjectName}}.Application/{{pathConfig.applicationFeatures}}/{{plural entity}}/Commands/Update{{entity}}/Update{{entity}}CommandHandler.cs",
+      "template": "UpdateEntityCommandHandler.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: Update command validator",
+      "output": "src/{{companyProjectName}}.Application/{{pathConfig.applicationFeatures}}/{{plural entity}}/Commands/Update{{entity}}/Update{{entity}}CommandValidator.cs",
+      "template": "UpdateEntityCommandValidator.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: Delete command",
+      "output": "src/{{companyProjectName}}.Application/{{pathConfig.applicationFeatures}}/{{plural entity}}/Commands/Delete{{entity}}/Delete{{entity}}Command.cs",
+      "template": "DeleteEntityCommand.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: Delete command handler",
+      "output": "src/{{companyProjectName}}.Application/{{pathConfig.applicationFeatures}}/{{plural entity}}/Commands/Delete{{entity}}/Delete{{entity}}CommandHandler.cs",
+      "template": "DeleteEntityCommandHandler.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: Get by ID query",
+      "output": "src/{{companyProjectName}}.Application/{{pathConfig.applicationFeatures}}/{{plural entity}}/Queries/Get{{entity}}ById/Get{{entity}}ByIdQuery.cs",
+      "template": "GetEntityByIdQuery.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: Get by ID query handler",
+      "output": "src/{{companyProjectName}}.Application/{{pathConfig.applicationFeatures}}/{{plural entity}}/Queries/Get{{entity}}ById/Get{{entity}}ByIdQueryHandler.cs",
+      "template": "GetEntityByIdQueryHandler.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: Get list query",
+      "output": "src/{{companyProjectName}}.Application/{{pathConfig.applicationFeatures}}/{{plural entity}}/Queries/Get{{entity}}List/Get{{entity}}ListQuery.cs",
+      "template": "GetEntityListQuery.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: Get list query handler",
+      "output": "src/{{companyProjectName}}.Application/{{pathConfig.applicationFeatures}}/{{plural entity}}/Queries/Get{{entity}}List/Get{{entity}}ListQueryHandler.cs",
+      "template": "GetEntityListQueryHandler.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: API controller using ISender",
+      "output": "src/{{companyProjectName}}.Api/{{pathConfig.apiControllers}}/{{entity}}Controller.cs",
+      "template": "EntityController.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: Create handler unit test",
+      "output": "tests/{{companyProjectName}}.Application.UnitTests/{{pathConfig.testsApplicationFeatures}}/{{plural entity}}/Create{{entity}}CommandHandlerTests.cs",
+      "template": "CreateEntityCommandHandlerTests.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: Update handler unit test",
+      "output": "tests/{{companyProjectName}}.Application.UnitTests/{{pathConfig.testsApplicationFeatures}}/{{plural entity}}/Update{{entity}}CommandHandlerTests.cs",
+      "template": "UpdateEntityCommandHandlerTests.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: Delete handler unit test",
+      "output": "tests/{{companyProjectName}}.Application.UnitTests/{{pathConfig.testsApplicationFeatures}}/{{plural entity}}/Delete{{entity}}CommandHandlerTests.cs",
+      "template": "DeleteEntityCommandHandlerTests.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: Get by ID handler unit test",
+      "output": "tests/{{companyProjectName}}.Application.UnitTests/{{pathConfig.testsApplicationFeatures}}/{{plural entity}}/Get{{entity}}ByIdQueryHandlerTests.cs",
+      "template": "GetEntityByIdQueryHandlerTests.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: Get list handler unit test",
+      "output": "tests/{{companyProjectName}}.Application.UnitTests/{{pathConfig.testsApplicationFeatures}}/{{plural entity}}/Get{{entity}}ListQueryHandlerTests.cs",
+      "template": "GetEntityListQueryHandlerTests.cs.hbs",
+      "mode": "create"
+    }
+  ],
+  "injections": [
+    {
+      "_comment": "DI registration in Program.cs",
+      "file": "src/{{companyProjectName}}.Api/Program.cs",
+      "marker": "DI",
+      "template": "di-registration.hbs",
+      "position": "before-end",
+      "hashTrailerPrefix": "// scaffold-hash:"
+    },
+    {
+      "_comment": "DbSet registration in ApplicationDbContext",
+      "file": "src/{{companyProjectName}}.Infrastructure/{{pathConfig.infrastructurePersistence}}/ApplicationDbContext.cs",
+      "marker": "DBSETS",
+      "template": "dbset-registration.hbs",
+      "position": "before-end",
+      "strategy": "append",
+      "hashTrailerPrefix": "// scaffold-hash:"
+    },
+    {
+      "_comment": "Repository DI registration in InfrastructureDependencyInjection",
+      "file": "src/{{companyProjectName}}.Infrastructure/DependencyInjection.cs",
+      "marker": "REPOSITORIES",
+      "template": "di-repository-registration.hbs",
+      "position": "before-end",
+      "strategy": "append",
+      "hashTrailerPrefix": "// scaffold-hash:"
+    }
+  ]
+}

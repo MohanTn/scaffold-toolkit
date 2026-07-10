@@ -1,0 +1,6 @@
+namespace {{ns}}.Application.Features.{{plural entity}};
+
+public record {{entity}}Dto(
+{{#each fields}}{{#unless (eq (pascal name) "Id")}}    {{type}} {{pascal name}}{{#unless @last}},{{/unless}}
+{{/unless}}{{/each}}
+);

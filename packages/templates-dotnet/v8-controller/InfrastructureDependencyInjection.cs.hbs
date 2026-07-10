@@ -1,0 +1,17 @@
+namespace {{ns}}.Infrastructure;
+
+public static class DependencyInjection
+{
+    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddDbContext<{{ns}}.Infrastructure.Persistence.ApplicationDbContext>(options =>
+            options.{{#if (eq options.database.provider "postgres")}}UseNpgsql{{else}}UseSqlite{{/if}}(configuration.GetConnectionString("Default") ?? "Data Source=app.db"));
+
+        services.AddScoped<{{ns}}.Application.Common.Interfaces.IUnitOfWork, {{ns}}.Infrastructure.Persistence.UnitOfWork>();
+
+        // SCAFFOLD:REPOSITORIES:START
+        // SCAFFOLD:REPOSITORIES:END
+
+        return services;
+    }
+}

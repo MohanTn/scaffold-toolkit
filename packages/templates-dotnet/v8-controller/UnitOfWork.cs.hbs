@@ -1,0 +1,71 @@
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore.Storage;
+using {{ns}}.Application.Common.Interfaces;
+
+namespace {{ns}}.Infrastructure.Persistence;
+
+public class UnitOfWork : IUnitOfWork
+{
+    private readonly ApplicationDbContext _db;
+    private IDbContextTransaction? _currentTransaction;
+    private bool _disposed;
+
+    public UnitOfWork(ApplicationDbContext db)
+    {
+        _db = db;
+    }
+
+    public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        => _db.SaveChangesAsync(cancellationToken);
+
+    public async Task BeginTransactionAsync(CancellationToken cancellationToken = default)
+    {
+        if (_currentTransaction is not null)
+            throw new InvalidOperationException("A transaction is already in progress; commit or rollback before starting another.");
+        _currentTransaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+    }
+
+    public async Task CommitAsync(CancellationToken cancellationToken = default)
+    {
+        if (_currentTransaction is null)
+            throw new InvalidOperationException("No transaction to commit.");
+        await _currentTransaction.CommitAsync(cancellationToken);
+        await _currentTransaction.DisposeAsync();
+        _currentTransaction = null;
+    }
+
+    public async Task RollbackAsync(CancellationToken cancellationToken = default)
+    {
+        if (_currentTransaction is null)
+            throw new InvalidOperationException("No transaction to roll back.");
+        await _currentTransaction.RollbackAsync(cancellationToken);
+        await _currentTransaction.DisposeAsync();
+        _currentTransaction = null;
+    }
+
+    public async Task ExecuteInTransactionAsync(Func<CancellationToken, Task> action, CancellationToken cancellationToken = default)
+    {
+        await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            await action(cancellationToken);
+            await tx.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            try { await tx.RollbackAsync(cancellationToken); } catch { /* swallow rollback error to surface original */ }
+            throw;
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _currentTransaction?.Dispose();
+        _db.Dispose();
+        _disposed = true;
+        GC.SuppressFinalize(this);
+    }
+}

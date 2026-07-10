@@ -1,0 +1,54 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31919.166
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "{{companyProjectName}}.Domain", "src/{{companyProjectName}}.Domain/{{companyProjectName}}.Domain.csproj", "{{projectGuid "Domain"}}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "{{companyProjectName}}.Application", "src/{{companyProjectName}}.Application/{{companyProjectName}}.Application.csproj", "{{projectGuid "Application"}}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "{{companyProjectName}}.Infrastructure", "src/{{companyProjectName}}.Infrastructure/{{companyProjectName}}.Infrastructure.csproj", "{{projectGuid "Infrastructure"}}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "{{companyProjectName}}.Api", "src/{{companyProjectName}}.Api/{{companyProjectName}}.Api.csproj", "{{projectGuid "Api"}}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "{{companyProjectName}}.Domain.UnitTests", "tests/{{companyProjectName}}.Domain.UnitTests/{{companyProjectName}}.Domain.UnitTests.csproj", "{{projectGuid "Domain.UnitTests"}}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "{{companyProjectName}}.Application.UnitTests", "tests/{{companyProjectName}}.Application.UnitTests/{{companyProjectName}}.Application.UnitTests.csproj", "{{projectGuid "Application.UnitTests"}}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "{{companyProjectName}}.Infrastructure.IntegrationTests", "tests/{{companyProjectName}}.Infrastructure.IntegrationTests/{{companyProjectName}}.Infrastructure.IntegrationTests.csproj", "{{projectGuid "Infrastructure.IntegrationTests"}}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{{projectGuid "Domain"}}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{{projectGuid "Domain"}}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{{projectGuid "Domain"}}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{{projectGuid "Domain"}}.Release|Any CPU.Build.0 = Release|Any CPU
+		{{projectGuid "Application"}}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{{projectGuid "Application"}}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{{projectGuid "Application"}}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{{projectGuid "Application"}}.Release|Any CPU.Build.0 = Release|Any CPU
+		{{projectGuid "Infrastructure"}}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{{projectGuid "Infrastructure"}}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{{projectGuid "Infrastructure"}}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{{projectGuid "Infrastructure"}}.Release|Any CPU.Build.0 = Release|Any CPU
+		{{projectGuid "Api"}}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{{projectGuid "Api"}}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{{projectGuid "Api"}}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{{projectGuid "Api"}}.Release|Any CPU.Build.0 = Release|Any CPU
+		{{projectGuid "Domain.UnitTests"}}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{{projectGuid "Domain.UnitTests"}}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{{projectGuid "Domain.UnitTests"}}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{{projectGuid "Domain.UnitTests"}}.Release|Any CPU.Build.0 = Release|Any CPU
+		{{projectGuid "Application.UnitTests"}}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{{projectGuid "Application.UnitTests"}}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{{projectGuid "Application.UnitTests"}}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{{projectGuid "Application.UnitTests"}}.Release|Any CPU.Build.0 = Release|Any CPU
+		{{projectGuid "Infrastructure.IntegrationTests"}}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{{projectGuid "Infrastructure.IntegrationTests"}}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{{projectGuid "Infrastructure.IntegrationTests"}}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{{projectGuid "Infrastructure.IntegrationTests"}}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

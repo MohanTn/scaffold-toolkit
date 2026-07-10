@@ -1,0 +1,24 @@
+namespace {{ns}}.Api;
+
+public static class DependencyInjection
+{
+    public static IServiceCollection AddApi(this IServiceCollection services)
+    {
+        services.AddControllers();
+        services.AddEndpointsApiExplorer();
+        services.AddSwaggerGen();
+        services.AddProblemDetails();
+        return services;
+    }
+
+    public static WebApplication UseApiMiddleware(this WebApplication app)
+    {
+        app.UseSwagger();
+        app.UseSwaggerUI();
+        app.UseHttpsRedirection();
+        app.UseAuthorization();
+        app.UseMiddleware<{{ns}}.Api.Middleware.ExceptionHandlingMiddleware>();
+        app.MapControllers();
+        return app;
+    }
+}
