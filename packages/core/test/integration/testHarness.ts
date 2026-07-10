@@ -278,6 +278,57 @@ export function buildRequiredBlockFixturePackRepo(): string {
 // A pack version with no ANCHOR_CATALOG entry (e.g. a frontend pack version) — used by bootstrap-markers' honest-empty-slot test.
 export const UNCATALOGED_PACK_VERSION = 'tanstack-query';
 
+/**
+ * A throwaway Python pack exercising all three new optional descriptor
+ * fields (`inputs[]`, `commentSyntax` for `.py`, `bootstrapAnchors`).
+ * `aggregate` + `events[]` are the inputs (no `entity`/`fields`); templates
+ * use the declared `.py` pack-level commentSyntax map; bootstrap anchors
+ * declare an after-line REGISTRY group on app.py and an after-class-brace
+ * REPOSITORY group on models.py. Used by the validate-pack
+ * "non-dotnet architecture end-to-end" integration test.
+ */
+export function buildPackDrivenPythonPackRepo(): string {
+  const dir = mkdtempSync(path.join(tmpdir(), 'scaffold-python-pack-'));
+  git(dir, ['init', '-q']);
+  git(dir, ['config', 'user.email', 'test@example.com']);
+  git(dir, ['config', 'user.name', 'Scaffold Test']);
+
+  const versionDir = path.join(dir, 'v1');
+  mkdirSync(versionDir, { recursive: true });
+  writeFileSync(
+    path.join(versionDir, 'manifest.templates.json'),
+    JSON.stringify(
+      {
+        descriptorSchemaVersion: 2,
+        packVersion: 'v1',
+        requires: { scaffoldCli: '>=0.0.0' },
+        inputs: [
+          { name: 'aggregate', type: 'string', required: true, pattern: '^[A-Z][A-Za-z0-9]+$' },
+          { name: 'events', type: 'array', required: true, minItems: 1 },
+        ],
+        commentSyntax: { '.py': { prefix: '# py-pack:' } },
+        bootstrapAnchors: [
+          { candidateFilenames: ['app.py'], anchor: { kind: 'after-line', pattern: '\\bdef\\s+main\\(' }, markers: ['REGISTRY'] },
+          { candidateFilenames: ['models.py'], anchor: { kind: 'after-class-brace', declarationPattern: '\\bclass\\s+Order\\b' }, markers: ['REPOSITORY'] },
+        ],
+        targets: [
+          { output: 'src/aggregates/{{aggregate}}.py', template: 'Aggregate.py.hbs', mode: 'create' },
+        ],
+        injections: [
+          { file: 'app.py', marker: 'REGISTRY', template: 'registry.py.hbs', position: 'before-end', hashTrailerPrefix: '# py-pack-hash:' },
+        ],
+      },
+      null,
+      2,
+    ),
+  );
+  writeFileSync(path.join(versionDir, 'Aggregate.py.hbs'), `class {{aggregate}}: pass\n`);
+  writeFileSync(path.join(versionDir, 'registry.py.hbs'), `    register_event("{{aggregate}}.{{events.[0].name}}")\n`);
+  git(dir, ['add', '-A']);
+  git(dir, ['commit', '-q', '-m', 'python pack-driven fixture']);
+  return dir;
+}
+
 export function writeInitialConfig(targetRepo: string, packUrl: string, pack: Partial<PackConfig> = {}): void {
   saveConfig(targetRepo, { projectType: 'dotnet', packs: { backend: { url: packUrl, version: 'v1', ...pack } } });
 }

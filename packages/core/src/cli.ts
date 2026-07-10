@@ -154,11 +154,12 @@ program
   .command('bootstrap-markers')
   .description("Bootstrap empty SCAFFOLD marker pairs into a brownfield repo's existing source files, keyed by the exact configured template-pack version")
   .option('--pack-version <version>', 'override the configured pack version(s), e.g. for a repo without .scaffold/config.json yet or for manual testing')
+  .option('--pack <dir>', 'local pack directory (used with --pack-version to test a pack author\'s un-synced descriptor; falls back to the built-in catalog when no descriptor bootstraps the version)')
   .option('--dry-run', 'plan without writing anything to disk', false)
   .option('--json', 'print the report as plain JSON instead of TOON', false)
-  .action((opts: { packVersion?: string; dryRun: boolean; json: boolean }) => {
+  .action((opts: { packVersion?: string; pack?: string; dryRun: boolean; json: boolean }) => {
     try {
-      const report = runBootstrapMarkers({ repoRoot: process.cwd(), packVersion: opts.packVersion, dryRun: opts.dryRun });
+      const report = runBootstrapMarkers({ repoRoot: process.cwd(), packVersion: opts.packVersion, packDir: opts.pack, dryRun: opts.dryRun });
       console.log(renderBootstrapMarkersReport(report, opts.json ? 'json' : 'toon'));
       process.exit(report.needsManual.length > 0 ? 1 : 0);
     } catch (error) {

@@ -70,3 +70,106 @@ test('validateDescriptor accepts strategy "append" on an injections[] entry and 
   (withBogus.injections[0] as Record<string, unknown>).strategy = 'merge';
   assert.throws(() => validateDescriptor(withBogus), DescriptorValidationError);
 });
+
+// --- v2 additive descriptor fields (axis 1/2/3 of the pack-driven plan) ---
+
+test('validateDescriptor accepts an optional inputs[] declaration', () => {
+  const d = { ...baseDescriptor(), inputs: [{ name: 'aggregate', type: 'string', required: true, pattern: '^[A-Z][A-Za-z0-9]+$' }] };
+  assert.deepEqual(validateDescriptor(d), d);
+});
+
+test('validateDescriptor rejects inputs[] entries with an unknown type', () => {
+  const d: Record<string, unknown> = { ...baseDescriptor(), inputs: [{ name: 'aggregate', type: 'decimal' }] };
+  assert.throws(() => validateDescriptor(d), DescriptorValidationError);
+});
+
+test('validateDescriptor accepts an optional commentSyntax map with {prefix} and {wrap} entries', () => {
+  const d = { ...baseDescriptor(), commentSyntax: { '.sql': { prefix: '--' }, '.razor': { wrap: ['@* ', ' *@'] } } };
+  assert.deepEqual(validateDescriptor(d), d);
+});
+
+test('validateDescriptor rejects commentSyntax entries that are neither {prefix} nor {wrap:[a,b]}', () => {
+  const d: Record<string, unknown> = { ...baseDescriptor(), commentSyntax: { '.sql': { wrongShape: '--' } } };
+  assert.throws(() => validateDescriptor(d), DescriptorValidationError);
+});
+
+test('validateDescriptor rejects a commentSyntax wrap entry whose tuple length is not exactly 2', () => {
+  const d: Record<string, unknown> = { ...baseDescriptor(), commentSyntax: { '.sql': { wrap: ['@* '] } } };
+  assert.throws(() => validateDescriptor(d), DescriptorValidationError);
+});
+
+test('validateDescriptor accepts an optional bootstrapAnchors[] declaring after-line and after-class-brace kinds', () => {
+  const d = {
+    ...baseDescriptor(),
+    bootstrapAnchors: [
+      { candidateFilenames: ['app.py'], anchor: { kind: 'after-line', pattern: '\\bdef\\s+main\\(' }, markers: ['REGISTRY'] },
+      { candidateFilenames: ['models.py'], anchor: { kind: 'after-class-brace', declarationPattern: '\\bclass\\s+Order\\b' }, markers: ['REPOSITORY'] },
+    ],
+  };
+  assert.deepEqual(validateDescriptor(d), d);
+});
+
+test('validateDescriptor rejects bootstrapAnchors entries with an unknown anchor kind', () => {
+  const d: Record<string, unknown> = { ...baseDescriptor(), bootstrapAnchors: [{ candidateFilenames: ['app.py'], anchor: { kind: 'before-class', pattern: 'x' }, markers: ['X'] }] };
+  assert.throws(() => validateDescriptor(d), DescriptorValidationError);
+});
+
+test('validateDescriptor rejects a bootstrapAnchors marker starting with the reserved AI_IMPLEMENTATION namespace', () => {
+  const d: Record<string, unknown> = { ...baseDescriptor(), bootstrapAnchors: [{ candidateFilenames: ['app.py'], anchor: { kind: 'after-line', pattern: 'x' }, markers: ['AI_IMPLEMENTATION_X'] }] };
+  assert.throws(() => validateDescriptor(d), DescriptorValidationError);
+});
+
+// --- `_`-prefixed documentation fields (pack-author convention) ---
+// The schema's strict `additionalProperties: false` rejects typos in known
+// fields but allows any property whose name starts with `_` as a pack-
+// author documentation allowance — the engine never reads them, so this is
+// purely a documentation tolerance. Stores like `_comment`, `_notes`, or
+// `_deprecated_at` are all permitted on every entry-level schema.
+
+test('validateDescriptor accepts `_comment` on a targets[] entry alongside its real fields', () => {
+  const d = { ...baseDescriptor(), targets: [{ output: 'src/x.cs', template: 'x.hbs', mode: 'create', _comment: 'this target is for the X feature' }] };
+  assert.deepEqual(validateDescriptor(d), d);
+});
+
+test('validateDescriptor accepts multiple `_`-prefixed fields on a targets[] entry', () => {
+  const d = {
+    ...baseDescriptor(),
+    targets: [{ output: 'src/x.cs', template: 'x.hbs', mode: 'create', _comment: 'first note', _notes: 'second note', _deprecated_at: '2026-01-01' }],
+  };
+  assert.deepEqual(validateDescriptor(d), d);
+});
+
+test('validateDescriptor accepts `_comment` on an injections[] entry alongside its real fields', () => {
+  const d = {
+    ...baseDescriptor(),
+    injections: [{ file: 'Program.cs', marker: 'DI', template: 'di.hbs', position: 'before-end' as const, hashTrailerPrefix: '// scaffold-hash:', _comment: 'matches the marker in descriptor above' }],
+  };
+  assert.deepEqual(validateDescriptor(d), d);
+});
+
+test('validateDescriptor still rejects a non-underscored typo on a targets[] entry (typo detection is preserved)', () => {
+  // `outpu` is a real typo (missing the trailing `t`) and must still fail
+  // even with `_comment` present on the entry.
+  const d: Record<string, unknown> = { ...baseDescriptor(), targets: [{ output: 'src/x.cs', template: 'x.hbs', mode: 'create', outpu: 'typo', _comment: 'ignored' }] };
+  // The schema requires `output`, not `outpu`, so this fails with a
+  // missing-property error rather than the additional-properties one.
+  assert.throws(() => validateDescriptor(d), DescriptorValidationError);
+});
+
+test('validateDescriptor rejects a non-underscored unknown field on a targets[] entry', () => {
+  const d: Record<string, unknown> = { ...baseDescriptor(), targets: [{ output: 'src/x.cs', template: 'x.hbs', mode: 'create', notes: 'no underscore prefix' }] };
+  assert.throws(() => validateDescriptor(d), DescriptorValidationError);
+});
+
+test('validateDescriptor accepts `_comment` on a bootstrapAnchors[] entry', () => {
+  const d = {
+    ...baseDescriptor(),
+    bootstrapAnchors: [{ candidateFilenames: ['app.py'], anchor: { kind: 'after-line', pattern: 'x' }, markers: ['X'], _comment: 'author notes' }],
+  };
+  assert.deepEqual(validateDescriptor(d), d);
+});
+
+test('validateDescriptor accepts `_comment` on an inputs[] entry', () => {
+  const d = { ...baseDescriptor(), inputs: [{ name: 'aggregate', type: 'string', required: true, _comment: 'PascalCase per regex below' }] };
+  assert.deepEqual(validateDescriptor(d), d);
+});

@@ -22,7 +22,7 @@ import { createHash } from 'node:crypto';
 import { scanMarkers } from './markerScan.js';
 import type { MarkerLocation } from './markerScan.js';
 import { resolveMarkerSyntax } from './commentSyntax.js';
-import type { CommentSyntaxOverride } from '../descriptor/schema.js';
+import type { CommentSyntaxOverride, PackCommentSyntaxMap } from '../descriptor/schema.js';
 
 export interface InjectionRequest {
   marker: string;
@@ -31,6 +31,8 @@ export interface InjectionRequest {
   position: 'before-end' | 'after-start';
   strategy: 'replace' | 'append';
   commentSyntaxOverride?: CommentSyntaxOverride;
+  /** Pack-level comment-syntax map; consulted by resolveMarkerSyntax before the built-in TABLE. */
+  packSyntaxMap?: PackCommentSyntaxMap;
 }
 
 export interface InjectionOutcome {
@@ -128,7 +130,7 @@ function rebuildContent(original: string, replacements: Replacement[]): string {
  */
 export function injectMarkers(filePath: string, originalContent: string, requests: InjectionRequest[], force: boolean): InjectResult {
   const scanRequests = requests.map((request) => {
-    const syntax = resolveMarkerSyntax(filePath, request.marker, request.commentSyntaxOverride);
+    const syntax = resolveMarkerSyntax(filePath, request.marker, request.commentSyntaxOverride, request.packSyntaxMap);
     return { marker: request.marker, startLine: syntax.startLine, endLine: syntax.endLine };
   });
   const locations: Map<string, MarkerLocation> = scanMarkers(filePath, originalContent, scanRequests);

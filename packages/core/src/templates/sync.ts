@@ -8,7 +8,7 @@
  * path to deliberately move a pinned pack forward.
  */
 
-import { cpSync, existsSync, mkdirSync, mkdtempSync, renameSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { loadConfig, saveConfig } from '../config/loader.js';
@@ -18,6 +18,66 @@ import { packCacheDir } from './cache.js';
 
 export function defaultCacheRoot(repoRoot: string): string {
   return path.join(repoRoot, '.scaffold', 'cache');
+}
+
+/**
+ * Recursively finds every `helpers.js` inside `rootDir`. Pack-local helper
+ * loaders (see `packHelpers.ts`) CommonJS-`require()` these files; see
+ * `ensurePackCjsBaseline` below for the sibling function that ensures they
+ * load under any parent package.json context.
+ */
+function findHelpersJsFiles(rootDir: string): string[] {
+  const out: string[] = [];
+  const stack: string[] = [rootDir];
+  while (stack.length > 0) {
+    const dir = stack.pop() as string;
+    let entries: string[];
+    try {
+      entries = readdirSync(dir);
+    } catch {
+      continue;
+    }
+    for (const name of entries) {
+      // Skip the cloned pack's own `.git` directory — scanning it is wasteful
+      // (loose objects tree) and never yields a helpers.js.
+      if (name === '.git') continue;
+      const full = path.join(dir, name);
+      let st;
+      try {
+        st = statSync(full);
+      } catch {
+        continue;
+      }
+      if (st.isDirectory()) {
+        stack.push(full);
+      } else if (st.isFile() && name === 'helpers.js') {
+        out.push(full);
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * For every `helpers.js` under `packRoot`, write a sibling `package.json`
+ * with `{"type":"commonjs"}` UNLESS one already exists. The engine relies
+ * on CommonJS `module.exports` for pack-local helpers (the documented
+ * convention — see `packHelpers.ts`); Node walks upward from each
+ * `helpers.js` looking for the nearest package.json to decide ESM-vs-CJS
+ * scope, and scaffold-toolkit may be run from inside a workspace whose
+ * own root `package.json` has `"type": "module"`. Without this baseline,
+ * `require(helpersPath)` would throw `ERR_REQUIRE_ESM` ("module is not
+ * defined in ES module scope") the first time a pack ships a `helpers.js`.
+ * Leaving an existing pack-authored `package.json` untouched is intentional:
+ * an author who explicitly opts into ESM helpers (e.g. via `.mjs`) keeps
+ * their override.
+ */
+export function ensurePackCjsBaseline(packRoot: string): void {
+  for (const helpersPath of findHelpersJsFiles(packRoot)) {
+    const pkgJsonPath = path.join(path.dirname(helpersPath), 'package.json');
+    if (existsSync(pkgJsonPath)) continue;
+    writeFileSync(pkgJsonPath, '{"type":"commonjs"}\n', 'utf8');
+  }
 }
 
 export interface SyncResult {
@@ -39,6 +99,13 @@ async function ensureCloned(cacheRoot: string, url: string, resolvedSha: string)
   const tmp = mkdtempSync(path.join(tmpdir(), 'scaffold-clone-'));
   try {
     await cloneToDir(url, tmp);
+    // Idempotent baseline for any pack-local helpers.js the pack ships:
+    // write a sibling `{"type":"commonjs"}` `package.json` iff the pack
+    // author didn't already ship one. See `ensurePackCjsBaseline` for the
+    // full rationale — without this, the loader in `packHelpers.ts` fails
+    // with `ERR_REQUIRE_ESM` whenever the cache lives inside a workspace
+    // whose own root `package.json` has `type: "module"`.
+    ensurePackCjsBaseline(tmp);
     try {
       renameSync(tmp, dir);
     } catch (error) {

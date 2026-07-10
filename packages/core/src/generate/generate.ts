@@ -13,6 +13,7 @@ import { loadConfig, saveConfig } from '../config/loader.js';
 import { decodeManifestFile } from '../manifest/decode.js';
 import { loadDescriptor } from '../descriptor/load.js';
 import type { DescriptorTarget } from '../descriptor/schema.js';
+import { validateManifestInputs } from '../manifest/inputValidation.js';
 import { packCacheDir } from '../templates/cache.js';
 import { defaultCacheRoot } from '../templates/sync.js';
 import { renderPathTemplate, renderTemplateFile } from './render.js';
@@ -51,7 +52,7 @@ interface PlannedInjectionGroup {
   requests: InjectionRequest[];
 }
 
-export function buildHandlebarsContext(manifest: { entity: string; fields: unknown; options?: Record<string, unknown> } & Record<string, unknown>): Record<string, unknown> {
+export function buildHandlebarsContext(manifest: { entity?: string; fields?: unknown; options?: Record<string, unknown> } & Record<string, unknown>): Record<string, unknown> {
   const options = manifest.options ?? {};
   // The manifest's top-level fields are spread last so they always win over
   // any same-named key inside the free-form, schema-unvalidated `options`
@@ -61,6 +62,11 @@ export function buildHandlebarsContext(manifest: { entity: string; fields: unkno
   // scaffold-templates-react contract on host-precomputed top-level fields
   // (entityCamel, entityPlural, primaryKeyField, …). `options` itself is
   // still reachable in templates as `{{options.foo}}`, unshadowed.
+  // `entity`/`fields` are now optional on the manifest (base schema no longer
+  // requires them — each pack declares what it needs in `descriptor.inputs`,
+  // enforced after the descriptor loads by `validateManifestInputs`). A
+  // calling pack author who wants them required still gets them — this is
+  // strictly a relaxation of the *base* type to match the *base* schema.
   return { ...options, ...manifest, options };
 }
 
@@ -90,6 +96,13 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRep
   // against the installed CLI version — fails fast, before any file is touched.
   const descriptor = loadDescriptor(descriptorPath);
   registerPackHelpers(versionDir);
+
+  // Enforce the pack-declared (or legacy default) input contract now that we
+  // know which pack is driving the manifest. The base `validateManifest` only
+  // checks universal shape (manifestSchemaVersion + targetStack present) — the
+  // pack's own `inputs[]` declaration (or the legacy entity+fields contract
+  // for non-declaring packs) is enforced here, after the descriptor load.
+  validateManifestInputs(descriptor.packVersion, manifest, descriptor.inputs);
 
   const context = buildHandlebarsContext(manifest);
 
@@ -145,6 +158,7 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRep
       position: injection.position,
       strategy: injection.strategy ?? 'replace',
       commentSyntaxOverride: injection.commentSyntax,
+      packSyntaxMap: descriptor.commentSyntax,
     });
     groupsByFile.set(absPath, group);
   }

@@ -118,6 +118,14 @@ Two entries deliberately target the same file (`Program.cs`) with independent ma
 
 ajv schema notes: the root descriptor object allows unknown top-level fields (`additionalProperties: true`), so a newer pack using a CLI-version field this engine doesn't yet know about doesn't hard-fail; each `targets[]`/`injections[]` entry keeps `additionalProperties: false` with its own `required` list, so typos in known fields are still caught. `requires.scaffoldCli` is checked with the `semver` package against the installed CLI's own version at descriptor-load time (shape-checked by ajv, range-checked separately).
 
+**Pack-driven descriptor fields (additive on v2, dotnet packs unchanged).** Three new optional fields make the engine pack-driven across languages and architectures. Without any of them, you get today's behavior exactly:
+
+- `inputs[]` — declares the intent-manifest fields your pack actually needs. Each entry is `{name, type: 'string'|'integer'|'boolean'|'array'|'object', required?, pattern?, minItems?}`. A descriptor without `inputs` keeps the legacy `entity` (PascalCase) + non-empty `fields[]` contract — all existing dotnet packs continue to work byte-for-byte.
+- `commentSyntax` (pack-level) — a record of file extension (`.py`, `.razor`, …) → either `{prefix: "--"}` (rendered `<prefix> SCAFFOLD:<marker>:START/END`) or `{wrap: ["@* ", " *@"]}` (rendered `<open>SCAFFOLD:<marker>:START<close>`). Resolved with precedence: per-injection `commentSyntax: {start, end}` override → pack map → built-in TABLE → hard error. Use this for any extension the built-in TABLE doesn't cover (`.sql`, `.razor`, …). Per-injection `commentSyntax` keeps working as a per-entry escape hatch.
+- `bootstrapAnchors[]` — brownfield marker placement declarations so any pack can describe where its markers live without modifying engine code. Each entry is the same shape as `anchorCatalog.ts`'s `AnchorGroup` but with patterns as strings, not RegExp: `{candidateFilenames: ["app.py"], anchor: {kind: "after-line", pattern: "\\bdef\\s+main\\("}, markers: ["REGISTRY"]}` or `{kind: "after-class-brace", declarationPattern: "\\bclass\\s+Order\\b"}`. The hardcoded `ANCHOR_CATALOG[version]` is kept as a built-in fallback when the descriptor omits `bootstrapAnchors`, so dotnet packs without the field still bootstrap correctly.
+
+A descriptor may declare any subset of the three — the engine composes: pack-declared inputs enforced after load, pack-declared comment syntax consulted before the built-in TABLE, pack-declared brownfield anchors preferred over the built-in ANCHOR_CATALOG. None of the three is required for an existing dotnet pack to keep working.
+
 **Added in 0.2.0 — `injections[].strategy`.** An optional `strategy` (`"replace"` default, or `"append"`) controls how a marker block evolves across runs. `replace` is the original single-render behavior: differing content refuses without `--force`. `append` is for **per-entity** markers (a `DbSet` line, a two-line DI registration, a route wiring, a barrel `export`), where each entity contributes one snippet that must coexist with the others: the injector appends a distinct snippet once, treats an already-present snippet as an idempotent no-op, and hashes the *accumulated* block. Without this, scaffolding a second entity into a shared block either refused outright or, with `--force`, silently dropped the first entity's registration — the multi-entity path was unusable. The packs mark `DBSETS`, `REPOSITORIES`, `ROUTES`, and the react barrel registries `append`; one-time markers like `DI`/`MIDDLEWARE` stay `replace`.
 
 ### Intent manifest schema (the phase-1 artifact, minimal and stack-agnostic)
@@ -187,6 +195,54 @@ Idempotent, one-time, never-overwrite: each marker's existing occurrence is chec
 Git safety net: inside a git working tree, a candidate file must be tracked and have an empty `git status --porcelain` before it is touched; a dirty or untracked file is reported `needs-manual` with a git-state reason instead of being silently skipped or, worse, written over uncommitted work. Outside a git working tree (the target repo is a plain directory) this check is skipped entirely — `scaffold` never requires the target to be a git repo. `isInsideGitWorkTree` distinguishes git's own clean "not a git repository" signal from any other execution failure (a missing `git` binary, a permissions error): only the former is treated as "no repo here, skip the check"; anything else throws, so the command fails loud rather than silently disabling its own safety net.
 
 A configured pack slot whose version has no `ANCHOR_CATALOG` entry at all (e.g. a `frontend` slot in a `dotnet+react` config) is reported under `BootstrapMarkersReport.unsupportedPacks`, a field kept separate from `needsManual` on purpose: there is no per-marker remediation available for a slot the catalog simply doesn't cover, so `cli.ts` gates its exit code on `needsManual.length > 0` alone — an unsupported pack slot never blocks a clean exit once every actionable marker elsewhere is placed or already-present.
+
+## Authoring a template pack
+
+A template pack is a git repository (not an npm package) containing one or more version folders, each holding a `manifest.templates.json` descriptor and its Handlebars templates. The pack repo's two artifacts (`manifest.templates.json` + `*.hbs`) travel through the engine's contract surface; everything else in the pack repo is private to the pack's CI / iteration.
+
+The simplest dotnet-compatible starting pack:
+
+```
+scaffold-templates-mypack/
+  v1/
+    manifest.templates.json     # see descriptor schema above
+    Endpoint.cs.hbs             # Handlebars template; references manifest's top-level fields
+    di-registration.hbs
+```
+
+`init`, then `templates sync`, then `generate --manifest <manifest.toon>` in a target repo will pull the pack and drive its templates.
+
+For a pack whose architecture has no single "entity" (event-sourced, CQRS, multi-aggregate, feature-module, ...) or which targets a non-built-in TABLE extension (`.sql`, `.razor`, ...), declare `inputs[]`, `commentSyntax`, and/or `bootstrapAnchors` in `manifest.templates.json` as described in the descriptor section above. A worked Python example exercising all three new fields together:
+
+```json
+{
+  "descriptorSchemaVersion": 2,
+  "packVersion": "v1",
+  "requires": { "scaffoldCli": ">=0.0.0" },
+  "inputs": [
+    { "name": "aggregate", "type": "string", "required": true, "pattern": "^[A-Z][A-Za-z0-9]+$" },
+    { "name": "events",    "type": "array",  "required": true, "minItems": 1 }
+  ],
+  "commentSyntax": { ".py": { "prefix": "# py-pack:" } },
+  "bootstrapAnchors": [
+    { "candidateFilenames": ["app.py"],    "anchor": { "kind": "after-line",         "pattern": "\\bdef\\s+main\\(" }, "markers": ["REGISTRY"] },
+    { "candidateFilenames": ["models.py"], "anchor": { "kind": "after-class-brace",  "declarationPattern": "\\bclass\\s+Order\\b" }, "markers": ["REPOSITORY"] }
+  ],
+  "targets":    [ { "output": "src/aggregates/{{aggregate}}.py", "template": "Aggregate.py.hbs", "mode": "create" } ],
+  "injections": [ { "file": "app.py", "marker": "REGISTRY", "template": "registry.py.hbs", "position": "before-end", "hashTrailerPrefix": "# py-pack-hash:" } ]
+}
+```
+
+The manifest the host agent writes then carries the declared fields:
+
+```
+manifestSchemaVersion: 1
+targetStack:           python-events
+aggregate:             OrderPlaced
+events:                [{name: Created, type: Guid}]
+```
+
+— no `entity`/`fields[]` needed, injection markers use the pack's declared `# py-pack:` prefix, and `bootstrap-markers --pack <dir> --pack-version v1` places markers at `REGISTRY` (after `def main(`) and `REPOSITORY` (after the `class Order` declaration brace) using that same prefix. `validate-pack --pack <dir> --manifest <manifest.json>` exercises the whole pipeline end-to-end against a synthesized target repo, catching template, marker-syntax, comment-syntax, and descriptor-`requires` errors that render-only validation misses.
 
 ## Rejected feature: pre/post-process shell hooks
 
