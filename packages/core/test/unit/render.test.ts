@@ -38,3 +38,59 @@ test('renderTemplateFile iterates a fields array', () => {
   });
   assert.equal(output, 'public Guid Id;\npublic decimal Amount;\n');
 });
+
+test('renderTemplateFile supports camel case helper', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'scaffold-render-'));
+  const templatePath = path.join(dir, 'Case.hbs');
+  writeFileSync(templatePath, '{{camel entity}}');
+  const output = renderTemplateFile(templatePath, { entity: 'InvoiceEndpoint' });
+  assert.equal(output, 'invoiceEndpoint');
+});
+
+test('renderTemplateFile supports Camel case helper with capital C', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'scaffold-render-'));
+  const templatePath = path.join(dir, 'Case.hbs');
+  writeFileSync(templatePath, '{{Camel entity}}');
+  const output = renderTemplateFile(templatePath, { entity: 'InvoiceEndpoint' });
+  assert.equal(output, 'invoiceEndpoint');
+});
+
+test('renderTemplateFile supports pascal case helper', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'scaffold-render-'));
+  const templatePath = path.join(dir, 'Case.hbs');
+  writeFileSync(templatePath, '{{pascal entity}}');
+  const output = renderTemplateFile(templatePath, { entity: 'invoice_endpoint' });
+  assert.equal(output, 'InvoiceEndpoint');
+});
+
+test('renderTemplateFile supports snake case helper', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'scaffold-render-'));
+  const templatePath = path.join(dir, 'Case.hbs');
+  writeFileSync(templatePath, '{{snake entity}}');
+  const output = renderTemplateFile(templatePath, { entity: 'InvoiceEndpoint' });
+  assert.equal(output, 'invoice_endpoint');
+});
+
+test('renderTemplateFile supports kebab case helper', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'scaffold-render-'));
+  const templatePath = path.join(dir, 'Case.hbs');
+  writeFileSync(templatePath, '{{kebab entity}}');
+  const output = renderTemplateFile(templatePath, { entity: 'InvoiceEndpoint' });
+  assert.equal(output, 'invoice-endpoint');
+});
+
+test('renderTemplateFile supports upper case helper', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'scaffold-render-'));
+  const templatePath = path.join(dir, 'Case.hbs');
+  writeFileSync(templatePath, '{{upper entity}}');
+  const output = renderTemplateFile(templatePath, { entity: 'invoice' });
+  assert.equal(output, 'INVOICE');
+});
+
+test('renderTemplateFile supports lower case helper', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'scaffold-render-'));
+  const templatePath = path.join(dir, 'Case.hbs');
+  writeFileSync(templatePath, '{{lower entity}}');
+  const output = renderTemplateFile(templatePath, { entity: 'INVOICE' });
+  assert.equal(output, 'invoice');
+});

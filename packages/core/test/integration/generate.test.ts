@@ -1,10 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { syncTemplates, defaultCacheRoot } from '../../src/templates/sync.js';
 import { runGenerate } from '../../src/generate/generate.js';
 import { buildFixturePackRepo, buildFixtureTargetRepo, writeInitialConfig, writeManifestFile, PROGRAM_CS } from './testHarness.js';
+import { saveConfig } from '../../src/config/loader.js';
 
 test('scaffold generate: full end-to-end run creates a file, injects two independent markers, and reports an unfilled AI_IMPLEMENTATION block', async () => {
   const packRepo = buildFixturePackRepo();
@@ -120,4 +122,62 @@ test('scaffold generate: a manifest option named "entity" or "fields" cannot sha
   assert.match(endpointContent, /public class InvoiceEndpoint/);
   const programContent = readFileSync(path.join(targetRepo, 'Program.cs'), 'utf8');
   assert.match(programContent, /IInvoiceService, InvoiceService/);
+});
+
+test('scaffold generate: Handlebars case conversion helpers (camel, pascal, snake, kebab) work in templates', async () => {
+  const packRepo = buildFixturePackRepo();
+  const targetRepo = buildFixtureTargetRepo();
+  writeInitialConfig(targetRepo, packRepo);
+
+  // Add a version with templates using case conversion helpers.
+  const versionDirWithHelpers = path.join(packRepo, 'v-with-helpers');
+  mkdirSync(versionDirWithHelpers, { recursive: true });
+
+  const descriptorWithHelpers = {
+    descriptorSchemaVersion: 2,
+    packVersion: 'v-with-helpers',
+    requires: { scaffoldCli: '>=0.0.0' },
+    targets: [
+      { output: 'src/{{entity}}.cs', template: 'Entity.cs.hbs', mode: 'create' },
+    ],
+    injections: [],
+  };
+
+  const templateWithHelpers = `
+public class {{entity}} {
+  private {{camel entity}} instance;
+  public {{pascal (camel entity)}} GetInstance() {
+    return {{snake entity}}_instance;
+  }
+}`;
+
+  writeFileSync(path.join(versionDirWithHelpers, 'manifest.templates.json'), JSON.stringify(descriptorWithHelpers, null, 2));
+  writeFileSync(path.join(versionDirWithHelpers, 'Entity.cs.hbs'), templateWithHelpers);
+
+  execFileSync('git', ['add', '-A'], { cwd: packRepo, stdio: 'pipe' });
+  execFileSync('git', ['commit', '-q', '-m', 'add v-with-helpers'], { cwd: packRepo, stdio: 'pipe' });
+
+  // Update config to use the new version.
+  saveConfig(targetRepo, { projectType: 'dotnet', packs: { backend: { url: packRepo, version: 'v-with-helpers' } } });
+  await syncTemplates(targetRepo, defaultCacheRoot(targetRepo));
+
+  const manifest = {
+    manifestSchemaVersion: 1,
+    targetStack: 'backend',
+    entity: 'InvoiceEndpoint',
+    fields: [{ name: 'id', type: 'guid' }],
+    options: { route: '/api/invoices' },
+  };
+
+  const manifestFile = path.join(targetRepo, 'Invoice.manifest.json');
+  writeFileSync(manifestFile, JSON.stringify(manifest, null, 2));
+
+  const report = await runGenerate({ repoRoot: targetRepo, manifestPath: manifestFile, dryRun: false, force: false });
+
+  assert.equal(report.created[0].file, 'src/InvoiceEndpoint.cs');
+  const content = readFileSync(path.join(targetRepo, 'src/InvoiceEndpoint.cs'), 'utf8');
+  assert.match(content, /public class InvoiceEndpoint/);
+  assert.match(content, /private invoiceEndpoint instance/);
+  assert.match(content, /public InvoiceEndpoint GetInstance/);
+  assert.match(content, /invoice_endpoint_instance/);
 });
