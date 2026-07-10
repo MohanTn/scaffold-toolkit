@@ -8,7 +8,7 @@
  * path to deliberately move a pinned pack forward.
  */
 
-import { existsSync, mkdirSync, mkdtempSync, renameSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, renameSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { loadConfig, saveConfig } from '../config/loader.js';
@@ -39,7 +39,16 @@ async function ensureCloned(cacheRoot: string, url: string, resolvedSha: string)
   const tmp = mkdtempSync(path.join(tmpdir(), 'scaffold-clone-'));
   try {
     await cloneToDir(url, tmp);
-    renameSync(tmp, dir);
+    try {
+      renameSync(tmp, dir);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'EXDEV') {
+        cpSync(tmp, dir, { recursive: true, force: true });
+        rmSync(tmp, { recursive: true, force: true });
+      } else {
+        throw error;
+      }
+    }
   } catch (error) {
     rmSync(tmp, { recursive: true, force: true });
     throw error;
