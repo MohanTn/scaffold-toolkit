@@ -1,9 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { validatePack } from '../../src/validatePack/validatePack.js';
 import { buildFixturePackRepo, writeManifestFile, buildFixtureTargetRepo, buildPackDrivenPythonPackRepo } from './testHarness.js';
 
@@ -109,4 +110,39 @@ test('validate-pack: existing dotnet v1 fixture still passes unchanged under the
   assert.equal(results.length, 1);
   assert.equal(results[0].ok, true, results[0].error);
   assert.equal(results[0].injectionsExercised, 2);
+});
+
+// Regression: a relative --pack path used to get written into validate-pack's
+// synthesized .scaffold/config.json verbatim, then resolved by generate.ts
+// relative to that synthesized target repo (an unrelated mkdtempSync tmp
+// dir) instead of the real process cwd the caller ran validate-pack from.
+// Every fixture above happens to pass an already-absolute mkdtempSync path,
+// which is exactly why this never surfaced.
+test('validate-pack: a relative --pack path resolves against the real process cwd, not the synthesized target repo', async () => {
+  const packRepo = buildFixturePackRepo('create');
+  const scratch = buildFixtureTargetRepo();
+  const manifestPath = writeManifest(scratch);
+
+  const relativePackDir = path.relative(process.cwd(), packRepo);
+  const results = await validatePack({ packDir: relativePackDir, version: 'v1', manifestPath });
+  assert.equal(results.length, 1);
+  assert.equal(results[0].ok, true, results[0].error);
+  assert.equal(results[0].injectionsExercised, 2);
+});
+
+test('validate-pack CLI: --pack . run from inside the pack directory itself resolves correctly (the exact invocation packages/templates-dotnet/README.md documents)', () => {
+  const cliPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'dist', 'cli.js');
+  assert.ok(existsSync(cliPath), `${cliPath} not built — run "npm run build" first`);
+
+  const packRepo = buildFixturePackRepo('create');
+  const manifestPath = writeManifest(buildFixtureTargetRepo());
+
+  const stdout = execFileSync(
+    'node',
+    [cliPath, 'validate-pack', '--pack', '.', '--pack-version', 'v1', '--manifest', manifestPath, '--json'],
+    { cwd: packRepo, encoding: 'utf8' },
+  );
+  const report = JSON.parse(stdout) as { allValid: boolean; results: { ok: boolean; error?: string }[] };
+  assert.equal(report.allValid, true, JSON.stringify(report));
+  assert.equal(report.results[0].ok, true, report.results[0].error);
 });

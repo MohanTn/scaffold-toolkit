@@ -10,11 +10,12 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { loadConfig, saveConfig } from '../config/loader.js';
+import { isPathPack } from '../config/schema.js';
 import { decodeManifestFile } from '../manifest/decode.js';
 import { loadDescriptor } from '../descriptor/load.js';
 import type { DescriptorTarget } from '../descriptor/schema.js';
 import { validateManifestInputs } from '../manifest/inputValidation.js';
-import { packCacheDir } from '../templates/cache.js';
+import { packCacheDir, LOCAL_PACK_RESOLVED_SHA } from '../templates/cache.js';
 import { defaultCacheRoot } from '../templates/sync.js';
 import { renderPathTemplate, renderTemplateFile } from './render.js';
 import { registerPackHelpers } from './packHelpers.js';
@@ -81,15 +82,32 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRep
   if (!pack) {
     throw new Error(`no pack configured for targetStack "${manifest.targetStack}" — check .scaffold/config.json`);
   }
-  if (!pack.pinnedSha) {
-    throw new Error(`pack "${manifest.targetStack}" has not been synced yet — run "scaffold templates sync" first`);
+
+  // A path-based pack reads straight off disk: no cache, no pinned SHA, no
+  // "run sync first" step. A url-based pack keeps the existing cache lookup,
+  // gated on having been synced at least once.
+  let versionDir: string;
+  let packIdentity: { packUrl: string; resolvedSha: string };
+  if (isPathPack(pack)) {
+    const packDir = path.resolve(repoRoot, pack.path);
+    versionDir = path.join(packDir, pack.version);
+    packIdentity = { packUrl: pack.path, resolvedSha: LOCAL_PACK_RESOLVED_SHA };
+  } else {
+    if (!pack.pinnedSha) {
+      throw new Error(`pack "${manifest.targetStack}" has not been synced yet — run "scaffold templates sync" first`);
+    }
+    const packDir = packCacheDir(cacheRoot, pack.url, pack.pinnedSha);
+    versionDir = path.join(packDir, pack.version);
+    packIdentity = { packUrl: pack.url, resolvedSha: pack.pinnedSha };
   }
 
-  const packDir = packCacheDir(cacheRoot, pack.url, pack.pinnedSha);
-  const versionDir = path.join(packDir, pack.version);
   const descriptorPath = path.join(versionDir, 'manifest.templates.json');
   if (!existsSync(descriptorPath)) {
-    throw new Error(`template pack version "${pack.version}" not found in cache at ${versionDir} — run "scaffold templates sync" first`);
+    throw new Error(
+      isPathPack(pack)
+        ? `template pack version "${pack.version}" not found at ${versionDir} — check the pack directory and version folder`
+        : `template pack version "${pack.version}" not found in cache at ${versionDir} — run "scaffold templates sync" first`,
+    );
   }
 
   // Validates the descriptor's own schema and range-checks requires.scaffoldCli
@@ -175,7 +193,7 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRep
 
   // Provenance check up front, for every targeted file, before any injector
   // call — a mismatch on any file aborts the whole run before anything is written.
-  const provenanceRecord = { packUrl: pack.url, packVersion: pack.version, resolvedSha: pack.pinnedSha };
+  const provenanceRecord = { packUrl: packIdentity.packUrl, packVersion: pack.version, resolvedSha: packIdentity.resolvedSha };
   for (const group of groupsByFile.values()) {
     checkProvenance(config, group.relPath, provenanceRecord);
   }

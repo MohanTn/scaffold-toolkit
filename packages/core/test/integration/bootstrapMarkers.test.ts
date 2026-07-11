@@ -251,3 +251,31 @@ test('bootstrap-markers --pack-version override works with no .scaffold/config.j
   const middleware = findMarker(report.placed, 'MIDDLEWARE');
   assert.ok(middleware);
 });
+
+test('bootstrap-markers: a configured slot backed by a path-based pack has its descriptor-declared bootstrapAnchors consulted, same as the --pack <dir> override path', () => {
+  const repo = buildFixtureTargetRepo(false); // brownfield Program.cs, no markers
+  const packDir = mkdtempSync(path.join(tmpdir(), 'scaffold-local-anchor-pack-'));
+  const versionDir = path.join(packDir, 'v1');
+  mkdirSync(versionDir, { recursive: true });
+  writeFileSync(
+    path.join(versionDir, 'manifest.templates.json'),
+    JSON.stringify({
+      descriptorSchemaVersion: 2,
+      packVersion: 'v1',
+      requires: { scaffoldCli: '>=0.0.0' },
+      targets: [],
+      injections: [],
+      bootstrapAnchors: [
+        { candidateFilenames: ['Program.cs'], anchor: { kind: 'after-line', pattern: '\\.CreateBuilder\\s*\\(' }, markers: ['CUSTOM_SLOT'] },
+      ],
+    }),
+  );
+
+  saveConfig(repo, { projectType: 'dotnet', packs: { backend: { path: packDir, version: 'v1' } } });
+
+  const report = runBootstrapMarkers({ repoRoot: repo, dryRun: false });
+  const custom = findMarker(report.placed, 'CUSTOM_SLOT');
+  assert.ok(custom, 'expected CUSTOM_SLOT to be placed via the configured path-based pack descriptor');
+  assert.equal(custom!.file, 'Program.cs');
+  assert.equal(custom!.packSlot, 'backend');
+});

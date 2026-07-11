@@ -30,6 +30,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { configExists, loadConfig } from '../config/loader.js';
+import { isPathPack } from '../config/schema.js';
 import { loadDescriptor } from '../descriptor/load.js';
 import type { TemplateDescriptor, PackCommentSyntaxMap } from '../descriptor/schema.js';
 import { ANCHOR_CATALOG, compileBootstrapAnchors } from './anchorCatalog.js';
@@ -58,8 +59,11 @@ export interface RunBootstrapMarkersOptions {
 interface Slot {
   name: string;
   version: string;
-  packUrl: string;
+  /** Set for a url-based pack; mutually exclusive with packPath. */
+  packUrl?: string;
   pinnedSha?: string;
+  /** Set for a path-based pack; mutually exclusive with packUrl. */
+  packPath?: string;
 }
 
 /** Resolved packs from an optional descriptor, plus the pack-level comment-syntax map that host files in this slot use. */
@@ -126,11 +130,15 @@ function isKnownPackVersion(version: string): version is PackVersion {
 function resolveConfiguredSlots(repoRoot: string): Slot[] {
   if (!configExists(repoRoot)) {
     throw new Error(
-      'no .scaffold/config.json found — run "scaffold init --pack <name>=<url>@<version>" first, or pass --pack-version <version> to bootstrap against one version directly without a config file',
+      'no .scaffold/config.json found — run "scaffold init --pack <name>=<path>@<version>" first, or pass --pack-version <version> to bootstrap against one version directly without a config file',
     );
   }
   const config = loadConfig(repoRoot);
-  return Object.entries(config.packs).map(([name, pack]) => ({ name, version: pack.version, packUrl: pack.url, pinnedSha: pack.pinnedSha }));
+  return Object.entries(config.packs).map(([name, pack]) =>
+    isPathPack(pack)
+      ? { name, version: pack.version, packPath: pack.path }
+      : { name, version: pack.version, packUrl: pack.url, pinnedSha: pack.pinnedSha },
+  );
 }
 
 export function runBootstrapMarkers(options: RunBootstrapMarkersOptions): BootstrapMarkersReport {
@@ -241,9 +249,14 @@ export function runBootstrapMarkers(options: RunBootstrapMarkersOptions): Bootst
     }
   }
 
-  // Configured slots: descriptor from cache (with pinned SHA), then fallback to built-in catalog, then unsupportedPacks.
+  // Configured slots: a path-based pack reads its descriptor straight off
+  // disk (same helper the --pack <dir> override path already uses); a
+  // url-based pack reads from the cache (with pinned SHA). Either way,
+  // falls back to the built-in catalog, then unsupportedPacks.
   for (const slot of configuredSlots) {
-    const { descriptor, warning } = loadBootstrapDescriptorForCache(slot.packUrl, slot.version, slot.pinnedSha, cacheRoot);
+    const { descriptor, warning } = slot.packPath
+      ? loadBootstrapDescriptorForLocal(path.resolve(repoRoot, slot.packPath), slot.version)
+      : loadBootstrapDescriptorForCache(slot.packUrl!, slot.version, slot.pinnedSha, cacheRoot);
     processSlot(slot.name, slot.version, descriptor, warning);
   }
 

@@ -12,10 +12,12 @@
  * — so the injector has somewhere to land, then asserts the generate run
  * completes and every declared injection actually lands.
  *
- * It clones the pack via the normal `templates sync` path, so it validates the
- * pack's committed git state (what CI checks out), not uncommitted working-tree
- * edits — the render-only `tools/validate-all.mjs` in each template repo stays
- * the fast working-tree iteration loop.
+ * It reads the pack directly off disk (a `path`-based pack config, the same
+ * shape `scaffold init` now emits and `bootstrap-markers --pack <dir>`
+ * already reads via `loadBootstrapDescriptorForLocal`), so it validates the
+ * pack's live working-tree state, not its last-committed git state — there
+ * is no clone/cache step to go stale. The render-only `tools/validate-all.mjs`
+ * in each template repo stays the fast working-tree iteration loop.
  */
 
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -28,7 +30,6 @@ import { renderPathTemplate } from '../generate/render.js';
 import { buildHandlebarsContext, runGenerate } from '../generate/generate.js';
 import { registerPackHelpers } from '../generate/packHelpers.js';
 import { resolveMarkerSyntax } from '../generate/commentSyntax.js';
-import { syncTemplates, defaultCacheRoot } from '../templates/sync.js';
 import { saveConfig } from '../config/loader.js';
 import { validateManifestInputs } from '../manifest/inputValidation.js';
 
@@ -60,17 +61,24 @@ function synthesizeInjectionTarget(absPath: string, injections: DescriptorInject
 }
 
 export async function validatePackVersion(packDir: string, version: string, manifestPath: string): Promise<PackValidationResult> {
+  // Resolved eagerly, against the real process cwd, before it's ever written
+  // into the synthesized config below. `packDir` is a `path`-based pack entry
+  // in that config, and generate.ts resolves a path-based pack's `path`
+  // relative to *that config's* repoRoot — an unrelated mkdtempSync tmp
+  // directory, not the cwd the caller actually ran `validate-pack` from. A
+  // relative `--pack` value (e.g. `.`, the documented invocation from inside
+  // the pack's own directory) would otherwise silently resolve against the
+  // wrong base and fail every version with "template pack version not found."
+  const absPackDir = path.resolve(process.cwd(), packDir);
   const targetRepo = mkdtempSync(path.join(tmpdir(), 'scaffold-validate-'));
   const synthesizedFiles: string[] = [];
   try {
     const manifest = decodeManifestFile(manifestPath);
     const stack = manifest.targetStack;
 
-    saveConfig(targetRepo, { projectType: 'validate-pack', packs: { [stack]: { url: packDir, version } } });
-    const cacheRoot = defaultCacheRoot(targetRepo);
-    await syncTemplates(targetRepo, cacheRoot);
+    saveConfig(targetRepo, { projectType: 'validate-pack', packs: { [stack]: { path: absPackDir, version } } });
 
-    const descriptor = loadDescriptor(path.join(packDir, version, 'manifest.templates.json'));
+    const descriptor = loadDescriptor(path.join(absPackDir, version, 'manifest.templates.json'));
     // Enforce the pack-declared (or legacy default) input contract explicitly,
     // before `runGenerate`'s identical internal check, so the failure
     // surfaces at this layer with `descriptor.packVersion` already in
@@ -83,7 +91,7 @@ export async function validatePackVersion(packDir: string, version: string, mani
     // registered before any renderPathTemplate call below — runGenerate does
     // this again internally, but by then createdPaths/injectionsByFile here
     // would already have failed to render.
-    registerPackHelpers(path.join(packDir, version));
+    registerPackHelpers(path.join(absPackDir, version));
     const context = buildHandlebarsContext(manifest as unknown as { entity?: string; fields?: unknown; options?: Record<string, unknown> });
 
     // Files the pack creates itself (rendered paths) never need synthesizing —

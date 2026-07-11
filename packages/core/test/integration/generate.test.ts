@@ -1,11 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { syncTemplates, defaultCacheRoot } from '../../src/templates/sync.js';
 import { runGenerate } from '../../src/generate/generate.js';
-import { buildFixturePackRepo, buildFixtureTargetRepo, writeInitialConfig, writeManifestFile, PROGRAM_CS } from './testHarness.js';
+import { buildFixturePackRepo, buildFixtureTargetRepo, fixtureDescriptor, writeInitialConfig, writeManifestFile, PROGRAM_CS } from './testHarness.js';
 import { saveConfig } from '../../src/config/loader.js';
 
 test('scaffold generate: full end-to-end run creates a file, injects two independent markers, and reports an unfilled AI_IMPLEMENTATION block', async () => {
@@ -237,4 +238,48 @@ test('scaffold generate: a pack-local helpers.js is loaded and its helpers are u
   const report = await runGenerate({ repoRoot: targetRepo, manifestPath: manifestFile, dryRun: true, force: false });
 
   assert.equal(report.created[0].file, 'src/CompanyRepository.cs');
+});
+
+/** A small throwaway path-based pack fixture (no git repo): one "v1" version folder with the same shape as buildFixturePackRepo's. */
+function buildLocalPackDir(mode: 'create' | 'skip-if-exists' | 'overwrite' = 'create'): string {
+  const dir = mkdtempSync(path.join(tmpdir(), 'scaffold-local-pack-'));
+  const versionDir = path.join(dir, 'v1');
+  mkdirSync(versionDir, { recursive: true });
+  writeFileSync(path.join(versionDir, 'manifest.templates.json'), JSON.stringify(fixtureDescriptor(mode)));
+  writeFileSync(
+    path.join(versionDir, 'Endpoint.cs.hbs'),
+    `namespace Fixture.Endpoints;\n\npublic class {{entity}}Endpoint\n{\n    public void Handle()\n    {\n        // AI_IMPLEMENTATION_START\n\n        // AI_IMPLEMENTATION_END\n    }\n}\n`,
+  );
+  writeFileSync(path.join(versionDir, 'di-registration.hbs'), `        services.AddScoped<I{{entity}}Service, {{entity}}Service>();`);
+  writeFileSync(path.join(versionDir, 'route-registration.hbs'), `        app.MapGet("{{options.route}}", () => Results.Ok());`);
+  return dir;
+}
+
+test('scaffold generate: a path-based pack fixture succeeds end to end and records resolvedSha "local" in provenance', async () => {
+  const packDir = buildLocalPackDir();
+  const targetRepo = buildFixtureTargetRepo();
+  saveConfig(targetRepo, { projectType: 'dotnet', packs: { backend: { path: packDir, version: 'v1' } } });
+  const manifestFile = writeManifestFile(targetRepo, 'Invoice');
+
+  const report = await runGenerate({ repoRoot: targetRepo, manifestPath: manifestFile, dryRun: false, force: false });
+
+  assert.equal(report.created[0].file, 'src/Endpoints/InvoiceEndpoint.cs');
+  assert.ok(existsSync(path.join(targetRepo, 'src/Endpoints/InvoiceEndpoint.cs')));
+
+  const config = JSON.parse(readFileSync(path.join(targetRepo, '.scaffold', 'config.json'), 'utf8'));
+  const provenanceEntry = config.provenance['Program.cs'];
+  assert.equal(provenanceEntry.resolvedSha, 'local');
+  assert.equal(provenanceEntry.packUrl, packDir);
+});
+
+test('scaffold generate: a path-based pack with a missing version folder throws a local-path-specific error, not the "run templates sync" message', async () => {
+  const packDir = mkdtempSync(path.join(tmpdir(), 'scaffold-local-pack-empty-'));
+  const targetRepo = buildFixtureTargetRepo();
+  saveConfig(targetRepo, { projectType: 'dotnet', packs: { backend: { path: packDir, version: 'v1' } } });
+  const manifestFile = writeManifestFile(targetRepo, 'Invoice');
+
+  await assert.rejects(
+    runGenerate({ repoRoot: targetRepo, manifestPath: manifestFile, dryRun: false, force: false }),
+    /not found at .*check the pack directory and version folder/,
+  );
 });

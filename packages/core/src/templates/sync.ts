@@ -12,9 +12,10 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rm
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { loadConfig, saveConfig } from '../config/loader.js';
+import { isPathPack } from '../config/schema.js';
 import type { PackConfig } from '../config/schema.js';
 import { cloneToDir, resolveHeadSha } from './gitClone.js';
-import { packCacheDir } from './cache.js';
+import { packCacheDir, LOCAL_PACK_RESOLVED_SHA } from './cache.js';
 
 export function defaultCacheRoot(repoRoot: string): string {
   return path.join(repoRoot, '.scaffold', 'cache');
@@ -123,6 +124,13 @@ async function ensureCloned(cacheRoot: string, url: string, resolvedSha: string)
 }
 
 async function syncOnePack(cacheRoot: string, pack: PackConfig, update: boolean): Promise<SyncResult> {
+  // A path-based pack is read straight off disk at generate/list time — no
+  // clone, no cache entry, no pinned SHA to move. `changed: false` here means
+  // syncTemplates's "rewrite pinnedSha if changed" logic below never touches
+  // a path-based entry.
+  if (isPathPack(pack)) {
+    return { pack: '', url: pack.path, resolvedSha: LOCAL_PACK_RESOLVED_SHA, changed: false };
+  }
   const resolvedSha = update || !pack.pinnedSha ? await resolveHeadSha(pack.url) : pack.pinnedSha;
   await ensureCloned(cacheRoot, pack.url, resolvedSha);
   return { pack: '', url: pack.url, resolvedSha, changed: resolvedSha !== pack.pinnedSha };
@@ -135,7 +143,10 @@ export async function syncTemplates(repoRoot: string, cacheRoot: string, options
   for (const [name, pack] of Object.entries(config.packs)) {
     const result = await syncOnePack(cacheRoot, pack, options.update ?? false);
     result.pack = name;
-    if (result.changed) {
+    // A path-based pack's syncOnePack always returns changed: false (see
+    // above), so this branch is unreachable for it — the isPathPack guard
+    // here is purely to satisfy the discriminated union's pinnedSha typing.
+    if (result.changed && !isPathPack(pack)) {
       config.packs[name] = { ...pack, pinnedSha: result.resolvedSha };
     }
     results.push(result);

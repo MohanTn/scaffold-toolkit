@@ -39,15 +39,41 @@ async function promptProjectType(): Promise<string> {
 
 const PACK_SPEC = /^([^=]+)=([^@]+)@(.+)$/;
 
+// scp-style git remote shorthand, e.g. `git@github.com:org/repo.git` — the
+// "user@host:" form.
+const SCP_STYLE_USER_HOST = /^[\w.-]+@[\w.-]+:/;
+// Bare `host:path` scp shorthand with no explicit user, e.g.
+// `github.com:org/repo.git` (valid via an ssh config Host alias). Requires a
+// dot in the host segment before the colon so a real relative/absolute local
+// path is never mistaken for one: `./foo:bar` has no dotted segment before
+// its colon, and a Windows drive letter (`C:\foo`) is a single letter with no
+// dot at all.
+const SCP_STYLE_BARE_HOST = /^[\w.-]+\.[\w.-]+:/;
+
+/**
+ * `scaffold init --pack` only ever emits `path`-based entries: a local
+ * directory read straight off disk, no git clone. A git-URL-shaped middle
+ * segment (a `scheme://` URL or either scp-style shorthand above) is
+ * rejected with a pointer to the local-directory spec, rather than silently
+ * accepted and later failing deep inside `templates sync`/`generate` — the
+ * git/`url` engine itself stays in place underneath for a hypothetical
+ * future non-vendored pack, but `init` no longer has any way to produce a
+ * `url` entry.
+ */
 function parsePackSpecs(specs: string[]): Record<string, PackConfig> {
   const packs: Record<string, PackConfig> = {};
   for (const spec of specs) {
     const match = PACK_SPEC.exec(spec);
     if (!match) {
-      throw new Error(`invalid --pack "${spec}" — expected name=url@version, e.g. backend=https://github.com/org/scaffold-templates-dotnet.git@v10-minimal-api`);
+      throw new Error(`invalid --pack "${spec}" — expected name=path@version, e.g. backend=packages/templates-dotnet@v8-controller`);
     }
-    const [, name, url, version] = match;
-    packs[name] = { url, version };
+    const [, name, dir, version] = match;
+    if (dir.includes('://') || SCP_STYLE_USER_HOST.test(dir) || SCP_STYLE_BARE_HOST.test(dir)) {
+      throw new Error(
+        `invalid --pack "${spec}" — "scaffold init" no longer accepts a git URL, point --pack at a local directory instead, e.g. backend=packages/templates-dotnet@v8-controller`,
+      );
+    }
+    packs[name] = { path: dir, version };
   }
   return packs;
 }
@@ -60,7 +86,7 @@ program
   .command('init')
   .description('Write .scaffold/config.json for this repo')
   .option('--project-type <type>', 'skip auto-detection and use this project type')
-  .option('--pack <spec>', 'seed a template pack as name=url@version (repeatable)', collect, [] as string[])
+  .option('--pack <spec>', 'seed a template pack as name=path@version, e.g. backend=packages/templates-dotnet@v8-controller (repeatable)', collect, [] as string[])
   .action(async (opts: { projectType?: string; pack: string[] }) => {
     try {
       const repoRoot = process.cwd();
