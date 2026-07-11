@@ -1,12 +1,43 @@
 # scaffold-toolkit
 
-An npm-workspaces monorepo for `scaffold`, a deterministic, LLM-agnostic scaffolding CLI, plus the host adapters that let AI coding agents drive it.
+[![npm version](https://img.shields.io/npm/v/@mohantn/scaffold-core.svg)](https://www.npmjs.com/package/@mohantn/scaffold-core)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Node.js >= 20.12](https://img.shields.io/badge/Node.js-%3E%3D%2020.12-brightgreen)](https://nodejs.org/)
+
+A deterministic, LLM-agnostic scaffolding CLI that generates boilerplate code while letting AI coding agents focus exclusively on business logic. Includes adapters for Claude Code and GitHub Copilot CLI.
+
+**Use scaffold when you want to:**
+- Generate consistent, validated boilerplate (DTOs, controllers, services) across projects
+- Enforce architectural patterns through template-based code generation
+- Integrate deterministic code generation into AI coding agent workflows
+- Support multiple frameworks (.NET, React) without writing stack-specific logic in the agent
+
+## Quick start
+
+```sh
+# Install the CLI globally (used by hook scripts and the Copilot adapter)
+npm install -g @mohantn/scaffold-core
+scaffold --version
+
+# Or use ad-hoc via npx (no install required)
+npx -y @mohantn/scaffold-core --help
+```
+
+For detailed setup with Claude Code or GitHub Copilot CLI, see [Setup: wiring a coding agent to scaffold](#setup-wiring-a-coding-agent-to-scaffold) below.
+
+**Want to contribute?** See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and contribution guidelines.
 
 ## Packages
 
-- `packages/core` (`@mohantn/scaffold-core`) — the portable `scaffold` CLI. Never calls an LLM: it validates an intent manifest, resolves a versioned template pack, renders Handlebars templates, injects registration snippets into existing files via paired text markers, and prints a JSON/TOON report. See `packages/core/README.md`.
-- `packages/adapter-claude-code` — a Claude Code Skill (`SKILL.md`) plus `PostToolUse`/`Stop` hooks that turn natural-language requests into intent manifests, shell out to the core CLI, fill the reported `AI_IMPLEMENTATION` blocks, and refuse to end the turn while any required block is still unfilled. `private: true` (not published).
-- `packages/adapter-copilot-cli` — a `gh` CLI extension exposing the same touchpoints inside Copilot Chat, with matching `postToolUse`/`agentStop` hooks registered via `gh scaffold install-hooks`.
+| Package | Purpose | Published |
+|---------|---------|-----------|
+| [`packages/core`](#packagescoremohantnscaffold-core) | The portable `scaffold` CLI — validates manifests, resolves template packs, renders Handlebars, injects code snippets | ✅ [@mohantn/scaffold-core](https://www.npmjs.com/package/@mohantn/scaffold-core) |
+| `packages/adapter-claude-code` | Claude Code Skill + hooks for natural-language → boilerplate generation | ⊘ Private (source only) |
+| `packages/adapter-copilot-cli` | GitHub Copilot CLI extension + `gh` subcommand | ✅ [@mohantn/scaffold-adapter-copilot-cli](https://www.npmjs.com/package/@mohantn/scaffold-adapter-copilot-cli) |
+
+### packages/core (@mohantn/scaffold-core)
+
+The core CLI never calls an LLM. It validates an intent manifest, resolves a versioned template pack, renders Handlebars templates, injects registration snippets into existing files via paired text markers, and prints a JSON report. See `packages/core/README.md` for the full command reference.
 
 ## The deterministic loop
 
@@ -104,6 +135,17 @@ Two patterns, chosen by how big the divergence is:
 
 Either way, the same rule applies without exception: **new `test_data` fixtures and a passing build-check for every new or extended version are required, gated in CI before publish.** An additive version is exactly as capable of shipping a namespace typo or a missing `using` as a brand-new pack is, and it inherits zero automatic protection from the base version's own tests — each version needs its own end of the pipeline validating it compiles for real.
 
+## Template packs
+
+Pre-built template packs for common frameworks:
+
+- **[scaffold-templates-dotnet](https://github.com/MohanTn/scaffold-templates-dotnet)** — .NET/C# (ASP.NET Core, Entity Framework, dependency injection patterns)
+- **[scaffold-templates-react](https://github.com/MohanTn/scaffold-templates-react)** — React/TypeScript (API clients, hooks, component scaffolds)
+
+Each pack ships with test fixtures and build-check scripts that validate generated code actually compiles and tests pass.
+
+To author a new pack or extend an existing one for a new cloud provider, see [Building template packs](#building-template-packs) below.
+
 ## Development
 
 ```
@@ -113,6 +155,33 @@ npm run lint
 npm test
 ```
 
+All workspaces are built, linted, and tested together. The root `package.json` scripts run against all packages with `--workspaces --if-present`.
+
+## Contributing
+
+Contributions are welcome. Please ensure:
+
+- Code passes `npm run lint` and `npm run test`
+- New features include unit tests
+- Template pack changes include updated `test_data/` fixtures and passing build-checks
+- Commit messages are clear and reference the motivation
+
+See `.github/workflows/ci.yml` for the full CI pipeline.
+
 ## Release
 
-Every merge to `main` runs the full test matrix, then bumps the patch version of every publishable workspace and publishes to the public npm registry. See `.github/workflows/ci.yml`.
+Every merge to `main` auto-publishes to npm:
+
+1. CI runs the full test matrix (build, lint, test, template pack build-checks)
+2. On success, a bot bumps the patch version of every publishable workspace
+3. Tags are pushed and packages are published to the public npm registry
+
+See `.github/workflows/ci.yml` for details.
+
+## License
+
+MIT — see [LICENSE](LICENSE) for details.
+
+## Authors
+
+Crafted by [Mohan TN](https://github.com/MohanTn) and [contributors](https://github.com/MohanTn/scaffold-toolkit/graphs/contributors).
