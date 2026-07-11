@@ -32,7 +32,7 @@ scaffold-toolkit/
   package.json               # workspaces root
 ```
 
-Template packs are separate repositories, not part of this monorepo:
+Template packs were originally planned as separate repositories, not part of this monorepo; the dotnet pack is now instead consumed directly from an in-repo copy at `packages/templates-dotnet` via a local-directory pack entry (`packs.<name>.path`, not `packs.<name>.url`) — see "`.scaffold/config.json` shape" below:
 
 ```
 scaffold-templates-dotnet/
@@ -87,11 +87,13 @@ The original draft modeled `templatePack`/`templateVersion`/`frontendTemplate` a
 {
   "projectType": "dotnet+react",
   "packs": {
-    "backend":  { "url": "https://github.com/org/scaffold-templates-dotnet.git", "version": "v10-minimal-api", "pinnedSha": "abc123..." },
+    "backend":  { "path": "packages/templates-dotnet", "version": "v10-minimal-api" },
     "frontend": { "url": "https://github.com/org/scaffold-templates-react.git", "version": "tanstack-query", "pinnedSha": "def456..." }
   }
 }
 ```
+
+`backend` shows the `path` shape `scaffold init` now emits exclusively (a local directory, read straight off disk, no clone/cache/pinned SHA); `frontend` shows the `url` shape the engine still supports underneath for a git-clonable remote, resolved and cached by `templates sync`. A pack entry is one or the other, never both.
 
 The intent manifest carries a `targetStack` field (a key into `packs`, e.g. `"backend"`), so `generate` knows which pack a given manifest invocation targets, and which pack's provenance record and `requires` check apply.
 
@@ -170,7 +172,7 @@ An injection entry in `manifest.templates.json` may override this with an explic
 
 `scaffold bootstrap-markers` solves a distinct problem from `generate`: a brownfield repo that already has real `Program.cs`/`AppDbContext.cs`/`ApplicationServiceCollectionExtensions.cs` files, written before this tool was adopted, has nowhere for the injector to find a `SCAFFOLD:<marker>:START/END` pair. This feature inserts *empty* marker pairs at the right spot so the untouched injector (`injector.ts`, `markerScan.ts`) can then find and fill them exactly as it would in a repo scaffolded from scratch — it never writes marker content itself, only the empty START/END shell.
 
-`bootstrapMarkers/anchorCatalog.ts` hand-encodes where each marker belongs, keyed by the **exact** pack version (not the coarse `projectType` bucket used elsewhere), because the marker set and `Program.cs` zones differ between a base pack and its GCP sibling. This mirrors `scaffold-templates-dotnet`'s own README marker table (kept in sync by hand; the two documents should never drift):
+`bootstrapMarkers/anchorCatalog.ts` hand-encodes where each marker belongs, keyed by the **exact** pack version (not the coarse `projectType` bucket used elsewhere), because the marker set and `Program.cs` zones differ between a base pack and its GCP sibling. This mirrors `packages/templates-dotnet`'s own README marker table (kept in sync by hand; the two documents should never drift):
 
 | Marker | File | `v8-controller` | `v10-minimal-api` | `v8-controller-gcp` | `v10-minimal-api-gcp` |
 |---|---|---|---|---|---|
@@ -452,7 +454,7 @@ jobs:
 
 1. `npm install && npm run build` at the workspace root.
 2. `npm link` inside `packages/core` to install the `scaffold` binary locally.
-3. Create a scratch fixture target repo, `scaffold init` it against a local fixture copy of `scaffold-templates-dotnet` (a local path is sufficient for manual testing).
+3. Create a scratch fixture target repo, `scaffold init` it against `packages/templates-dotnet` (e.g. `--pack backend=packages/templates-dotnet@v8-controller`).
 4. `scaffold templates sync`, then `scaffold generate --manifest <fixture-manifest.toon> --dry-run` and inspect the printed plan, then re-run without `--dry-run` and inspect the actual generated and injected files plus the printed TOON report (`--json` to compare against plain JSON while debugging).
 5. Re-run `scaffold generate` a second time with the identical manifest and confirm no files changed (idempotency).
 6. Hand-edit a generated file, then run `scaffold undo <changeset-id>` and confirm it refuses due to hash mismatch; re-run with `--force` and confirm the fixture repo returns to its pre-generate state.

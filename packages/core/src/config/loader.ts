@@ -33,7 +33,20 @@ export function loadConfig(repoRoot: string): ScaffoldConfig {
     const errors = (validate.errors ?? []).map((e) => `${e.instancePath || '/'} ${e.message ?? 'invalid'}`);
     throw new ConfigValidationError(errors);
   }
-  return data as ScaffoldConfig;
+  const config = data as ScaffoldConfig;
+  // ajv's flat packConfigSchema can't express "exactly one of url/path" without
+  // oneOf/not branching, so the XOR is enforced here instead, after the shape
+  // otherwise validates.
+  for (const [name, pack] of Object.entries(config.packs)) {
+    const hasUrl = 'url' in pack && pack.url !== undefined;
+    const hasPath = 'path' in pack && pack.path !== undefined;
+    if (hasUrl === hasPath) {
+      throw new ConfigValidationError([
+        `/packs/${name} must have exactly one of "url" or "path" (has ${hasUrl ? 'both' : 'neither'})`,
+      ]);
+    }
+  }
+  return config;
 }
 
 export function saveConfig(repoRoot: string, config: ScaffoldConfig): void {

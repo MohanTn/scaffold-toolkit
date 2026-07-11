@@ -1,9 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { syncTemplates, defaultCacheRoot } from '../../src/templates/sync.js';
 import { listTemplateVersions } from '../../src/templates/list.js';
-import { loadConfig } from '../../src/config/loader.js';
+import { loadConfig, saveConfig } from '../../src/config/loader.js';
 import { packCacheDir } from '../../src/templates/cache.js';
 import { buildFixturePackRepo, buildFixtureTargetRepo, writeInitialConfig, advancePackRepo } from './testHarness.js';
 
@@ -64,4 +66,51 @@ test('scaffold templates list: lists the "v1" version folder for the configured 
   assert.equal(listings.length, 1);
   assert.equal(listings[0].pack, 'backend');
   assert.deepEqual(listings[0].versions, ['v1']);
+});
+
+/** A small throwaway path-based pack fixture: two version folders, each with a manifest.templates.json. */
+function buildLocalPackDir(): string {
+  const dir = mkdtempSync(path.join(tmpdir(), 'scaffold-local-pack-'));
+  for (const version of ['v1', 'v2']) {
+    const versionDir = path.join(dir, version);
+    mkdirSync(versionDir, { recursive: true });
+    writeFileSync(path.join(versionDir, 'manifest.templates.json'), JSON.stringify({ descriptorSchemaVersion: 2, packVersion: version, requires: { scaffoldCli: '>=0.0.0' }, targets: [], injections: [] }));
+  }
+  return dir;
+}
+
+test('scaffold templates sync: a path-based pack is a no-op — resolvedSha "local", changed false, no pinnedSha ever written', async () => {
+  const packDir = buildLocalPackDir();
+  const targetRepo = buildFixtureTargetRepo();
+  saveConfig(targetRepo, { projectType: 'dotnet', packs: { backend: { path: packDir, version: 'v1' } } });
+  const cacheRoot = defaultCacheRoot(targetRepo);
+
+  const results = await syncTemplates(targetRepo, cacheRoot);
+  assert.equal(results.length, 1);
+  assert.equal(results[0].resolvedSha, 'local');
+  assert.equal(results[0].changed, false);
+
+  const config = loadConfig(targetRepo);
+  assert.equal(config.packs.backend.pinnedSha, undefined);
+});
+
+test('scaffold templates list: a path-based pack resolves relative to repoRoot (not process.cwd()) and lists both version folders', () => {
+  const packDir = buildLocalPackDir();
+  const targetRepo = buildFixtureTargetRepo();
+  const relativePackPath = path.relative(targetRepo, packDir);
+  saveConfig(targetRepo, { projectType: 'dotnet', packs: { backend: { path: relativePackPath, version: 'v1' } } });
+
+  const listings = listTemplateVersions(targetRepo, defaultCacheRoot(targetRepo));
+  assert.equal(listings.length, 1);
+  assert.equal(listings[0].pack, 'backend');
+  assert.deepEqual(listings[0].versions.sort(), ['v1', 'v2']);
+});
+
+test('scaffold templates list: a path-based pack pointing at a missing directory returns an empty versions list rather than throwing', () => {
+  const targetRepo = buildFixtureTargetRepo();
+  saveConfig(targetRepo, { projectType: 'dotnet', packs: { backend: { path: 'does-not-exist', version: 'v1' } } });
+
+  const listings = listTemplateVersions(targetRepo, defaultCacheRoot(targetRepo));
+  assert.equal(listings.length, 1);
+  assert.deepEqual(listings[0].versions, []);
 });

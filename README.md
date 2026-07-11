@@ -45,7 +45,7 @@ The CLI owns the boilerplate; the host LLM owns only the business logic. A run c
 
 Pack authors can smoke-test a local pack with a real generate (injection included, not just rendering) via `scaffold validate-pack --pack <dir> --manifest <sample>`.
 
-Template packs (the Handlebars templates plus their `manifest.templates.json` descriptors, per target stack) live in their own standalone repositories — `scaffold-templates-dotnet` and `scaffold-templates-react` — which remain the source of truth for real consumption. `packages/templates-dotnet` in this monorepo is a separate, in-repo copy of the `.NET` pack's *current file state* (not its git history), kept purely so `scaffold generate`/`templates sync` can be exercised end-to-end during `scaffold-core` development without a second repo checked out on disk; it is deliberately left out of the `workspaces` array below, so CI never builds, lints, or publishes it, and it does not auto-sync with the standalone repo. See "Building template packs" below for the full authoring workflow, including adding a pack for a new framework/stack or extending an existing one for a new cloud provider.
+Template packs (the Handlebars templates plus their `manifest.templates.json` descriptors, per target stack) are versioned folders `scaffold generate` reads directly off disk via a local-directory pack entry — no git clone involved. `packages/templates-dotnet` in this monorepo is the `.NET` pack's real, live working-tree copy and the source of truth for actual consumption here (`--pack backend=packages/templates-dotnet@<version>`); it is deliberately left out of the `workspaces` array below, so CI never builds, lints, or publishes it as a workspace package, but it is still exercised for real by `scaffold generate`/`validate-pack`/`bootstrap-markers`, not just for local dry-runs. The underlying git-URL pack engine (`templates sync` cloning a remote into a cache) stays available for a hypothetical future non-vendored pack, but nothing in this repo uses it today. See "Building template packs" below for the full authoring workflow, including adding a pack for a new framework/stack or extending an existing one for a new cloud provider.
 
 ## Setup: wiring a coding agent to `scaffold`
 
@@ -64,11 +64,11 @@ Both adapters are thin: they build the intent manifest and call the same `scaffo
 ### 1. Point a target repo at its template pack(s) (shared by both agents)
 
 ```sh
-npx -y @mohantn/scaffold-core init --project-type <dotnet|react> --pack backend=<git-url-or-local-path>@<version>
+npx -y @mohantn/scaffold-core init --project-type <dotnet|react> --pack backend=packages/templates-dotnet@<version>
 npx -y @mohantn/scaffold-core templates sync
 ```
 
-`--pack` is repeatable (`--pack backend=... --pack frontend=...` for a full-stack repo). `<version>` is a version folder in the pack repo, e.g. `v10-minimal-api` or `v8-controller-gcp` for `scaffold-templates-dotnet`, `axios-ts` or `tanstack-query` for `scaffold-templates-react`. This writes `.scaffold/config.json` and populates `.scaffold/cache/`; commit the former, gitignore the latter.
+`--pack` takes a local-directory spec, `name=<path>@<version>` — no git URL, `scaffold init` rejects one outright with a pointer to this syntax. It's repeatable (`--pack backend=... --pack frontend=...` for a full-stack repo). `<version>` is a version folder in the pack directory, e.g. `v10-minimal-api` or `v8-controller-gcp` for `packages/templates-dotnet`. This writes `.scaffold/config.json`; `templates sync` is a no-op for a local-directory pack (there's nothing to clone or cache — it's read straight off disk on every `generate`), but still safe to run as part of the same muscle-memory recipe.
 
 ### 2a. Claude Code
 
@@ -117,7 +117,7 @@ A template pack is a versioned folder of Handlebars templates plus a `manifest.t
 
 ### Adding a new template pack for a different framework (e.g. React)
 
-1. **Decide where it lives.** A standalone repo (mirroring `scaffold-templates-dotnet`/`scaffold-templates-react`) is the source of truth for real consumption — that's what a target project's `.scaffold/config.json` should point `packs.<name>.url` at. Optionally also mirror its current files into `packages/templates-<name>` here (not added to the root `workspaces` array) purely for exercising `scaffold-core` locally without a second repo checkout; see the `packages/templates-dotnet` note above for what that copy is and isn't.
+1. **Decide where it lives.** A local directory (e.g. `packages/templates-<name>` here, not added to the root `workspaces` array) is the normal source of truth for real consumption — that's what a target project's `.scaffold/config.json` should point `packs.<name>.path` at, e.g. `packages/templates-react`. A standalone git repo consumed via `packs.<name>.url` remains supported underneath for a hypothetical future non-vendored pack, but `scaffold init` itself only ever emits `path` entries; see the `packages/templates-dotnet` note above for what an in-repo pack copy is.
 2. **Create a version folder**, e.g. `v1-vite-axios/`, containing:
    - `manifest.templates.json` — `descriptorSchemaVersion` (currently `2`), `packVersion`, `requires.scaffoldCli`, `pathConfig`, `targets[]` (each: `output` — a Handlebars path template like `src/{{pathConfig.features}}/{{entity}}/{{entity}}Api.ts`; `template` — the `.hbs` file; `mode` — `create` refuses if the file already exists, `skip-if-exists` renders once for shared/bootstrap files and is never touched again), and `injections[]` (each: `file`, `marker`, `template`, `position` — `before-end`/`after-start`, `strategy` — `replace`/`append`, `hashTrailerPrefix` — the idempotency hash comment prefix compared on every re-run).
    - One `.hbs` file per target/injection. Templates render against the manifest's `entity`/`fields`/`options` and the whole manifest itself (`options` spread first, then the full manifest, so a top-level manifest key wins over a same-named `options` key — see `buildHandlebarsContext` in `packages/core/src/generate/generate.ts`).
@@ -137,7 +137,7 @@ Either way, the same rule applies without exception: **new `test_data` fixtures 
 
 ## Template packs
 
-Pre-built template packs for common frameworks:
+Pre-built template packs for common frameworks. This monorepo consumes the .NET pack directly from its in-repo copy at `packages/templates-dotnet` (a local-directory pack, `--pack backend=packages/templates-dotnet@<version>`); the standalone repos below are the original, publicly browsable sources these in-repo copies are periodically updated from by hand:
 
 - **[scaffold-templates-dotnet](https://github.com/MohanTn/scaffold-templates-dotnet)** — .NET/C# (ASP.NET Core, Entity Framework, dependency injection patterns)
 - **[scaffold-templates-react](https://github.com/MohanTn/scaffold-templates-react)** — React/TypeScript (API clients, hooks, component scaffolds)
