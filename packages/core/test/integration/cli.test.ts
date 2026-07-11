@@ -197,6 +197,65 @@ test('scaffold bootstrap-markers exits 0 once every group in the pack has a matc
   assert.equal(result.status, 0);
 });
 
+test('scaffold check-edit --tool write allows a plain write in a repo with no .scaffold/config.json', () => {
+  const targetRepo = buildFixtureTargetRepo();
+  const result = runCli(['check-edit', '--file', 'src/Endpoints/InvoiceEndpoint.cs', '--tool', 'write'], targetRepo);
+  assert.equal(result.status, 0);
+  const decision = JSON.parse(result.stdout);
+  assert.equal(decision.allow, true);
+  assert.equal(decision.reason, 'no-config');
+});
+
+test('scaffold check-edit --tool write exits 1 and blocks a direct write to a pack-owned, unrendered target path', async () => {
+  const packRepo = buildFixturePackRepo();
+  const targetRepo = buildFixtureTargetRepo();
+  runCli(['init', '--project-type', 'dotnet', '--pack', `backend=${packRepo}@v1`], targetRepo);
+  await syncTemplates(targetRepo, defaultCacheRoot(targetRepo));
+
+  const result = runCli(['check-edit', '--file', 'src/Endpoints/InvoiceEndpoint.cs', '--tool', 'write'], targetRepo);
+  assert.equal(result.status, 1);
+  const decision = JSON.parse(result.stdout);
+  assert.equal(decision.allow, false);
+  assert.equal(decision.reason, 'write-blocked');
+});
+
+test('scaffold check-edit --old-string-file reads old_string from a file instead of the command line', async () => {
+  const packRepo = buildFixturePackRepo();
+  const targetRepo = buildFixtureTargetRepo();
+  runCli(['init', '--project-type', 'dotnet', '--pack', `backend=${packRepo}@v1`], targetRepo);
+  await syncTemplates(targetRepo, defaultCacheRoot(targetRepo));
+  const manifestFile = writeManifestFile(targetRepo, 'Invoice');
+  runCli(['generate', '--manifest', manifestFile, '--json'], targetRepo);
+
+  const endpointPath = path.join(targetRepo, 'src/Endpoints/InvoiceEndpoint.cs');
+  const { writeFileSync } = await import('node:fs');
+  const filled = readFileSync(endpointPath, 'utf8').replace(
+    '// AI_IMPLEMENTATION_START\n\n        // AI_IMPLEMENTATION_END',
+    '// AI_IMPLEMENTATION_START\n        Console.WriteLine("handled");\n        // AI_IMPLEMENTATION_END',
+  );
+  writeFileSync(endpointPath, filled);
+
+  const oldStringFile = path.join(targetRepo, 'old-string.txt');
+  writeFileSync(oldStringFile, 'Console.WriteLine("handled");');
+
+  const result = runCli(
+    ['check-edit', '--file', 'src/Endpoints/InvoiceEndpoint.cs', '--tool', 'edit', '--old-string-file', oldStringFile],
+    targetRepo,
+  );
+  assert.equal(result.status, 0);
+  const decision = JSON.parse(result.stdout);
+  assert.equal(decision.allow, true);
+  assert.equal(decision.reason, 'edit-allowed-in-interior');
+});
+
+test('scaffold check-edit rejects an unknown --tool value with a friendly error, not a stack trace', () => {
+  const targetRepo = buildFixtureTargetRepo();
+  const result = runCli(['check-edit', '--file', 'x.cs', '--tool', 'delete'], targetRepo);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /scaffold check-edit failed:/);
+  assert.match(result.stderr, /--tool must be "write" or "edit"/);
+});
+
 test('scaffold bootstrap-markers exits 0 for a backend: v8-controller (fully placeable) + frontend: <uncataloged> config — an unsupported pack slot must never block a clean exit', async () => {
   const targetRepo = buildFixtureTargetRepo(false); // brownfield Program.cs, no markers
   const { mkdirSync, writeFileSync } = await import('node:fs');

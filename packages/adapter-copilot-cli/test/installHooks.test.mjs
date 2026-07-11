@@ -30,13 +30,16 @@ import {
 
 test('resolveHookScriptPaths returns paths to real files shipped in this package', () => {
   const paths = resolveHookScriptPaths();
+  assert.ok(existsSync(paths.preToolUse), `expected ${paths.preToolUse} to exist`);
   assert.ok(existsSync(paths.postToolUse), `expected ${paths.postToolUse} to exist`);
   assert.ok(existsSync(paths.agentStop), `expected ${paths.agentStop} to exist`);
 });
 
-test('buildHooksConfig matches the Copilot CLI hooks-reference schema (version 1, postToolUse + agentStop command hooks)', () => {
-  const config = buildHooksConfig({ postToolUse: '/abs/post-tool-use.mjs', agentStop: '/abs/agent-stop.mjs' });
+test('buildHooksConfig matches the Copilot CLI hooks-reference schema (version 1, preToolUse + postToolUse + agentStop command hooks)', () => {
+  const config = buildHooksConfig({ preToolUse: '/abs/pre-tool-use.mjs', postToolUse: '/abs/post-tool-use.mjs', agentStop: '/abs/agent-stop.mjs' });
   assert.equal(config.version, 1);
+  assert.equal(config.hooks.preToolUse[0].type, 'command');
+  assert.match(config.hooks.preToolUse[0].bash, /pre-tool-use\.mjs/);
   assert.equal(config.hooks.postToolUse[0].type, 'command');
   assert.match(config.hooks.postToolUse[0].bash, /post-tool-use\.mjs/);
   assert.equal(config.hooks.agentStop[0].type, 'command');
@@ -49,6 +52,7 @@ test('installHooks writes .github/hooks/scaffold-toolkit.json with absolute scri
   assert.equal(configPath, path.join(targetRepo, '.github', 'hooks', 'scaffold-toolkit.json'));
   const written = JSON.parse(readFileSync(configPath, 'utf8'));
   assert.equal(written.version, 1);
+  assert.ok(path.isAbsolute(written.hooks.preToolUse[0].bash.match(/"([^"]+)"/)[1]));
   assert.ok(path.isAbsolute(written.hooks.postToolUse[0].bash.match(/"([^"]+)"/)[1]));
 });
 
@@ -89,7 +93,7 @@ function runHookScript(scriptPath, stdinObj, { cwd, env }) {
   return JSON.parse(result.stdout);
 }
 
-test('install-hooks end to end: postToolUse nudges while pending, agentStop blocks then allows once filled', async () => {
+test('install-hooks end to end: preToolUse blocks/allows, postToolUse nudges while pending, agentStop blocks then allows once filled', async () => {
   const env = envFactory();
   const packRepo = buildFixturePackRepo();
   const targetRepo = buildFixtureTargetRepo();
@@ -99,8 +103,20 @@ test('install-hooks end to end: postToolUse nudges while pending, agentStop bloc
 
   const configPath = installHooks(targetRepo);
   const config = JSON.parse(readFileSync(configPath, 'utf8'));
+  const preToolUsePath = config.hooks.preToolUse[0].bash.match(/"([^"]+)"/)[1];
   const postToolUsePath = config.hooks.postToolUse[0].bash.match(/"([^"]+)"/)[1];
   const agentStopPath = config.hooks.agentStop[0].bash.match(/"([^"]+)"/)[1];
+
+  // preToolUse (against the guessed toolName/toolArgs shape — see
+  // hooks/pre-tool-use.mjs's header comment): a raw write to the unrendered
+  // pack-owned target must be blocked before generate ever runs.
+  const blockedWrite = runHookScript(
+    preToolUsePath,
+    { toolName: 'write', toolArgs: { path: 'src/Endpoints/InvoiceEndpoint.cs', content: 'public class InvoiceEndpoint {}' }, cwd: targetRepo },
+    { cwd: targetRepo, env },
+  );
+  assert.equal(blockedWrite.permissionDecision, 'deny');
+  assert.match(blockedWrite.permissionDecisionReason, /scaffold generate/);
 
   const manifestFile = writeManifestFile(targetRepo, 'Invoice');
   const gen = await execWrapper(SCAFFOLD_CLI, ['generate', '--manifest', manifestFile], { cwd: targetRepo, env });
@@ -131,6 +147,14 @@ test('install-hooks end to end: postToolUse nudges while pending, agentStop bloc
     '// AI_IMPLEMENTATION_START\n        Console.WriteLine("handled");\n        // AI_IMPLEMENTATION_END',
   );
   writeFileSync(endpointPath, filled);
+
+  // preToolUse must now allow an edit landing inside the AI_IMPLEMENTATION interior.
+  const allowedEdit = runHookScript(
+    preToolUsePath,
+    { toolName: 'edit', toolArgs: { path: 'src/Endpoints/InvoiceEndpoint.cs', oldString: 'Console.WriteLine("handled");', newString: 'X' }, cwd: targetRepo },
+    { cwd: targetRepo, env },
+  );
+  assert.equal(allowedEdit.permissionDecision, 'allow');
 
   // agentStop must now allow the stop.
   const allowed = runHookScript(agentStopPath, { cwd: targetRepo }, { cwd: targetRepo, env });

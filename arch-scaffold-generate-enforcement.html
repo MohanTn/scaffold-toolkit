@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Architecture — Structural Enforcement of scaffold generate (PreToolUse Gate + Benchmark Harness)</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --accent: #2563eb;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --status-draft: #64748b;
+      --status-review: #f59e0b;
+      --status-approved: #16a34a;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.6;
+      color: var(--text);
+      background: var(--bg);
+      min-height: 100vh;
+    }
+
+    nav#toc {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 240px;
+      height: 100vh;
+      background: var(--card-bg);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      z-index: 100;
+      padding: 2rem 1rem;
+    }
+
+    nav#toc .brand {
+      font-weight: bold;
+      font-size: 1.1rem;
+      color: var(--accent);
+      margin-bottom: 2rem;
+      display: block;
+    }
+
+    nav#toc a {
+      display: block;
+      padding: 0.5rem 0.75rem;
+      margin: 0.5rem 0;
+      color: var(--text);
+      text-decoration: none;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      transition: all 0.2s;
+    }
+
+    nav#toc a:hover {
+      background: var(--bg);
+      color: var(--accent);
+    }
+
+    nav#toc a.active {
+      background: var(--accent);
+      color: white;
+      font-weight: 500;
+    }
+
+    main {
+      margin-left: 240px;
+      padding: 3rem 2rem;
+      max-width: 1100px;
+      margin-right: auto;
+    }
+
+    header {
+      margin-bottom: 3rem;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+      color: var(--text);
+    }
+
+    header .subtitle {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+
+    .status-banner {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      padding: 1rem 1.5rem;
+      border-radius: 12px;
+      margin-bottom: 2rem;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .status-banner.draft {
+      background: rgba(100, 116, 139, 0.1);
+      color: var(--status-draft);
+      border-left: 4px solid var(--status-draft);
+    }
+
+    .status-banner.review {
+      background: rgba(245, 158, 11, 0.1);
+      color: var(--status-review);
+      border-left: 4px solid var(--status-review);
+    }
+
+    .status-banner.approved {
+      background: rgba(22, 163, 74, 0.1);
+      color: var(--status-approved);
+      border-left: 4px solid var(--status-approved);
+    }
+
+    section {
+      margin-bottom: 3rem;
+      scroll-margin-top: 2rem;
+    }
+
+    section h2 {
+      font-size: 1.4rem;
+      margin-bottom: 1.5rem;
+      padding-left: 1rem;
+      border-left: 4px solid var(--accent);
+      color: var(--text);
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .card h3 {
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+      color: var(--text);
+    }
+
+    .card h4 {
+      font-size: 1rem;
+      margin-top: 1.5rem;
+      margin-bottom: 0.75rem;
+      color: var(--accent);
+    }
+
+    .card p {
+      margin-bottom: 1rem;
+      color: var(--text);
+    }
+
+    .card ul, .card ol {
+      margin-left: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .card li {
+      margin-bottom: 0.5rem;
+      color: var(--text);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1rem;
+    }
+
+    table thead {
+      background: var(--bg);
+      border-bottom: 2px solid var(--border);
+    }
+
+    table th {
+      padding: 1rem;
+      text-align: left;
+      font-weight: 600;
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+
+    table td {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+
+    table tbody tr:nth-child(even) {
+      background: rgba(100, 116, 139, 0.02);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      margin-bottom: 1rem;
+    }
+
+    .mermaid-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 400px;
+    }
+
+    .mermaid {
+      display: flex;
+      justify-content: center;
+    }
+
+    pre, code {
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-width: 100%;
+      font-family: 'Courier New', Courier, monospace;
+    }
+
+    pre {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      overflow-x: auto;
+      margin-bottom: 1rem;
+      font-size: 0.85rem;
+      line-height: 1.4;
+    }
+
+    code {
+      background: rgba(100, 116, 139, 0.1);
+      padding: 0.2rem 0.4rem;
+      border-radius: 4px;
+      color: #e11d48;
+      font-size: 0.9rem;
+    }
+
+    pre code {
+      background: none;
+      padding: 0;
+      color: var(--text);
+    }
+
+    details {
+      margin-bottom: 1.5rem;
+    }
+
+    details summary {
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--accent);
+      padding: 0.75rem;
+      user-select: none;
+      transition: all 0.2s;
+    }
+
+    details summary:hover {
+      background: var(--bg);
+      border-radius: 6px;
+    }
+
+    details[open] summary {
+      margin-bottom: 1rem;
+    }
+
+    details pre {
+      margin-top: 1rem;
+    }
+
+    .approval-gate {
+      background: rgba(22, 163, 74, 0.1);
+      border-left: 4px solid var(--status-approved);
+      padding: 1rem 1.5rem;
+      border-radius: 8px;
+      color: var(--status-approved);
+      font-weight: 500;
+      margin-top: 2rem;
+    }
+
+    section, .card, td, th {
+      overflow-wrap: break-word;
+      word-break: break-word;
+    }
+
+    @media (max-width: 900px) {
+      nav#toc {
+        position: static;
+        width: 100%;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        padding: 1rem;
+        margin-bottom: 1rem;
+      }
+
+      nav#toc .brand {
+        display: inline-block;
+        margin-right: 2rem;
+      }
+
+      nav#toc a {
+        display: inline-block;
+        margin: 0 0.5rem;
+        padding: 0.4rem 0.6rem;
+        font-size: 0.85rem;
+      }
+
+      main {
+        margin-left: 0;
+        padding: 2rem 1rem;
+      }
+
+      header h1 {
+        font-size: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav id="toc">
+    <span class="brand">🏛️ Architecture</span>
+    <a href="#s0">0 · Document Control</a>
+    <a href="#s1">1 · Overview</a>
+    <a href="#s2">2 · Use Cases &amp; Scope</a>
+    <a href="#s3">3 · C4 Context &amp; Containers</a>
+    <a href="#s4">4 · Domain &amp; Data Model</a>
+    <a href="#s5">5 · API Design</a>
+    <a href="#s6">6 · UI/UX</a>
+    <a href="#s7">7 · Behaviour &amp; Process</a>
+    <a href="#s8">8 · Deployment</a>
+    <a href="#s9">9 · Monitoring &amp; Alerts</a>
+    <a href="#s10">10 · Open Questions &amp; Risks</a>
+  </nav>
+
+  <main>
+    <header>
+      <h1>🏛️ Architecture — Structural Enforcement of scaffold generate (PreToolUse Gate + Benchmark Harness)</h1>
+      <p class="subtitle">A new scaffold check-edit CLI command plus PreToolUse hooks on Claude Code and GitHub Copilot CLI hard-block any Write or Edit to a pack-owned file outside its AI_IMPLEMENTATION marker interior, closing the gap where a host LLM could hand-write boilerplate without ever invoking scaffold generate. · Node.js 20+ · TypeScript (ESM) · Commander · Handlebars · ajv · @toon-format/toon · Claude Code Hooks · GitHub Copilot CLI Hooks · .NET 8 · GitHub Actions</p>
+    </header>
+
+    <section id="s0">
+      <h2>0 · Document Control</h2>
+      <div class="status-banner draft">
+        <strong>Status:</strong> DRAFT · <strong>Version:</strong> v1 · <strong>Last Updated:</strong> 2026-07-11 · <strong>Author:</strong> Claude Sonnet 5
+      </div>
+
+      <div class="card">
+        <h3>Revision Log</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Version</th>
+                <th>Date</th>
+                <th>Summary of Changes</th>
+                <th>Driven By</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>v1</td><td>2026-07-11</td><td>Initial architecture draft covering the check-edit gating command, PreToolUse/UserPromptSubmit hooks for both host adapters, and the reusable benchmark harness. Written after the implementation plan for this same feature was already approved via plan-mode (saved at ~/.claude/plans/moonlit-munching-liskov.md) and the implementer had begun executing it — this document is the shareable architecture record, not a second approval gate.</td><td>First generation, post plan-mode approval</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="approval-gate">
+        <strong>Approval Gate:</strong> This document must reach APPROVED status before implementation begins.
+      </div>
+    </section>
+
+    <section id="s1">
+      <h2>1 · Overview — Feature, Audience &amp; Dependencies</h2>
+      <div class='card'><h3>Feature Summary</h3><p>Today, enforcement that a host LLM uses <code>scaffold generate</code> instead of hand-writing boilerplate is too weak and too late: <code>PostToolUse</code> only fires on Bash commands containing <code>scaffold generate</code>, and <code>Stop</code>/<code>agentStop</code> only block on unresolved <code>.scaffold/pending/*.json</code> records that only exist if <code>generate</code> already ran. If the host LLM never calls <code>generate</code> at all and just hand-writes a controller, nothing today stops it. This feature adds a new <code>scaffold check-edit</code> command and <code>PreToolUse</code> hooks on both host adapters that structurally block any <code>Write</code>/<code>Edit</code> touching a pack-owned file outside an <code>AI_IMPLEMENTATION</code> marker interior, whenever <code>.scaffold/config.json</code> is present &mdash; and are a complete no-op, zero added cost, when it is not. A complementary <code>UserPromptSubmit</code> hook on Claude Code (Copilot's equivalent event is notification-only and cannot inject context) states the rule up front every turn. A new reusable <code>tools/benchmark/</code> harness measures the token/time/build-quality delta between freehand and CLI-scaffolded authoring of the same feature, on demand.</p></div><div class='card'><h3>Actors</h3><table><tr><th>Name / Role</th><th>Responsibility</th><th>System(s) interacted with</th></tr><tr><td>Host coding agent (Claude Code)</td><td>Drives the scaffold Skill; subject to the new PreToolUse/UserPromptSubmit hooks</td><td>packages/adapter-claude-code, packages/core</td></tr><tr><td>Host coding agent (GitHub Copilot CLI)</td><td>Drives the gh scaffold extension; subject to the new preToolUse hook only (no prompt-submit equivalent)</td><td>packages/adapter-copilot-cli, packages/core</td></tr><tr><td>Template pack author</td><td>Declares targets[]/injections[] in manifest.templates.json &mdash; this is what defines "pack-owned"</td><td>packages/templates-dotnet (and any external pack repo)</td></tr><tr><td>Tool maintainer (Mohan TN)</td><td>Runs the benchmark harness on demand to evaluate ROI; reviews block/allow behaviour for over-blocking</td><td>tools/benchmark, both adapters' hooks</td></tr></table></div><div class='card'><h3>Dependencies</h3><table><tr><th>System</th><th>Purpose</th><th>Version / Location</th><th>Protocol</th></tr><tr><td>@mohantn/scaffold-core</td><td>Provides check-edit/generate/status commands the hooks shell out to</td><td>packages/core, installed via npm or built locally</td><td>child_process execFileSync, stdin/stdout JSON</td></tr><tr><td>Claude Code Hooks</td><td>PreToolUse / UserPromptSubmit / PostToolUse / Stop lifecycle</td><td>Local Claude Code CLI session</td><td>Hook JSON protocol over stdin/stdout</td></tr><tr><td>GitHub Copilot CLI Hooks</td><td>preToolUse / postToolUse / agentStop lifecycle</td><td>.github/hooks/scaffold-toolkit.json in the target repo</td><td>Hook JSON protocol over stdin/stdout</td></tr><tr><td>packages/templates-dotnet (v8-controller)</td><td>Real fixture pack for tests and the benchmark's seed entity</td><td>This monorepo, file-state-only copy</td><td>Local descriptor + .hbs files on disk</td></tr><tr><td>claude CLI print mode</td><td>Drives both benchmark arms headlessly</td><td>Installed on PATH</td><td><code>claude -p --output-format json</code></td></tr></table></div><div class='card'><h3>Assumptions</h3><ul><li><code>.scaffold/config.json</code> presence is a reliable, cheap signal that a repo wants enforcement &mdash; no content/keyword-based intent detection is used, per explicit decision.</li><li>Pack descriptors are trustworthy at check time: they come from a pinned, already-synced SHA in the local cache, not arbitrary live network content.</li><li>Claude Code's <code>PreToolUse</code> supports a real block/deny decision (confirmed for the general Claude Code hook family; the exact JSON shape for this specific event was not independently re-verified this session &mdash; see Section 10).</li><li>GitHub Copilot CLI's <code>preToolUse</code> supports modify/block (confirmed to exist via the hooks reference; its exact input field names for file write/edit tool calls were not confirmed &mdash; see Section 10, this is the plan's single highest-risk open item).</li></ul></div><div class='card'><h3>Out of Scope</h3><ul><li>Auto-migrating existing hand-written boilerplate into pack-owned marker regions.</li><li>A repo-wide hard gate on every file &mdash; deliberately narrowed to pack-owned target/injection paths only, per explicit user decision, so unrelated docs/tests/business-logic edits are never affected.</li><li>Actually running the benchmark harness for real and publishing a results report &mdash; this feature ships the harness as a reusable tool, not a one-time results artifact.</li><li>Cleaning up <code>dotnet_folder/</code> at the repo root, confirmed during research to be dead scratch state pointing at a nonexistent <code>/tmp/dotnet-scaffold-test/pack</code> path &mdash; flagged to the user separately, not touched by this feature.</li></ul></div><div class='card'><h3>At a Glance</h3><table><tr><th>Owner</th><th>Repos touched</th><th>Data store</th><th>Auth method</th><th>Environments</th></tr><tr><td>Mohan TN</td><td>scaffold-toolkit monorepo only: packages/core, packages/adapter-claude-code, packages/adapter-copilot-cli, new tools/benchmark</td><td>None &mdash; stateless structural checks against files already on disk</td><td>N/A &mdash; local CLI and local hook processes, no new network auth surface</td><td>Any repo with <code>.scaffold/config.json</code>; verified manually against a throwaway fixture repo before real-world rollout</td></tr></table></div>
+    </section>
+
+    <section id="s2">
+      <h2>2 · Use Cases &amp; Scope</h2>
+      <div class='card'><h3>Use-Case Flow</h3><pre class='mermaid'>flowchart LR
+  A[Developer] -->|prompts| B(Host Agent: Claude Code or Copilot CLI)
+  B -->|Attempt Write to pack-owned file| C{PreToolUse Gate}
+  B -->|Attempt Edit to pack-owned file| C
+  B -->|Submit new prompt| D{UserPromptSubmit}
+  subgraph SB[scaffold-toolkit boundary]
+    C --> E[scaffold check-edit]
+    D --> F[Standing reminder injection]
+    E --> G[(.scaffold/config.json + synced pack descriptors)]
+  end
+  C -->|block| H[Agent must run scaffold generate]
+  C -->|allow: inside AI_IMPLEMENTATION| I[Edit proceeds]
+</pre></div><div class='card'><h3>Functional Requirements</h3><table><tr><th>ID</th><th>Requirement</th><th>Acceptance Criteria</th></tr><tr><td>FR1</td><td>When <code>.scaffold/config.json</code> is absent, no hook may add latency or context</td><td>Hook process checks <code>existsSync</code> and exits with <code>{}</code> before any further work; a dedicated integration test asserts zero extra <code>scaffold</code> subprocess spawns in this case</td></tr><tr><td>FR2</td><td>When config is present, a <code>Write</code> to any pack-owned target/injection path must be blocked</td><td><code>check-edit</code> returns <code>decision: block</code>, exit code 1; the owning PreToolUse hook translates that into the host's deny decision</td></tr><tr><td>FR3</td><td>An <code>Edit</code> to a pack-owned file is allowed only when its target text is fully contained within one <code>AI_IMPLEMENTATION</code> marker interior</td><td><code>checkEdit.test.ts</code> scenarios covering allow-inside-interior, block-outside-interior, and block-on-injection-region-edit all pass</td></tr><tr><td>FR4</td><td>Edits/writes to files no configured pack declares ownership of are never gated</td><td><code>checkEdit.test.ts</code>'s "unrelated file never even read" scenario passes</td></tr><tr><td>FR5</td><td>Claude Code receives a standing reminder at prompt submission when config is present</td><td><code>user-prompt-submit.mjs</code> unit tests assert <code>additionalContext</code> is non-empty iff config exists, and empty (no injection) otherwise</td></tr><tr><td>FR6</td><td>A reusable benchmark script can be re-run on demand to compare freehand vs. scaffolded authoring cost</td><td><code>npm run benchmark</code> executes end-to-end against a seeded Order entity and writes a timestamped summary report</td></tr></table></div><div class='card'><h3>Non-Functional Requirements</h3><table><tr><th>Attribute</th><th>Measurable Target</th></tr><tr><td>Performance</td><td>check-edit adds no more than single-digit milliseconds of descriptor-parsing latency per gated tool call, and zero latency when unconfigured</td></tr><tr><td>Reliability</td><td>Any check-edit or scaffold invocation failure (binary missing, crash) fails closed &mdash; the tool call is blocked, never silently allowed through</td></tr><tr><td>Portability</td><td>check-edit's own decision logic stays host-agnostic (canonical <code>write</code>/<code>edit</code> vocabulary); only the two thin hook scripts encode host-specific field names</td></tr><tr><td>Testability</td><td>Every decision function (<code>shouldCheckEdit</code>, <code>extractEditRequest</code>, the block/allow builders) is pure and directly unit-tested with no <code>execFileSync</code> inside it</td></tr><tr><td>Cost control</td><td>The benchmark harness never runs automatically in CI and caps spend via <code>--max-budget-usd</code> on every <code>claude -p</code> invocation</td></tr></table></div>
+    </section>
+
+    <section id="s3">
+      <h2>3 · C4 — Context &amp; Containers</h2>
+      <div class='card'><h3>C4 Context</h3><pre class='mermaid'>C4Context
+  title Scaffold-Toolkit Enforcement — System Context
+  Person(dev, "Developer", "Uses a host coding agent to build features")
+  System(agent, "Host Coding Agent", "Claude Code or GitHub Copilot CLI")
+  System(scaffoldToolkit, "scaffold-toolkit", "CLI + host adapters + hooks")
+  System_Ext(npmRegistry, "npm registry", "Distributes @mohantn/scaffold-core")
+  System_Ext(targetRepo, "Target Repo Working Tree", "The repo being scaffolded into")
+  Rel(dev, agent, "Prompts")
+  Rel(agent, scaffoldToolkit, "Invokes hooks + CLI commands", "stdio / execFileSync")
+  Rel(scaffoldToolkit, targetRepo, "Reads/writes files, reads .scaffold/config.json")
+  Rel(scaffoldToolkit, npmRegistry, "Installed from", "npm install / npx")
+</pre></div><div class='card'><h3>C4 Container</h3><pre class='mermaid'>C4Container
+  title scaffold-toolkit — Container View
+  Container(core, "@mohantn/scaffold-core", "Node.js / TypeScript CLI", "generate, status, check-edit, undo, bootstrap-markers")
+  Container(claudeAdapter, "adapter-claude-code", "Claude Code Skill + hooks", "pre-tool-use.mjs, user-prompt-submit.mjs, post-tool-use.mjs, stop.mjs")
+  Container(copilotAdapter, "adapter-copilot-cli", "gh extension + hooks", "pre-tool-use.mjs, post-tool-use.mjs, agent-stop.mjs")
+  Container(benchmark, "tools/benchmark", "Node.js scripts", "drives claude -p headlessly, measures token/time/build cost")
+  Container(cache, "Local pack cache", "Filesystem", "synced template pack descriptors + .hbs files, keyed by sha256(url)/sha")
+  Rel(claudeAdapter, core, "execFileSync('scaffold', [...])", "stdio JSON")
+  Rel(copilotAdapter, core, "execFileSync('scaffold', [...])", "stdio JSON")
+  Rel(benchmark, core, "invokes built dist/cli.js on PATH", "stdio JSON")
+  Rel(core, cache, "reads descriptor + templates", "filesystem")
+</pre></div>
+    </section>
+
+    <section id="s4">
+      <h2>4 · Domain &amp; Data Model</h2>
+      <div class='card'><h3>Domain Model</h3><pre class='mermaid'>classDiagram
+  class PackConfig {
+    +Map~string,PackEntry~ packs
+  }
+  class PackEntry {
+    +string url
+    +string version
+    +string pinnedSha
+  }
+  class Descriptor {
+    +TargetSpec[] targets
+    +InjectionSpec[] injections
+  }
+  class TargetSpec {
+    +string output
+    +string mode
+  }
+  class InjectionSpec {
+    +string file
+    +string marker
+    +string strategy
+  }
+  class AiImplementationBlock {
+    +number startLine
+    +number endLine
+    +string content
+    +boolean empty
+    +boolean required
+    +number interiorStartOffset
+    +number interiorEndOffset
+  }
+  class CheckEditRequest {
+    +string tool
+    +string file
+    +string oldString
+  }
+  class CheckEditResult {
+    +string decision
+    +string reason
+    +boolean packOwned
+    +MatchedOwner[] matchedBy
+  }
+  PackConfig "1" --> "*" PackEntry
+  PackEntry --> Descriptor : resolves via local cache
+  Descriptor "1" --> "*" TargetSpec
+  Descriptor "1" --> "*" InjectionSpec
+  CheckEditRequest --> CheckEditResult : evaluated against
+  CheckEditResult --> AiImplementationBlock : edit containment check
+</pre><p><em>interiorStartOffset and interiorEndOffset are new, additive fields on AiImplementationBlock &mdash; markerScan.ts's MarkerLocation type already computes the equivalent offsets for SCAFFOLD:&lt;marker&gt; pairs; this feature applies the same buildLineOffsets technique to AI_IMPLEMENTATION blocks.</em></p></div><div class='card'><h3>Entity-Relationship / Data Store</h3><p><strong>None.</strong> This feature introduces no persistent data store and no schema. All state it reads is either (a) the target repo's own existing files and <code>.scaffold/*.json</code> records, already produced by the existing <code>generate</code>/<code>status</code> commands, or (b) the benchmark harness's own ephemeral <code>tools/benchmark/results/&lt;timestamp&gt;/*.json</code> output, which is gitignored and not modeled as durable state.</p></div><div class='card'><h3>Migration Impact</h3><p>None required. The only change to an existing type is additive: two new optional-in-practice fields on <code>AiImplementationBlock</code>, populated by <code>scanAiImplementationBlocks</code> the same way <code>MarkerLocation</code> already populates its own offset fields. Existing consumers (<code>status.ts</code>, <code>generate.ts</code>'s report builder) read only the fields they already use, so this is source- and behaviour-compatible.</p></div>
+    </section>
+
+    <section id="s5">
+      <h2>5 · API Design (.NET)</h2>
+      <div class='card'><h3>CLI &amp; Hook Interfaces</h3><table><tr><th>Interface</th><th>Kind</th><th>Caller</th><th>Input</th><th>Output</th><th>Result</th></tr><tr><td><code>scaffold check-edit</code></td><td>CLI command</td><td>Both hosts' PreToolUse hooks</td><td><code>--file, --tool write|edit, --old-string / --old-string-file</code></td><td><code>{decision, reason?, packOwned, matchedBy}</code> JSON on stdout</td><td>exit 0 = allow, exit 1 = block</td></tr><tr><td>PreToolUse hook</td><td>Claude Code hook</td><td>Claude Code runtime, before Write/Edit executes</td><td>stdin JSON: <code>cwd, tool_name, tool_input</code></td><td>stdout: <code>{hookSpecificOutput:{hookEventName,permissionDecision,permissionDecisionReason}}</code> (best-known shape, unverified &mdash; Section 10)</td><td>deny blocks the tool call</td></tr><tr><td>preToolUse hook</td><td>Copilot CLI hook</td><td>Copilot CLI runtime, before a file tool executes</td><td>stdin JSON: <code>toolName, toolArgs, cwd</code> (exact field names for write/edit unverified &mdash; Section 10)</td><td>stdout: <code>{decision, reason?}</code> (assumed to mirror agentStop's confirmed shape)</td><td>block prevents the tool call</td></tr><tr><td>UserPromptSubmit hook</td><td>Claude Code hook, Claude Code only</td><td>Claude Code runtime, once per turn</td><td>stdin JSON: <code>cwd, prompt_text, session_id</code></td><td>stdout: <code>{hookSpecificOutput:{hookEventName,additionalContext}}</code> when config present, <code>{}</code> otherwise</td><td>context injected into the turn, never blocks</td></tr></table></div><details><summary>CLI &amp; Hook Interface Spec (not an HTTP API &mdash; this feature has no network surface)</summary><pre>command: scaffold check-edit
+arguments:
+  --file:            { type: path, required: true }
+  --tool:            { type: enum[write, edit], required: true }
+  --old-string:      { type: string, required: if tool == edit, mutually_exclusive_with: --old-string-file }
+  --old-string-file: { type: path,   required: if tool == edit and old-string too large, mutually_exclusive_with: --old-string }
+exit_codes:
+  0: allow
+  1: block
+stdout_shape:
+  decision:   "allow" | "block"
+  reason:     string, present iff decision == "block"
+  packOwned:  boolean
+  matchedBy:  [{ pack: string, kind: "target" | "injection", pattern: string }]
+</pre></details><div class='card'><h3>Gate Decision Sequence</h3><pre class='mermaid'>sequenceDiagram
+  participant Host as Host Agent (Claude/Copilot)
+  participant Hook as PreToolUse Hook Script
+  participant CLI as scaffold check-edit
+  participant Cache as Local Pack Cache
+  participant Marker as markerScan.ts
+  Host->>Hook: attempts Write/Edit on file X
+  Hook->>Hook: existsSync(.scaffold/config.json)?
+  alt config absent
+    Hook-->>Host: {} (no-op, allow)
+  else config present
+    Hook->>CLI: execFileSync scaffold check-edit --file X --tool ...
+    CLI->>Cache: load synced pack descriptor(s)
+    CLI->>CLI: templateToRegex match against targets[]/injections[]
+    alt not pack-owned
+      CLI-->>Hook: {decision: allow, packOwned: false}
+    else pack-owned and tool == write
+      CLI-->>Hook: {decision: block, reason: "...run scaffold generate"}
+    else pack-owned and tool == edit
+      CLI->>Marker: scanAiImplementationBlocks(content)
+      Marker-->>CLI: interior offset ranges
+      CLI->>CLI: is old_string fully inside an interior?
+      CLI-->>Hook: {decision: allow} or {decision: block}
+    end
+    Hook-->>Host: deny (blocked) or allow, translated to host's own shape
+  end
+</pre></div>
+    </section>
+
+    <section id="s6">
+      <h2>6 · UI/UX (React)</h2>
+      <div class='card'><h3>Agent-Facing "UI" &mdash; Terminal / Chat Transcript</h3><p>This feature has no graphical UI; its user-facing surface is the text a host agent (and, transitively, the developer reading its transcript) sees when a tool call is blocked or a turn begins.</p><pre class='mermaid'>flowchart TD
+  A[Developer: "add an Order endpoint"] --> B[Turn starts: UserPromptSubmit injects standing reminder]
+  B --> C[Agent attempts Write to Controllers/OrderController.cs]
+  C --> D{PreToolUse Gate}
+  D -->|blocked| E[Agent sees deny reason: pack-owned, run scaffold generate]
+  E --> F[Agent builds intent manifest, runs scaffold generate]
+  F --> G[Agent attempts Edit inside reported AI_IMPLEMENTATION interior]
+  G --> H{PreToolUse Gate}
+  H -->|allowed| I[Edit succeeds, business logic written]
+</pre></div><div class='card'><h3>Component-to-Command Mapping</h3><pre class='mermaid'>flowchart LR
+  preToolUse[pre-tool-use.mjs] --> checkEdit[scaffold check-edit]
+  userPromptSubmit[user-prompt-submit.mjs] -.->|no CLI call, pure existsSync| none[n/a]
+  postToolUse[post-tool-use.mjs] --> status1[scaffold status --json]
+  stop[stop.mjs / agent-stop.mjs] --> status2[scaffold status --json]
+</pre></div><div class='card'><h3>Wireframe &mdash; Blocked Write, Terminal Transcript</h3><div class='card'><pre>┌─ Claude Code session ──────────────────────────────────────────┐
+│ > add a new Order endpoint with amount and orderedAt            │
+│                                                                   │
+│ [UserPromptSubmit] scaffold-toolkit is configured in this repo. │
+│ Pack-owned files must be created via "scaffold generate", never │
+│ hand-written. Build the intent manifest per this repo's Skill.  │
+│                                                                   │
+│ ● Write(Controllers/OrderController.cs)                          │
+│   ✗ BLOCKED by PreToolUse hook:                                 │
+│     "Controllers/OrderController.cs" is a pack-owned file       │
+│     (owned by pack "backend" via target pattern                 │
+│     "Controllers/{{entity}}Controller.cs"). Creating or          │
+│     overwriting it directly is not allowed — run                │
+│     "scaffold generate" instead.                                │
+│                                                                   │
+│ ● Bash(npx @mohantn/scaffold-core generate --manifest order.toon)│
+│   ✓ created Controllers/OrderController.cs                       │
+│   ✓ injected Program.cs [SCAFFOLD_DI, unchanged]                 │
+│                                                                   │
+│ ● Edit(Controllers/OrderController.cs) — inside AI_IMPLEMENTATION│
+│   ✓ ALLOWED                                                     │
+└───────────────────────────────────────────────────────────────┘</pre></div></div>
+    </section>
+
+    <section id="s7">
+      <h2>7 · Behaviour — State &amp; Process</h2>
+      <div class='card'><h3>Pack-Owned File Lifecycle</h3><pre class='mermaid'>stateDiagram-v2
+  [*] --> Unrendered
+  Unrendered --> Rendered: scaffold generate (targets/injections written, markers present)
+  Rendered --> Implemented: Edit inside AI_IMPLEMENTATION interior
+  Implemented --> Implemented: further Edit inside same interior
+  Unrendered --> Unrendered: Write attempt blocked (not yet rendered)
+  Rendered --> Rendered: Write attempt blocked (already rendered, still pack-owned)
+  Rendered --> Rendered: Edit outside interior blocked (injection region or other content)
+  Implemented --> Implemented: Edit outside interior blocked
+</pre><p>Note: every state's transition into a blocked self-loop is structural, not session-tracked &mdash; the gate never needs to know whether <code>generate</code> "has run this turn"; it only asks whether the specific edit's target text falls inside a currently-scanned <code>AI_IMPLEMENTATION</code> interior.</p></div><div class='card'><h3>check-edit Decision Activity</h3><pre class='mermaid'>flowchart TD
+  Start([check-edit invoked]) --> ConfigCheck{.scaffold/config.json exists?}
+  ConfigCheck -->|no| AllowNoConfig[[allow: packOwned=false]]
+  ConfigCheck -->|yes| PathCheck{path inside repo root?}
+  PathCheck -->|no| AllowOutside[[allow: not matchable]]
+  PathCheck -->|yes| Matchers[Build pack-owned matchers from synced descriptors]
+  Matchers --> MatchTest{path matches a target/injection pattern?}
+  MatchTest -->|no| AllowNotOwned[[allow: packOwned=false]]
+  MatchTest -->|yes| ToolCheck{tool == write or edit?}
+  ToolCheck -->|write| BlockWrite[[block: must use generate]]
+  ToolCheck -->|edit| FileExists{file exists on disk?}
+  FileExists -->|no| BlockMissing[[block: cannot verify interior of nonexistent content]]
+  FileExists -->|yes| FindOld{old_string found exactly once?}
+  FindOld -->|no / ambiguous| BlockAmbiguous[[block: fail-closed, ambiguous]]
+  FindOld -->|yes| Interior{fully inside an AI_IMPLEMENTATION interior?}
+  Interior -->|yes| AllowInterior[[allow]]
+  Interior -->|no| BlockOutside[[block: outside interior / in injection region]]
+</pre></div>
+    </section>
+
+    <section id="s8">
+      <h2>8 · Deployment — Docker, Terraform, GitLab CI/CD</h2>
+      <div class='card'><h3>Deployment Topology</h3><pre class='mermaid'>flowchart TB
+  subgraph DevMachine[Developer's Machine]
+    Agent[Claude Code / Copilot CLI process]
+    Scaffold[scaffold binary — global npm install or npx]
+    LocalFS[(Target repo working tree: .scaffold/config.json, .scaffold/cache/, source files)]
+  end
+  Agent -->|spawns hook scripts| Hooks[pre-tool-use.mjs / user-prompt-submit.mjs / post-tool-use.mjs / stop.mjs]
+  Hooks -->|execFileSync| Scaffold
+  Scaffold -->|reads/writes| LocalFS
+  Scaffold -.->|npm install / npx, one-time| Registry[(npm registry)]
+</pre><p>No server component is introduced. Everything runs as short-lived local processes spawned by the host agent, exactly like the existing <code>PostToolUse</code>/<code>Stop</code> hooks already do.</p></div><details><summary>Deployment Notes (no cloud infrastructure applies)</summary><pre>No Terraform, no cloud resources, no new environments.
+Packaging is unchanged from the existing project: the new check-edit
+command ships inside the same @mohantn/scaffold-core npm package;
+the new hook scripts ship inside the same adapter-claude-code and
+adapter-copilot-cli packages (adapter-claude-code stays private,
+not published to the public registry, per its existing convention).
+
+tools/
+  benchmark/           # new, root-level, NOT an npm workspace
+    package.json        # private, its own "test" script only
+    run-benchmark.mjs   # entry point, spends real API money, manual-only
+    arms/
+    metrics.mjs
+    fixtureRepo.mjs
+    test/                # free/local tests only
+</pre></details><div class='card'><h3>CI/CD Pipeline (GitHub Actions)</h3><pre class='mermaid'>flowchart LR
+  Push[push / PR to main] --> Test[test job: npm ci, build, lint, test — Node 22/24 matrix]
+  Test --> DotnetCheck[templates-dotnet-build-check job]
+  Test -.->|new| CheckEditTests[check-edit unit + integration tests, part of the same test job]
+  DotnetCheck --> Publish{push to main?}
+  CheckEditTests --> Publish
+  Publish -->|yes| Bump[npm version patch, tag]
+  Bump --> NpmPublish[npm publish --workspaces]
+  Test -.->|excluded from CI, manual only| Benchmark[tools/benchmark/run-benchmark.mjs]
+</pre><p>The benchmark harness's free/local tests (<code>fixtureRepo.test.mjs</code>, <code>metrics.test.mjs</code>, <code>prompts.test.mjs</code>) may optionally join CI as their own job, mirroring <code>templates-dotnet-build-check</code>'s pattern &mdash; a nice-to-have, not required for v1. <code>run-benchmark.mjs</code> itself must never run automatically, since it spends real API money.</p></div>
+    </section>
+
+    <section id="s9">
+      <h2>9 · Monitoring &amp; Custom Alerts</h2>
+      <div class='card'><h3>Engineering Signals (no live service, so no production monitoring backend applies)</h3><p>This feature has no running server to instrument with a live observability stack. The signals below are what a maintainer should watch manually or via ad hoc logging during rollout, not a claim that a New Relic / alerting pipeline already exists for this local CLI tool.</p><table><tr><th>Signal</th><th>Source</th><th>Target</th></tr><tr><td>check-edit latency per gated call</td><td>Manual timing around <code>execFileSync</code> in the hook script during rollout testing</td><td>Single-digit milliseconds, not perceptible to the agent's turn</td></tr><tr><td>Block-vs-allow rate</td><td>Optional local logging added by the maintainer around <code>buildDecision</code>-style functions during a trial rollout</td><td>Near-zero block rate on unrelated files (would indicate over-blocking / false positives)</td></tr><tr><td>Verify-before-ship item resolution</td><td>Section 10's open questions</td><td>All six resolved (shape confirmed or empirically tested) before wide rollout, per the plan's own Verification section</td></tr><tr><td>Adoption</td><td>Count of repos with <code>.scaffold/config.json</code> and the new hooks registered</td><td>Informal, tracked manually by the maintainer</td></tr></table></div><div class='card'><h3>Manual Verification / Incident Flow</h3><pre class='mermaid'>sequenceDiagram
+  participant Dev as Developer
+  participant Agent as Host Agent
+  participant Hook as PreToolUse Hook
+  participant Maintainer as Tool Maintainer
+  Dev->>Agent: legitimate edit to a pack-owned file, outside any marker
+  Agent->>Hook: Edit attempt
+  Hook-->>Agent: blocked (false positive suspected)
+  Agent-->>Dev: reports the block reason
+  Dev->>Maintainer: reports suspected over-block
+  Maintainer->>Maintainer: reproduces via checkEdit.test.ts-style fixture
+  Maintainer->>Maintainer: fixes templateToRegex / matcher scope in packages/core
+  Maintainer->>Dev: ships patch release via existing npm publish pipeline
+</pre></div><div class='card'><h3>Dashboard / Signals a Maintainer Could Watch</h3><ul><li>Count of <code>check-edit</code> invocations returning <code>block</code> vs <code>allow</code>, if the maintainer opts to add local logging</li><li>Which <code>reason</code> strings recur most often (ambiguous old_string vs outside-interior vs write-blocked) &mdash; a skew toward "ambiguous" would suggest the old_string uniqueness check needs refinement</li><li>Benchmark harness run history under <code>tools/benchmark/results/</code> (gitignored, local only) &mdash; token/time/build-pass trend across manual runs</li></ul></div>
+    </section>
+
+    <section id="s10">
+      <h2>10 · Open Questions, Decisions &amp; Risks</h2>
+      <div class='card'><h3>Open Questions</h3><table><tr><th>ID</th><th>Question</th><th>Why it matters</th><th>Proposed default</th><th>Status</th></tr><tr><td>OQ1</td><td>What is the exact Claude Code PreToolUse block-decision JSON shape, and does its matcher support "Write|Edit" alternation in one entry?</td><td>If wrong, the hook silently allows the tool call through, defeating the whole feature</td><td>Nested <code>hookSpecificOutput.permissionDecision: "deny"</code>, by analogy with this repo's confirmed PostToolUse shape; verify against a live session before wide rollout</td><td>Open</td></tr><tr><td>OQ2</td><td>What are Copilot CLI's real <code>preToolUse</code> tool name(s) and <code>toolArgs</code> field names for file write vs. edit?</td><td>Entirely unconfirmed this session &mdash; the single highest-risk unknown in the whole feature</td><td>Ship with loud VERIFY-BEFORE-SHIP placeholder guesses; register a throwaway logging hook in a real Copilot session to capture real payloads before trusting it</td><td>Open</td></tr><tr><td>OQ3</td><td>Is UserPromptSubmit's additionalContext a nested <code>hookSpecificOutput.additionalContext</code> or a flat top-level field?</td><td>Wrong shape means the standing reminder silently never appears (degraded but safe &mdash; PreToolUse remains the real gate)</td><td>Nested shape, by analogy with the confirmed PostToolUse shape</td><td>Open</td></tr><tr><td>OQ4</td><td>What are <code>claude -p --output-format json</code>'s exact result field names?</td><td>The benchmark's metrics extractor depends on this; wrong field names silently report undefined/zero metrics</td><td>Widely-documented shape assumed (<code>total_cost_usd</code>, <code>usage.*</code>, <code>duration_ms</code>, <code>num_turns</code>); confirm with one real call before trusting output</td><td>Open</td></tr><tr><td>OQ5</td><td>Should <code>dotnet_folder/</code> (confirmed dead scratch state pointing at a nonexistent path) be removed from the repo?</td><td>It's committed, misleading state, but unrelated to this feature</td><td>Flag to the user separately; do not touch as part of this feature</td><td>Open, deferred</td></tr><tr><td>OQ6</td><td>Should the benchmark's free/local tests join CI as their own job?</td><td>Would catch fixture-repo regressions automatically, at zero API cost</td><td>Yes, mirroring the existing <code>templates-dotnet-build-check</code> job pattern</td><td>Open, nice-to-have</td></tr></table></div><div class='card'><h3>Decisions (ADR Log)</h3><table><tr><th>Decision</th><th>Options Considered</th><th>Choice &amp; Rationale</th><th>Date</th></tr><tr><td>Enforcement strength</td><td>Soft nudge only; nudge + hard gate; hard gate only</td><td>Hard gate only when <code>.scaffold/config.json</code> is present, complete no-op otherwise &mdash; per explicit user direction, since a soft nudge reintroduces exactly the non-determinism this feature exists to remove</td><td>2026-07-11</td></tr><tr><td>Gate scope</td><td>Repo-wide gate on every Write/Edit; pack-owned-paths-only gate</td><td>Pack-owned-only, per explicit user selection, to avoid blocking unrelated legitimate work (docs, tests, business logic no pack has ever touched)</td><td>2026-07-11</td></tr><tr><td>Where check-edit's logic lives</td><td>Duplicate logic in each of the two adapters' hook scripts (the existing pattern for status checks); one shared core subcommand</td><td>Shared <code>packages/core</code> subcommand &mdash; the marker/descriptor matching logic is materially more complex than the existing status check and duplicating it across two adapters would be a real maintenance liability</td><td>2026-07-11</td></tr><tr><td>Benchmark deliverable shape</td><td>One-time live comparison this session; reusable checked-in script</td><td>Reusable script, per explicit user selection, so ROI can be re-measured after future changes</td><td>2026-07-11</td></tr><tr><td>Whether to build a .NET-native CLI engine</td><td>Keep the existing portable, stack-agnostic Node/TS engine; build a .NET-native engine per the user's original proposal</td><td>Keep the portable engine &mdash; reversing this would contradict <code>docs/prd.md</code>'s existing, deliberate rejected-features precedent, and no new evidence surfaced during planning to justify the reversal</td><td>2026-07-11</td></tr></table></div><div class='card'><h3>Risks</h3><table><tr><th>Risk</th><th>Likelihood</th><th>Impact</th><th>Mitigation</th></tr><tr><td>PreToolUse / preToolUse JSON shapes are unverified guesses</td><td>Medium</td><td>High &mdash; a silently no-op gate defeats the whole feature</td><td>Loud VERIFY-BEFORE-SHIP comments in code; a live-session verification step is a required part of the plan's own Verification section before either adapter is considered done</td></tr><tr><td>Over-blocking legitimate edits via path-template false positives</td><td>Low</td><td>Medium &mdash; developer friction, risk of the hook being disabled entirely</td><td>Gate strictly scoped to descriptor-declared target/injection paths; extensive test coverage of the "not pack-owned" fast path</td></tr><tr><td>Benchmark results are non-representative (small sample, one scripted task)</td><td>Medium</td><td>Low &mdash; it's a diagnostic tool, not a shipped guarantee</td><td>Harness is reusable so multiple runs/entities can be sampled over time; results are advisory, never gate anything</td></tr><tr><td>Descriptor re-parsing on every gated call adds latency in repos with many packs</td><td>Low</td><td>Low</td><td>Explicitly deferred caching noted as a future v1.1 follow-up, mirroring the PRD's own existing "Deferred to v1.1: marker-position caching" precedent</td></tr></table></div>
+    </section>
+  </main>
+
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true, theme: 'default', securityLevel: 'loose' });
+  </script>
+
+  <script>
+    const toc = document.getElementById('toc');
+    const sections = document.querySelectorAll('section[id^="s"]');
+
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const id = entry.target.id;
+          const link = toc.querySelector(`a[href="#${id}"]`);
+          toc.querySelectorAll('a').forEach(a => a.classList.remove('active'));
+          if (link) link.classList.add('active');
+        }
+      });
+    }, { threshold: 0.3, rootMargin: '-50% 0px -50% 0px' });
+
+    sections.forEach(section => observer.observe(section));
+
+    toc.querySelectorAll('a').forEach(link => {
+      link.addEventListener('click', e => {
+        e.preventDefault();
+        const target = document.querySelector(link.getAttribute('href'));
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { createInterface } from 'node:readline/promises';
+import { readFileSync } from 'node:fs';
 import { Command } from 'commander';
 import { readOwnPackageJson } from './version/readPkg.js';
 import { configPath, saveConfig } from './config/loader.js';
@@ -15,6 +16,8 @@ import { runBootstrapMarkers } from './bootstrapMarkers/bootstrapMarkers.js';
 import { renderBootstrapMarkersReport } from './bootstrapMarkers/bootstrapMarkersReport.js';
 import { validatePack } from './validatePack/validatePack.js';
 import { encodeToon } from './toon/codec.js';
+import { checkEdit } from './checkEdit/checkEdit.js';
+import type { CheckEditTool } from './checkEdit/checkEdit.js';
 
 const pkg = readOwnPackageJson(import.meta.url);
 
@@ -212,6 +215,28 @@ program
       process.exit(report.allValid ? 0 : 1);
     } catch (error) {
       console.error('scaffold validate-pack failed:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('check-edit')
+  .description('Check whether a proposed write/edit to a file is permitted under the configured template pack(s) — the structural gate the host-adapter PreToolUse hooks shell out to before letting a Write/Edit tool call run')
+  .requiredOption('--file <path>', 'the file the tool call targets (absolute or repo-relative)')
+  .requiredOption('--tool <write|edit>', 'the kind of file operation being attempted')
+  .option('--old-string <text>', "the edit tool's old_string; required (in some form) for --tool edit, ignored for --tool write")
+  .option('--old-string-file <path>', "read --old-string's value from a file instead of the command line, avoiding shell-escaping a multi-line string")
+  .action((opts: { file: string; tool: string; oldString?: string; oldStringFile?: string }) => {
+    try {
+      if (opts.tool !== 'write' && opts.tool !== 'edit') {
+        throw new Error(`--tool must be "write" or "edit", got "${opts.tool}"`);
+      }
+      const oldString = opts.oldStringFile ? readFileSync(opts.oldStringFile, 'utf8') : opts.oldString;
+      const result = checkEdit({ repoRoot: process.cwd(), file: opts.file, tool: opts.tool as CheckEditTool, oldString });
+      console.log(JSON.stringify(result));
+      process.exit(result.allow ? 0 : 1);
+    } catch (error) {
+      console.error('scaffold check-edit failed:', error instanceof Error ? error.message : error);
       process.exit(1);
     }
   });

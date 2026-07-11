@@ -15,15 +15,21 @@ The deterministic half (file rendering, marker-based injection, hash-trail idemp
 
 ## One-time setup (first time this Skill runs in a target repo)
 
-The two hook scripts that ship in this package — `hooks/post-tool-use.mjs` and `hooks/stop.mjs` — are what make phase-3 completion deterministic instead of prose-based. Without them, forgetting to fill an `AI_IMPLEMENTATION` block is up to your discipline at the end of a turn. With them, the `Stop` hook refuses to let the turn end while anything is still pending.
+Three hook scripts ship in this package: `hooks/pre-tool-use.mjs`, `hooks/post-tool-use.mjs`, `hooks/stop.mjs`, plus a fourth, `hooks/user-prompt-submit.mjs`. Together they make both phase-3 completion *and* the "always go through `scaffold generate`" rule deterministic instead of prose-based:
 
-**Locate the two hooks** by searching common install locations, in this order:
+- `PreToolUse` (`pre-tool-use.mjs`) is the hard gate. It fires *before* a `Write` or `Edit` tool call runs and blocks it outright when the target is a pack-owned file being written directly, or edited outside an `AI_IMPLEMENTATION` interior. This is the only hook that can stop a hand-written, un-scaffolded file from ever reaching disk — `PostToolUse` and `Stop` both fire after the fact and can only nudge or block the *turn*, not the write itself.
+- `UserPromptSubmit` (`user-prompt-submit.mjs`) is a complementary early-warning layer, not enforcement: every turn, if `.scaffold/config.json` exists, it injects a short standing instruction into context reminding you that pack-owned files are gated. This makes a `PreToolUse` block unsurprising if you hit one, but it never blocks anything itself.
+- `PostToolUse` (`post-tool-use.mjs`) and `Stop` (`stop.mjs`) are unchanged: the end-of-turn safety net for unfilled `AI_IMPLEMENTATION` blocks, as before.
+
+Without all of these, forgetting to fill an `AI_IMPLEMENTATION` block (or hand-writing a pack-owned file instead of running `generate`) is up to your discipline. With them, both mistakes are structurally blocked rather than merely discouraged.
+
+**Locate the hooks** by searching common install locations, in this order:
 
 1. The `hooks/` directory next to this `SKILL.md` (Claude Code Skills are loaded from a directory; the hooks ship alongside it)
 2. `${CLAUDE_SKILL_DIR}/hooks/` if that env var is set
 3. `<target-repo>/node_modules/@mohantn/scaffold-adapter-claude-code/hooks/` (source-checkout install of `scaffold-toolkit`, or a `npm install <local-tarball>` of the adapter)
 
-A `find` over the user's `~/.claude/` tree is also acceptable. Note that this package is `private: true` and is *not* published to the public npm registry, so any candidate under `npm root -g` will always be empty; do not look there. Whichever you pick, verify both files exist before referencing them — a half-installed adapter should not silently produce a mistargeted `.claude/settings.json`. If none of the candidates resolve, the most likely cause is that the adapter is mirror-installed somewhere outside these defaults; ask the user to confirm their install path rather than guessing.
+A `find` over the user's `~/.claude/` tree is also acceptable. Note that this package is `private: true` and is *not* published to the public npm registry, so any candidate under `npm root -g` will always be empty; do not look there. Whichever you pick, verify all four files exist before referencing them — a half-installed adapter should not silently produce a mistargeted `.claude/settings.json`. If none of the candidates resolve, the most likely cause is that the adapter is mirror-installed somewhere outside these defaults; ask the user to confirm their install path rather than guessing.
 
 **Then merge the following into `<target-repo>/.claude/settings.json`**, using a procedure that does not clobber unrelated keys (`permissions`, `mcpServers`, etc. must survive):
 
@@ -36,6 +42,27 @@ Entries to add (using absolute paths from Step 1):
 
 ```json
 {
+  "PreToolUse": [
+    {
+      "matcher": "Write|Edit",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node /<absolute>/hooks/pre-tool-use.mjs"
+        }
+      ]
+    }
+  ],
+  "UserPromptSubmit": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node /<absolute>/hooks/user-prompt-submit.mjs"
+        }
+      ]
+    }
+  ],
   "PostToolUse": [
     {
       "matcher": "Bash",
@@ -62,9 +89,12 @@ Entries to add (using absolute paths from Step 1):
 
 Wiring notes (these are not arbitrary; the hooks' behaviour and the Claude Code hooks reference determine them):
 
+- `PreToolUse` is matched on `"Write|Edit"` — a single matcher entry, not two separate entries — because Claude Code's matcher syntax supports `|`-alternation of exact tool names in one string (confirmed against https://code.claude.com/docs/en/hooks, fetched 2026-07-11). The hook itself is a no-op for any other tool regardless, so this is belt-and-suspenders, not load-bearing, but it keeps the hook from being invoked (and spawning `scaffold`) for tool calls it can never act on.
+- `UserPromptSubmit` has no matcher concept — every prompt submission runs it. It only ever injects `hookSpecificOutput.additionalContext`, never `decision: "block"` — see the header comment in `user-prompt-submit.mjs` for why blocking the prompt itself would be self-defeating for a hook whose only job is to inform.
 - `PostToolUse` is matched on `Bash` because the only tool that runs `scaffold generate` is Bash. The hook itself self-filters further (only commands whose string contains `scaffold generate` produce a nudge); `matcher: "Bash"` is the minimal correct entry.
 - `Stop` has no matcher concept — every stop attempt runs it.
-- Both hooks shell out to `scaffold status --json` and translate its exit code into the hooks protocol. `scaffold` must therefore be on `PATH` in the host shell that Claude's tools inherit.
+- All four hooks shell out to (or, for `UserPromptSubmit`, merely check for the existence of) the target repo's `.scaffold/config.json` / `scaffold status --json` / `scaffold check-edit`, translating the result into the hooks protocol. `scaffold` must therefore be on `PATH` in the host shell that Claude's tools inherit for `PreToolUse`, `PostToolUse`, and `Stop` (not `UserPromptSubmit`, which never shells out to anything).
+- `PreToolUse` is the one hook here that can actually stop a file from being written or edited at all — `PostToolUse`/`Stop` only ever nudge or block the *turn*, after the write already happened. Treat it as the load-bearing piece for the "always go through `scaffold generate`" rule, the same way `Stop` is load-bearing for "always fill `AI_IMPLEMENTATION` blocks before ending the turn."
 - An entry is considered "already present" iff an existing object in the array has a `command` string equal to the one you're about to add. If `hooks.PostToolUse` or `hooks.Stop` already has a *different* entry whose origin you don't recognise, stop and ask the user before doing anything.
 
 If you detect on a later invocation that `.claude/settings.json` no longer has these entries (the user edited it, or this is a fresh repo), re-run this merge step before doing anything else. The Stop hook is the load-bearing piece; without it, this Skill downgrades to the same prose-based non-determinism the tool exists to remove.
@@ -235,8 +265,9 @@ If the pack is unfamiliar, run `scaffold templates list` first and read its READ
 
 - Skip step 1. Running `generate` against an un-configured repo produces "no pack configured" rather than something useful.
 - Hand-author or rewrite anything under `.scaffold/changes/` or `.scaffold/pending/`. They're authoritative state.
-- Edit a target file's `SCAFFOLD_*` markers or the contents between them — that's the injector's territory. Use the `AI_IMPLEMENTATION_*` markers for fill-in.
+- Directly `Write` or `Edit` a pack-owned file (any path matching a configured pack's `targets[].output` or `injections[].file`) instead of running `scaffold generate`. The `PreToolUse` hook blocks this structurally now — it is not merely discouraged — but don't attempt it and rely on the hook to catch you; plan to run `generate` from the start.
+- Edit a target file's `SCAFFOLD_*` markers or the contents between them — that's the injector's territory. Use the `AI_IMPLEMENTATION_*` markers for fill-in. `PreToolUse` blocks an edit that lands in a `SCAFFOLD:<marker>` injection region the same way it blocks a raw write.
 - Pass `--force` to `generate` or `undo` without an explicit user instruction and a verbal explanation of what gets discarded.
 - Re-fill a block where the report says `empty: false`. Ever.
 - Proceed past a non-zero `scaffold status` exit code at end of turn. The Stop hook will block anyway; ignoring it just means a wasted token pass.
-- Discover a target repo's hooks aren't installed and continue without re-running the one-time setup. Without the Stop hook, this Skill is no stronger than prose.
+- Discover a target repo's hooks aren't installed and continue without re-running the one-time setup. Without the `PreToolUse` and `Stop` hooks, this Skill is no stronger than prose.

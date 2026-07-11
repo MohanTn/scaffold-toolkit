@@ -129,3 +129,35 @@ test('scanAiImplementationBlocks still enforces genuine id pairing (a non-requir
   const mismatched = ['// AI_IMPLEMENTATION_START:one', '  x', '// AI_IMPLEMENTATION_END:two'].join('\n');
   assert.throws(() => scanAiImplementationBlocks('f.ts', mismatched), /does not match START id/);
 });
+
+test('scanAiImplementationBlocks reports interior offsets that slice out exactly the block content, mirroring MarkerLocation', () => {
+  const content = ['before', '// AI_IMPLEMENTATION_START', '  return 42;', '// AI_IMPLEMENTATION_END', 'after'].join('\n');
+  const blocks = scanAiImplementationBlocks('Endpoint.cs', content);
+  const block = blocks[0];
+  assert.equal(content.slice(block.interiorStartOffset, block.interiorEndOffset), '  return 42;\n');
+});
+
+test('scanAiImplementationBlocks reports zero-width interior offsets for an empty block', () => {
+  const content = ['// AI_IMPLEMENTATION_START', '// AI_IMPLEMENTATION_END'].join('\n');
+  const blocks = scanAiImplementationBlocks('Endpoint.cs', content);
+  const block = blocks[0];
+  assert.equal(block.interiorStartOffset, block.interiorEndOffset);
+  assert.equal(content.slice(block.interiorStartOffset, block.interiorEndOffset), '');
+});
+
+test('scanAiImplementationBlocks computes independent interior offsets for two blocks in one file', () => {
+  const content = [
+    '// AI_IMPLEMENTATION_START:one',
+    '  first',
+    '// AI_IMPLEMENTATION_END:one',
+    'middle',
+    '// AI_IMPLEMENTATION_START:two',
+    '  second',
+    '// AI_IMPLEMENTATION_END:two',
+  ].join('\n');
+  const blocks = scanAiImplementationBlocks('f.ts', content);
+  assert.equal(blocks.length, 2);
+  assert.equal(content.slice(blocks[0].interiorStartOffset, blocks[0].interiorEndOffset), '  first\n');
+  assert.equal(content.slice(blocks[1].interiorStartOffset, blocks[1].interiorEndOffset), '  second\n');
+  assert.ok(blocks[1].interiorStartOffset > blocks[0].interiorEndOffset, 'the second block\'s interior must start after the first block ends');
+});
