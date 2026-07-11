@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Architecture — Manifest File Creation Gate</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --accent: #2563eb;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --status-draft: #64748b;
+      --status-review: #f59e0b;
+      --status-approved: #16a34a;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.6;
+      color: var(--text);
+      background: var(--bg);
+      min-height: 100vh;
+    }
+
+    nav#toc {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 240px;
+      height: 100vh;
+      background: var(--card-bg);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      z-index: 100;
+      padding: 2rem 1rem;
+    }
+
+    nav#toc .brand {
+      font-weight: bold;
+      font-size: 1.1rem;
+      color: var(--accent);
+      margin-bottom: 2rem;
+      display: block;
+    }
+
+    nav#toc a {
+      display: block;
+      padding: 0.5rem 0.75rem;
+      margin: 0.5rem 0;
+      color: var(--text);
+      text-decoration: none;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      transition: all 0.2s;
+    }
+
+    nav#toc a:hover {
+      background: var(--bg);
+      color: var(--accent);
+    }
+
+    nav#toc a.active {
+      background: var(--accent);
+      color: white;
+      font-weight: 500;
+    }
+
+    main {
+      margin-left: 240px;
+      padding: 3rem 2rem;
+      max-width: 1100px;
+      margin-right: auto;
+    }
+
+    header {
+      margin-bottom: 3rem;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+      color: var(--text);
+    }
+
+    header .subtitle {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+
+    .status-banner {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      padding: 1rem 1.5rem;
+      border-radius: 12px;
+      margin-bottom: 2rem;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .status-banner.draft {
+      background: rgba(100, 116, 139, 0.1);
+      color: var(--status-draft);
+      border-left: 4px solid var(--status-draft);
+    }
+
+    .status-banner.review {
+      background: rgba(245, 158, 11, 0.1);
+      color: var(--status-review);
+      border-left: 4px solid var(--status-review);
+    }
+
+    .status-banner.approved {
+      background: rgba(22, 163, 74, 0.1);
+      color: var(--status-approved);
+      border-left: 4px solid var(--status-approved);
+    }
+
+    section {
+      margin-bottom: 3rem;
+      scroll-margin-top: 2rem;
+    }
+
+    section h2 {
+      font-size: 1.4rem;
+      margin-bottom: 1.5rem;
+      padding-left: 1rem;
+      border-left: 4px solid var(--accent);
+      color: var(--text);
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .card h3 {
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+      color: var(--text);
+    }
+
+    .card h4 {
+      font-size: 1rem;
+      margin-top: 1.5rem;
+      margin-bottom: 0.75rem;
+      color: var(--accent);
+    }
+
+    .card p {
+      margin-bottom: 1rem;
+      color: var(--text);
+    }
+
+    .card ul, .card ol {
+      margin-left: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .card li {
+      margin-bottom: 0.5rem;
+      color: var(--text);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1rem;
+    }
+
+    table thead {
+      background: var(--bg);
+      border-bottom: 2px solid var(--border);
+    }
+
+    table th {
+      padding: 1rem;
+      text-align: left;
+      font-weight: 600;
+      color: var(--text);
+      font-size: 0.9rem;
+      white-space: nowrap;
+    }
+
+    table td {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      font-size: 0.95rem;
+      white-space: nowrap;
+    }
+
+    table tbody tr:nth-child(even) {
+      background: rgba(100, 116, 139, 0.02);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      margin-bottom: 1rem;
+    }
+
+    .mermaid-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 400px;
+      position: relative;
+    }
+
+    .mermaid {
+      display: flex;
+      justify-content: center;
+    }
+
+    .diagram-toggle-btn {
+      position: absolute;
+      top: 0.75rem;
+      right: 0.75rem;
+      width: 2rem;
+      height: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-muted);
+      font-size: 1rem;
+      line-height: 1;
+      cursor: pointer;
+      z-index: 2;
+      transition: all 0.2s;
+    }
+
+    .diagram-toggle-btn:hover {
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .diagram-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.6);
+      z-index: 999;
+    }
+
+    .diagram-backdrop.active {
+      display: block;
+    }
+
+    body.diagram-lock {
+      overflow: hidden;
+    }
+
+    .mermaid-card.diagram-maximized {
+      position: fixed;
+      inset: 2rem;
+      z-index: 1000;
+      overflow: auto;
+      box-shadow: 0 25px 70px rgba(0, 0, 0, 0.35);
+    }
+
+    .mermaid-card.diagram-maximized .mermaid {
+      width: 100%;
+      height: 100%;
+    }
+
+    .mermaid-card.diagram-maximized .mermaid svg {
+      width: 100% !important;
+      height: 100% !important;
+      max-width: 100% !important;
+      max-height: 100% !important;
+    }
+
+    pre, code {
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-width: 100%;
+      font-family: 'Courier New', Courier, monospace;
+    }
+
+    pre {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      overflow-x: auto;
+      margin-bottom: 1rem;
+      font-size: 0.85rem;
+      line-height: 1.4;
+    }
+
+    code {
+      background: rgba(100, 116, 139, 0.1);
+      padding: 0.2rem 0.4rem;
+      border-radius: 4px;
+      color: #e11d48;
+      font-size: 0.9rem;
+    }
+
+    pre code {
+      background: none;
+      padding: 0;
+      color: var(--text);
+    }
+
+    details {
+      margin-bottom: 1.5rem;
+    }
+
+    details summary {
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--accent);
+      padding: 0.75rem;
+      user-select: none;
+      transition: all 0.2s;
+    }
+
+    details summary:hover {
+      background: var(--bg);
+      border-radius: 6px;
+    }
+
+    details[open] summary {
+      margin-bottom: 1rem;
+    }
+
+    details pre {
+      margin-top: 1rem;
+    }
+
+    .approval-gate {
+      background: rgba(22, 163, 74, 0.1);
+      border-left: 4px solid var(--status-approved);
+      padding: 1rem 1.5rem;
+      border-radius: 8px;
+      color: var(--status-approved);
+      font-weight: 500;
+      margin-top: 2rem;
+    }
+
+    section, .card {
+      overflow-wrap: break-word;
+      word-break: break-word;
+    }
+
+    @media (max-width: 900px) {
+      nav#toc {
+        position: static;
+        width: 100%;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        padding: 1rem;
+        margin-bottom: 1rem;
+      }
+
+      nav#toc .brand {
+        display: inline-block;
+        margin-right: 2rem;
+      }
+
+      nav#toc a {
+        display: inline-block;
+        margin: 0 0.5rem;
+        padding: 0.4rem 0.6rem;
+        font-size: 0.85rem;
+      }
+
+      main {
+        margin-left: 0;
+        padding: 2rem 1rem;
+      }
+
+      header h1 {
+        font-size: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav id="toc">
+    <span class="brand">🏛️ Architecture</span>
+    <a href="#s0">0 · Document Control</a>
+    <a href="#s1">1 · Overview</a>
+    <a href="#s2">2 · Use Cases &amp; Scope</a>
+    <a href="#s3">3 · C4 Context &amp; Containers</a>
+    <a href="#s4">4 · Domain &amp; Data Model</a>
+    <a href="#s5">5 · API Design</a>
+    <a href="#s6">6 · UI/UX</a>
+    <a href="#s7">7 · Behaviour &amp; Process</a>
+    <a href="#s8">8 · Deployment</a>
+    <a href="#s9">9 · Monitoring &amp; Alerts</a>
+    <a href="#s10">10 · Open Questions &amp; Risks</a>
+  </nav>
+
+  <main>
+    <header>
+      <h1>🏛️ Architecture — Manifest File Creation Gate</h1>
+      <p class="subtitle">Hard enforcement gate that blocks scaffold-cli from creating files defined in manifest.templates.json; only edits to existing files allowed. · Node.js · TypeScript · scaffold-cli · v8-controller</p>
+    </header>
+
+    <section id="s0">
+      <h2>0 · Document Control</h2>
+      <div class="status-banner draft">
+        <strong>Status:</strong> DRAFT — READY FOR IMPLEMENTATION · <strong>Version:</strong> v1 · <strong>Last Updated:</strong> 2026-07-11 · <strong>Author:</strong> Claude Haiku 4.5
+      </div>
+
+      <div class="card">
+        <h3>Revision Log</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Version</th>
+                <th>Date</th>
+                <th>Summary of Changes</th>
+                <th>Driven By</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>v1</td><td>2026-07-11</td><td>Initial draft: hard gate blocking file creation for manifest-defined targets; edit-only enforcement in scaffold-cli pretool.</td><td>User requirement for strict manifest compliance</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="approval-gate">
+        <strong>Approval Gate:</strong> This document must reach APPROVED status before implementation begins.
+      </div>
+    </section>
+
+    <section id="s1">
+      <h2>1 · Overview — Feature, Audience &amp; Dependencies</h2>
+      <div class='card'><h3>Feature Overview</h3><p><strong>Manifest File Creation Gate</strong> enforces a hard constraint within scaffold-cli's pretool phase: files declared as targets in <code>manifest.templates.json</code> may only be edited if they already exist in the target project. New file creation is blocked entirely, preventing accidental generation of files outside the intended scaffold scope.</p><p>This gate protects template integrity across re-runs and ensures that only the manifest-approved file tree is ever written, no exceptions.</p></div><div class='card'><h3>Actors & Responsibilities</h3><table><thead><tr><th>Actor</th><th>Role</th><th>Responsibility</th><th>Interacts With</th></tr></thead><tbody><tr><td>Developer</td><td>User</td><td>Runs <code>scaffold init</code> or <code>scaffold generate</code> commands; reads gate violation errors and adjusts workflow</td><td>scaffold-cli, project file tree</td></tr><tr><td>Scaffold CLI (pretool)</td><td>Gate enforcer</td><td>Loads manifest, walks file targets, validates existence before write, blocks creation, permits edits</td><td>manifest.templates.json, file system, logger</td></tr><tr><td>Template Pack (v8-controller)</td><td>Source of truth</td><td>Ships manifest.templates.json defining all valid output targets; unchanged by this gate</td><td>scaffold-cli loader</td></tr><tr><td>CI/CD Pipeline</td><td>Validator</td><td>Runs <code>validate-build.mjs</code> to ensure gate does not break legitimate scaffold workflows</td><td>scaffold-cli, test fixtures</td></tr></tbody></table></div><div class='card'><h3>At-a-Glance</h3><table><thead><tr><th>Property</th><th>Value</th></tr></thead><tbody><tr><td>Owner</td><td>Pipeline-worker / Scaffold team</td></tr><tr><td>Repos touched</td><td>scaffold-toolkit (packages/core, packages/templates-dotnet)</td></tr><tr><td>Data store</td><td>None (in-memory validation)</td></tr><tr><td>Gate enforcement point</td><td>scaffold-cli pretool, before file system write</td></tr></tbody></table></div>
+    </section>
+
+    <section id="s2">
+      <h2>2 · Use Cases &amp; Scope</h2>
+      <div class='card'><h3>Functional Requirements</h3><table><thead><tr><th>ID</th><th>Requirement</th><th>Acceptance Criteria</th></tr></thead><tbody><tr><td>FR1</td><td>Block new file creation</td><td>For each target, if file does not exist in output project, scaffold-cli rejects write and emits error code 1</td></tr><tr><td>FR2</td><td>Allow file edits</td><td>If target file exists in output project, write proceeds; file contents replaced by template render</td></tr><tr><td>FR3</td><td>Report violations clearly</td><td>Error message includes: file path attempted, reason (file does not exist), suggestion (run init first, check pack version)</td></tr><tr><td>FR4</td><td>Gate applies at pretool phase</td><td>Validation occurs before any template render; blocks early to avoid wasted CPU</td></tr></tbody></table></div><div class='card'><h3>Non-Functional Requirements</h3><table><thead><tr><th>Attribute</th><th>Target</th><th>Rationale</th></tr></thead><tbody><tr><td>Performance</td><td>Gate overhead &lt; 50ms for 100-target manifest</td><td>Manifest validation must not dominate scaffold runtime</td></tr><tr><td>Security</td><td>No file path injection; no directory traversal</td><td>Gate validates absolute/resolved paths; template strings are rendered, not shell-interpolated</td></tr><tr><td>Reliability</td><td>Gate errors are deterministic</td><td>Use fs.existsSync (sync, no race condition); test across Windows, macOS, Linux</td></tr></tbody></table>
+    </section>
+
+    <section id="s3">
+      <h2>3 · C4 — Context &amp; Containers</h2>
+      <div class='card'><h3>System Architecture</h3><p>Gate integrates into scaffold-cli pretool phase. On <code>scaffold generate</code>, CLI loads manifest.templates.json, iterates all targets, checks each file's existence in the output project via fs.existsSync(), and blocks writes for non-existent files before template rendering begins.</p><p>On <code>scaffold init</code>, gate is disabled to allow initial project creation.</p></div><div class='card'><h3>Key Interactions</h3><ul><li><strong>Pack Loader → Manifest Parser:</strong> JSON parse; manifest.templates.json → targets array</li><li><strong>Manifest → Gate Validator:</strong> Pass target list to gate validator</li><li><strong>Gate → File System:</strong> fs.existsSync(resolvedPath) for each target</li><li><strong>Gate → CLI:</strong> Either grant proceed signal or emit error with file path and reason</li></ul></div>
+    </section>
+
+    <section id="s4">
+      <h2>4 · Domain &amp; Data Model</h2>
+      <div class='card'><h3>Domain Model</h3><table><thead><tr><th>Class</th><th>Properties</th></tr></thead><tbody><tr><td>ManifestTarget</td><td>output: string, template: string, mode: create|skip-if-exists</td></tr><tr><td>GateValidation</td><td>targetPath: string, exists: boolean, allowed: boolean, reason?: string</td></tr><tr><td>GateEngine</td><td>manifest: Manifest, projectRoot: string, validate(targets): GateValidation[]</td></tr></tbody></table></div><div class='card'><h3>Migration Impact</h3><p>No schema changes. Gate operates in-memory, reading only the project file tree and manifest JSON. No persistence layer required. Existing manifests are fully compatible; the gate simply enforces stricter write rules.</p></div>
+    </section>
+
+    <section id="s5">
+      <h2>5 · API Design (.NET)</h2>
+      <div class='card'><h3>Gate Validation API</h3><table><thead><tr><th>Method</th><th>Input</th><th>Output</th></tr></thead><tbody><tr><td>validateFileCreation(filePath, manifest, projectFileTree)</td><td>filePath: string, manifest: Manifest, projectFileTree: Set&lt;string&gt;</td><td>{allowed: boolean, reason?: string}</td></tr><tr><td>validateAllTargets(manifest, projectRoot)</td><td>manifest: Manifest, projectRoot: string</td><td>GateValidation[]</td></tr><tr><td>walkProjectFileTree(projectRoot)</td><td>projectRoot: string</td><td>Set&lt;string&gt;</td></tr></tbody></table></div><div class='card'><h3>Error Response Example</h3><pre>Error: File creation blocked by manifest gate
+  Path: src/Company.Api/Program.cs
+  Reason: File does not exist in target project
+
+Manifest declares this file as a template target, but it is not present in your project.
+Run 'scaffold init' first, then retry 'scaffold generate'.
+Exit code: 1</pre></div>
+    </section>
+
+    <section id="s6">
+      <h2>6 · UI/UX (React)</h2>
+      <div class='card'><h3>User Workflow</h3><p><strong>Scenario 1: Initial Scaffold (gate disabled)</strong><br/>1. Developer runs: scaffold init --pack v8-controller<br/>2. Gate is disabled; all manifest targets are written to create the project<br/>3. Project ready with all files present</p><p><strong>Scenario 2: Later Regeneration (gate enabled)</strong><br/>1. Developer runs: scaffold generate --pack v8-controller<br/>2. Gate checks all manifest targets against existing project files<br/>3. If all exist: files are overwritten with new template renders<br/>4. If any missing: gate blocks, error message shown, developer must restore files or reinit</p></div><div class='card'><h3>CLI Error Message</h3><pre>┌──────────────────────────────────────────────────┐
+│ $ scaffold generate --pack v8-controller        │
+│                                                  │
+│ ✗ File creation blocked by manifest gate        │
+│   Attempted: src/Company.Api/Program.cs          │
+│   Reason: File does not exist in target project  │
+│                                                  │
+│ Run 'scaffold init' first if this is a new       │
+│ project, or restore the file if it was deleted.  │
+│ Exit code: 1                                     │
+└──────────────────────────────────────────────────┘</pre></div>
+    </section>
+
+    <section id="s7">
+      <h2>7 · Behaviour — State &amp; Process</h2>
+      <div class='card'><h3>Gate State Machine</h3><table><thead><tr><th>State</th><th>Trigger</th><th>Next State</th><th>Action</th></tr></thead><tbody><tr><td>Loading</td><td>CLI starts</td><td>Validating</td><td>Load manifest.templates.json</td></tr><tr><td>Validating</td><td>Manifest loaded</td><td>CheckTargets</td><td>Parse targets array</td></tr><tr><td>CheckTargets</td><td>Next target available</td><td>FileExists</td><td>Resolve output path</td></tr><tr><td>FileExists</td><td>fs.existsSync returns true</td><td>Allowed</td><td>Record: file exists</td></tr><tr><td>FileExists</td><td>fs.existsSync returns false</td><td>Blocked</td><td>Record: file missing</td></tr><tr><td>Allowed</td><td>All targets checked</td><td>Rendering</td><td>Proceed to template render</td></tr><tr><td>Blocked</td><td>Any violation found</td><td>Error</td><td>Emit error, halt</td></tr><tr><td>Rendering</td><td>Templates rendered</td><td>Writing</td><td>Write files to disk</td></tr><tr><td>Writing</td><td>Files written</td><td>Success</td><td>Return exit code 0</td></tr><tr><td>Error</td><td>Gate violation</td><td>Exit</td><td>Return exit code 1</td></tr></tbody></table></div>
+    </section>
+
+    <section id="s8">
+      <h2>8 · Deployment — Docker, Terraform, GitLab CI/CD</h2>
+      <div class='card'><h3>CI/CD Pipeline Integration</h3><p>Gate is validated in CI before every npm publish. Job <code>templates-dotnet-build-check</code>:</p><ol><li>Runs on every push to main</li><li>Scaffolds test fixtures through scaffold init + scaffold generate</li><li>Compiles .NET output with dotnet build</li><li>Fails if gate blocks legitimate scaffold workflows</li><li>Blocks npm publish if gate validation fails</li></ol></div><div class='card'><h3>Pipeline Sequence</h3><p>ESLint & TypeScript → Unit Tests → Build Check (with gate validation) → npm Publish</p><p>Build check validates that the gate does not break existing scaffold workflows. A gate violation during build-check blocks the release.</p></div>
+    </section>
+
+    <section id="s9">
+      <h2>9 · Monitoring &amp; Custom Alerts</h2>
+      <div class='card'><h3>Observability</h3><table><thead><tr><th>Metric</th><th>Source</th><th>Target</th></tr></thead><tbody><tr><td>Gate validation time (ms)</td><td>scaffold-cli timer</td><td>&lt; 50ms for typical manifest</td></tr><tr><td>Gate violations per run</td><td>CLI error output</td><td>0 for successful runs</td></tr><tr><td>File system I/O calls</td><td>fs.existsSync count</td><td>&lt; manifest.targets.length</td></tr><tr><td>Build-check pass rate</td><td>CI job logs</td><td>100% (blocks release on failure)</td></tr></tbody></table></div><div class='card'><h3>Alerts</h3><ul><li>Gate-Reject-High: Gate blocks &gt; 5 scaffold runs in one CI cycle (indicates manifest out of sync)</li><li>Gate-Latency-Spike: Validation time &gt; 200ms (investigate if manifest has grown)</li><li>Build-Check-Failure: templates-dotnet-build-check job fails (blocks npm publish)</li></ul></div>
+    </section>
+
+    <section id="s10">
+      <h2>10 · Open Questions, Decisions &amp; Risks</h2>
+      <div class='card'><h3>Open Questions</h3><table><thead><tr><th>ID</th><th>Question</th><th>Proposed Default</th></tr></thead><tbody><tr><td>Q1</td><td>Should --force flag bypass the gate?</td><td>No override. Hard gate is non-negotiable. Developers restore files or reinit.</td></tr><tr><td>Q2</td><td>Should gate apply to all packs or only v8-controller?</td><td>Apply to all packs with manifest. Consistency across scaffold ecosystem.</td></tr><tr><td>Q3</td><td>How to handle dynamic per-entity templates (e.g., {{entity}}.cs)?</td><td>Treat as patterns: resolve template string to regex, check if any match existing files.</td></tr><tr><td>Q4</td><td>Should gate validation be logged at INFO or DEBUG?</td><td>DEBUG for success; INFO/WARN for violations. Violations always visible.</td></tr><tr><td>Q5</td><td>What if manifest.templates.json is missing or malformed?</td><td>Fail closed. Gate blocks all writes until manifest is valid.</td></tr></tbody></table></div><div class='card'><h3>Architecture Decisions</h3><table><thead><tr><th>Decision</th><th>Choice + Rationale</th></tr></thead><tbody><tr><td>Gate enforcement point</td><td>Pretool (before render). Blocks early, avoids wasted CPU, clear error to developer immediately.</td></tr><tr><td>Override mechanism</td><td>No override (hard gate). Enforces invariant: manifest is source of truth. No escape hatches.</td></tr><tr><td>Scope: all packs or v8-controller</td><td>All packs with manifest. Consistency, simpler code path, reduces surprises.</td></tr><tr><td>Existence check method</td><td>fs.existsSync (sync). Simplicity, no async complexity, negligible perf impact.</td></tr></tbody></table></div><div class='card'><h3>Key Risks</h3><ul><li><strong>False positives:</strong> Gate blocks legitimate workflows. Mitigation: thorough CI testing, test data covering init+generate sequences.</li><li><strong>Manifest out of sync:</strong> Gate blocks correct files if manifest is stale. Mitigation: CI validates manifest against template directory; build-check compiles output.</li><li><strong>Developer confusion:</strong> Why can't they create new files? Mitigation: clear error messages, README explanation, example workflow.</li><li><strong>Windows path separator issues:</strong> Gate passes on Linux/macOS but fails on Windows. Mitigation: normalize paths to posix format; test all three OSes.</li></ul></div>
+    </section>
+  </main>
+
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true, theme: 'default', securityLevel: 'loose' });
+  </script>
+
+  <script>
+    const toc = document.getElementById('toc');
+    const sections = document.querySelectorAll('section[id^="s"]');
+
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const id = entry.target.id;
+          const link = toc.querySelector(`a[href="#${id}"]`);
+          toc.querySelectorAll('a').forEach(a => a.classList.remove('active'));
+          if (link) link.classList.add('active');
+        }
+      });
+    }, { threshold: 0.3, rootMargin: '-50% 0px -50% 0px' });
+
+    sections.forEach(section => observer.observe(section));
+
+    toc.querySelectorAll('a').forEach(link => {
+      link.addEventListener('click', e => {
+        e.preventDefault();
+        const target = document.querySelector(link.getAttribute('href'));
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+  </script>
+
+  <script>
+    document.querySelectorAll('table').forEach(table => {
+      if (table.closest('.table-wrap')) return;
+      const wrap = document.createElement('div');
+      wrap.className = 'table-wrap';
+      table.parentNode.insertBefore(wrap, table);
+      wrap.appendChild(table);
+    });
+  </script>
+
+  <script>
+    (function () {
+      const backdrop = document.createElement('div');
+      backdrop.className = 'diagram-backdrop';
+      document.body.appendChild(backdrop);
+
+      let activeCard = null;
+
+      function minimize(card) {
+        card.classList.remove('diagram-maximized');
+        const btn = card.querySelector('.diagram-toggle-btn');
+        if (btn) {
+          btn.textContent = '⛶';
+          btn.title = 'Maximize diagram';
+        }
+        backdrop.classList.remove('active');
+        document.body.classList.remove('diagram-lock');
+        activeCard = null;
+      }
+
+      function maximize(card) {
+        if (activeCard && activeCard !== card) minimize(activeCard);
+        card.classList.add('diagram-maximized');
+        const btn = card.querySelector('.diagram-toggle-btn');
+        if (btn) {
+          btn.textContent = '✕';
+          btn.title = 'Minimize diagram';
+        }
+        backdrop.classList.add('active');
+        document.body.classList.add('diagram-lock');
+        activeCard = card;
+      }
+
+      document.querySelectorAll('div.mermaid').forEach(diagram => {
+        let card = diagram.closest('.mermaid-card');
+        if (!card) {
+          card = document.createElement('div');
+          card.className = 'mermaid-card';
+          diagram.parentNode.insertBefore(card, diagram);
+          card.appendChild(diagram);
+        }
+        if (card.querySelector('.diagram-toggle-btn')) return;
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'diagram-toggle-btn';
+        btn.textContent = '⛶';
+        btn.title = 'Maximize diagram';
+        btn.addEventListener('click', () => {
+          if (card.classList.contains('diagram-maximized')) {
+            minimize(card);
+          } else {
+            maximize(card);
+          }
+        });
+        card.appendChild(btn);
+      });
+
+      backdrop.addEventListener('click', () => {
+        if (activeCard) minimize(activeCard);
+      });
+
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && activeCard) minimize(activeCard);
+      });
+    })();
+  </script>
+</body>
+</html>
