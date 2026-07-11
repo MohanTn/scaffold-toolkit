@@ -62,9 +62,12 @@ test('end-to-end: shim against real scaffold-core install — init, sync, genera
   const syncResult = await execWrapper(SCAFFOLD_CLI, ['templates', 'sync'], { cwd: targetRepo, env });
   assert.equal(syncResult.status, 0, `scaffold templates sync failed: ${JSON.stringify(syncResult)}`);
   const configAfterSync = JSON.parse(readFileSync(path.join(targetRepo, '.scaffold', 'config.json'), 'utf8'));
-  // The pack URL got pinned to a real sha after the local clone — proves the
-  // sync actually talked to the fixture pack, not just exited 0 by accident.
-  assert.ok(configAfterSync.packs.backend.pinnedSha, `templates sync did not pin a sha; got ${JSON.stringify(configAfterSync)}`);
+  // `scaffold init --pack <name>=<dir>@<version>` now always emits a
+  // path-based pack entry (no more git-URL specs) — `templates sync` against
+  // a path-based pack is a no-op by design: it reads the fixture pack
+  // straight off disk, no clone/cache/pinned SHA involved.
+  assert.equal(configAfterSync.packs.backend.path, packRepo, `templates sync should leave the path-based pack entry alone; got ${JSON.stringify(configAfterSync)}`);
+  assert.equal(configAfterSync.packs.backend.pinnedSha, undefined);
 
   // ---- baseline status through the shim ---------------------------------------
   const statusBaseline = await execWrapper(SHIM_BIN, ['status', '--json'], { cwd: targetRepo, env });

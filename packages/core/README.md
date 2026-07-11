@@ -12,16 +12,16 @@ or invoke it without installing via `npx @mohantn/scaffold-core`.
 
 ## Commands
 
-- `scaffold init [--project-type <type>] [--pack <name>=<url>@<version> ...]` — writes `.scaffold/config.json`. Without `--project-type`, the target repo is sniffed (`*.csproj`/`*.sln` → dotnet, a `react`/`next`/etc. dependency → js-family, `go.mod` → go, `pyproject.toml`/`requirements.txt` → python) with a single interactive prompt as a last resort. `--pack` seeds the `packs` map (repeatable, one per stack name).
-- `scaffold templates sync [--update]` — clones or reuses the configured pack(s) into a local cache keyed by `sha256(normalizedUrl)/<resolvedSha>`. `--update` moves the pinned SHA forward to the remote's current HEAD.
-- `scaffold templates list` — lists the version folders available in the configured pack(s)' cached checkout.
+- `scaffold init [--project-type <type>] [--pack <name>=<path>@<version> ...]` — writes `.scaffold/config.json`. Without `--project-type`, the target repo is sniffed (`*.csproj`/`*.sln` → dotnet, a `react`/`next`/etc. dependency → js-family, `go.mod` → go, `pyproject.toml`/`requirements.txt` → python) with a single interactive prompt as a last resort. `--pack` seeds the `packs` map (repeatable, one per stack name) as a local-directory entry, e.g. `--pack backend=packages/templates-dotnet@v8-controller`; a git-URL-shaped spec is rejected with a pointer to this syntax.
+- `scaffold templates sync [--update]` — for a `url`-based pack, clones or reuses it into a local cache keyed by `sha256(normalizedUrl)/<resolvedSha>`, and `--update` moves the pinned SHA forward to the remote's current HEAD. For a `path`-based pack (what `scaffold init` writes), this is a no-op — there is no clone or cache, the pack is read straight off disk on every `generate` — but still safe to run.
+- `scaffold templates list` — lists the version folders available in the configured pack(s): for a `path`-based pack, the directory's own version folders; for a `url`-based pack, its cached checkout.
 - `scaffold generate --manifest <file.toon|.json> [--dry-run] [--force] [--json]` — validates the intent manifest and the resolved pack's descriptor, renders `create`-mode targets, injects registration snippets at paired text markers, and prints a report of what was created/injected plus any `AI_IMPLEMENTATION` blocks still needing a host agent's attention.
 - `scaffold status [--json]` — rescans `.scaffold/pending/*.json`; exits non-zero while any tracked `AI_IMPLEMENTATION` block from a prior `generate` is still unfilled. A block is tracked when it shipped empty, or when the pack tagged its start marker `:required` (`SCAFFOLD:AI_IMPLEMENTATION:START:required` / `AI_IMPLEMENTATION_START:required`) — the business-logic seams the host agent must complete even though the shipped placeholder already compiles. A block resolves once its content changes from the shipped placeholder.
 - `scaffold validate-pack --pack <dir> [--pack-version <version>] --manifest <file> [--json]` — smoke-tests a local template pack by running a *real* generate against a synthesized throwaway target repo (host-provided injection targets like `Program.cs` are stood up with empty marker pairs first). Unlike a render-only check it exercises injection-path resolution, the comment-syntax table, the marker scanner, and the descriptor `requires` check. Validates every version folder unless `--pack-version` narrows it; exits non-zero if any version fails.
 - `scaffold undo <changesetId> [--force]` — reverts a prior `generate` run: deletes files it created, restores files it modified to their exact prior content. Refuses on a hash mismatch (something else edited the file since) or if a later changeset also touched the same file, unless `--force`.
 - `scaffold bootstrap-markers [--pack-version <version>] [--dry-run] [--json]` — bootstraps empty `SCAFFOLD:<marker>:START/END` pairs into a brownfield repo's existing source files, one-time and idempotent, so a plain `scaffold generate` can later find and fill them. Without `--pack-version`, it reads every entry in `.scaffold/config.json`'s `packs` map and runs one pass per configured pack; `--pack-version` runs a single pass against that version directly (no config file required). Exits non-zero while any marker is left `needs-manual`.
 
-  The catalog is keyed by the exact configured pack version, not the coarse `projectType` bucket, since the marker set and `Program.cs` zones differ between a base pack and its GCP sibling. Four versions are known, matching `scaffold-templates-dotnet`'s own marker table:
+  The catalog is keyed by the exact configured pack version, not the coarse `projectType` bucket, since the marker set and `Program.cs` zones differ between a base pack and its GCP sibling. Four versions are known, matching `packages/templates-dotnet`'s own marker table:
 
   | Pack version | `Program.cs` builder-zone markers | `Program.cs` app-zone markers |
   |---|---|---|
@@ -43,9 +43,9 @@ or invoke it without installing via `npx @mohantn/scaffold-core`.
 {
   "projectType": "dotnet",
   "packs": {
-    "backend": { "url": "https://github.com/org/scaffold-templates-dotnet.git", "version": "v10-minimal-api", "pinnedSha": "abc123..." }
+    "backend": { "path": "packages/templates-dotnet", "version": "v10-minimal-api" }
   }
 }
 ```
 
-Template packs are separate git repositories, one folder per target-stack version, each holding Handlebars templates plus a `manifest.templates.json` descriptor. See the plan document / root README for the full descriptor and intent-manifest schemas.
+A pack entry is either `path` (a local directory, read straight off disk — what `scaffold init` writes) or `url` (a git-clonable remote, resolved through `templates sync` into a local cache and pinned by `pinnedSha`) — never both. Either way it's one folder per target-stack version, each holding Handlebars templates plus a `manifest.templates.json` descriptor. See the plan document / root README for the full descriptor and intent-manifest schemas.

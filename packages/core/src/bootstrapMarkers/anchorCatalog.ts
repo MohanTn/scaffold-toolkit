@@ -7,7 +7,7 @@
  * Keyed by the *exact* pack version (e.g. "v10-minimal-api-gcp"), not the
  * coarse project-type bucket, because the marker set and Program.cs zones
  * differ between v8-controller/v10-minimal-api and their -gcp siblings.
- * Ground truth is `scaffold-templates-dotnet`'s own README marker table and
+ * Ground truth is `packages/templates-dotnet`'s own README marker table and
  * its four `manifest.templates.json` files (read-only reference, not
  * imported from here).
  *

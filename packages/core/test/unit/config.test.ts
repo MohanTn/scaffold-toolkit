@@ -33,8 +33,24 @@ test('loadConfig rejects a config with an unknown top-level field', () => {
   assert.throws(() => loadConfig(dir), ConfigValidationError);
 });
 
-test('loadConfig rejects a pack entry missing "url"', () => {
+test('loadConfig rejects a pack entry with neither "url" nor "path"', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'scaffold-config-'));
   writeRawConfig(dir, { projectType: 'dotnet', packs: { backend: { version: 'v1' } } });
   assert.throws(() => loadConfig(dir), ConfigValidationError);
+});
+
+test('loadConfig rejects a pack entry with both "url" and "path"', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'scaffold-config-'));
+  writeRawConfig(dir, { projectType: 'dotnet', packs: { backend: { url: 'https://example.com/pack.git', path: 'packages/templates-dotnet', version: 'v1' } } });
+  assert.throws(() => loadConfig(dir), ConfigValidationError);
+});
+
+test('saveConfig then loadConfig round-trips a path-based pack entry', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'scaffold-config-'));
+  const config = {
+    projectType: 'dotnet',
+    packs: { backend: { path: 'packages/templates-dotnet', version: 'v8-controller' } },
+  };
+  saveConfig(dir, config);
+  assert.deepEqual(loadConfig(dir), config);
 });

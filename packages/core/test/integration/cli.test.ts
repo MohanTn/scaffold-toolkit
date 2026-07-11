@@ -53,14 +53,47 @@ test('scaffold -v prints the installed package version', () => {
   assert.match(stdout.trim(), new RegExp(pkg.version.replace(/\./g, '\\.')));
 });
 
-test('scaffold init --pack seeds .scaffold/config.json with the given project type and pack', () => {
+test('scaffold init --pack seeds .scaffold/config.json with the given project type and a path-based pack', () => {
   const targetRepo = buildFixtureTargetRepo();
-  const { status } = runCli(['init', '--project-type', 'dotnet', '--pack', 'backend=https://example.com/pack.git@v1'], targetRepo);
+  const { status } = runCli(['init', '--project-type', 'dotnet', '--pack', 'backend=packages/templates-dotnet@v8-controller'], targetRepo);
   assert.equal(status, 0);
   const config = JSON.parse(readFileSync(path.join(targetRepo, '.scaffold', 'config.json'), 'utf8'));
   assert.equal(config.projectType, 'dotnet');
-  assert.equal(config.packs.backend.url, 'https://example.com/pack.git');
-  assert.equal(config.packs.backend.version, 'v1');
+  assert.equal(config.packs.backend.path, 'packages/templates-dotnet');
+  assert.equal(config.packs.backend.version, 'v8-controller');
+  assert.equal(config.packs.backend.url, undefined);
+});
+
+test('scaffold init --pack rejects a git-URL spec with a clear error instead of silently accepting it', () => {
+  const targetRepo = buildFixtureTargetRepo();
+  const result = runCli(['init', '--project-type', 'dotnet', '--pack', 'backend=https://example.com/pack.git@v1'], targetRepo);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /no longer accepts a git URL/);
+});
+
+// Regression: the git-URL heuristic originally only checked for "://" and a
+// "git@" prefix, missing the scp-style shorthand with no explicit user
+// (`host:path`, valid via an ssh config Host alias) — this used to exit 0
+// and silently write a bogus path entry instead of being rejected.
+test('scaffold init --pack rejects the scp-style shorthand "host:path" git remote (no explicit git@ user)', () => {
+  const targetRepo = buildFixtureTargetRepo();
+  const result = runCli(['init', '--project-type', 'dotnet', '--pack', 'backend=github.com:org/repo.git@v1'], targetRepo);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /no longer accepts a git URL/);
+});
+
+test('scaffold init --pack does not false-positive the scp-style check on a real local path that happens to contain a colon (Windows drive letter, or a relative path with a colon in a segment)', () => {
+  const targetRepo = buildFixtureTargetRepo();
+
+  const windowsPath = runCli(['init', '--project-type', 'dotnet', '--pack', 'backend=C:\\templates-dotnet@v1'], targetRepo);
+  assert.equal(windowsPath.status, 0, JSON.stringify(windowsPath));
+  const configAfterWindows = JSON.parse(readFileSync(path.join(targetRepo, '.scaffold', 'config.json'), 'utf8'));
+  assert.equal(configAfterWindows.packs.backend.path, 'C:\\templates-dotnet');
+
+  const relativeWithColon = runCli(['init', '--project-type', 'dotnet', '--pack', 'backend=./foo:bar@v1'], targetRepo);
+  assert.equal(relativeWithColon.status, 0, JSON.stringify(relativeWithColon));
+  const configAfterRelative = JSON.parse(readFileSync(path.join(targetRepo, '.scaffold', 'config.json'), 'utf8'));
+  assert.equal(configAfterRelative.packs.backend.path, './foo:bar');
 });
 
 test('scaffold generate then scaffold status end to end through the CLI: non-zero while unfilled, filling resolves it', async () => {
