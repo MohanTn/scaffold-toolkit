@@ -98,7 +98,7 @@ export function checkEdit(options: CheckEditOptions): CheckEditResult {
 
   const config = loadConfig(repoRoot);
   const cacheRoot = options.cacheRoot ?? defaultCacheRoot(repoRoot);
-  const matchers = collectPackOwnership(config, cacheRoot);
+  const matchers = collectPackOwnership(config, repoRoot, cacheRoot);
   const match = matchOwnership(matchers, relPath);
 
   if (!match) {

@@ -19,6 +19,7 @@ import path from 'node:path';
 import { loadDescriptor } from '../descriptor/load.js';
 import { packCacheDir } from '../templates/cache.js';
 import type { ScaffoldConfig } from '../config/schema.js';
+import { isPathPack } from '../config/schema.js';
 import { templateToRegex } from './pathTemplateMatch.js';
 
 export interface PackOwnershipMatcher {
@@ -28,15 +29,24 @@ export interface PackOwnershipMatcher {
   regex: RegExp;
 }
 
-export function collectPackOwnership(config: ScaffoldConfig, cacheRoot: string): PackOwnershipMatcher[] {
+export function collectPackOwnership(config: ScaffoldConfig, repoRoot: string, cacheRoot: string): PackOwnershipMatcher[] {
   const matchers: PackOwnershipMatcher[] = [];
 
   for (const [packSlot, pack] of Object.entries(config.packs)) {
-    if (!pack.pinnedSha) continue; // not synced yet — fail-open for this slot
+    let versionDir: string;
 
-    const versionDir = path.join(packCacheDir(cacheRoot, pack.url, pack.pinnedSha), pack.version);
+    if (isPathPack(pack)) {
+      // A path-based pack reads straight off disk, relative to repoRoot.
+      const packDir = path.resolve(repoRoot, pack.path);
+      versionDir = path.join(packDir, pack.version);
+    } else {
+      // A URL-based pack is read from the cache (requires sync).
+      if (!pack.pinnedSha) continue; // not synced yet — fail-open for this slot
+      versionDir = path.join(packCacheDir(cacheRoot, pack.url, pack.pinnedSha), pack.version);
+    }
+
     const descriptorPath = path.join(versionDir, 'manifest.templates.json');
-    if (!existsSync(descriptorPath)) continue; // cache entry missing — fail-open for this slot
+    if (!existsSync(descriptorPath)) continue; // not found — fail-open for this slot
 
     let descriptor;
     try {
