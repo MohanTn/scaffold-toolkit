@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Architecture — Swagger, API Versioning, and Advanced EFCore for templates-dotnet</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --accent: #2563eb;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --status-draft: #64748b;
+      --status-review: #f59e0b;
+      --status-approved: #16a34a;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.6;
+      color: var(--text);
+      background: var(--bg);
+      min-height: 100vh;
+    }
+
+    nav#toc {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 240px;
+      height: 100vh;
+      background: var(--card-bg);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      z-index: 100;
+      padding: 2rem 1rem;
+    }
+
+    nav#toc .brand {
+      font-weight: bold;
+      font-size: 1.1rem;
+      color: var(--accent);
+      margin-bottom: 2rem;
+      display: block;
+    }
+
+    nav#toc a {
+      display: block;
+      padding: 0.5rem 0.75rem;
+      margin: 0.5rem 0;
+      color: var(--text);
+      text-decoration: none;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      transition: all 0.2s;
+    }
+
+    nav#toc a:hover {
+      background: var(--bg);
+      color: var(--accent);
+    }
+
+    nav#toc a.active {
+      background: var(--accent);
+      color: white;
+      font-weight: 500;
+    }
+
+    main {
+      margin-left: 240px;
+      padding: 3rem 2rem;
+      max-width: 1100px;
+      margin-right: auto;
+    }
+
+    header {
+      margin-bottom: 3rem;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+      color: var(--text);
+    }
+
+    header .subtitle {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+
+    .status-banner {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      padding: 1rem 1.5rem;
+      border-radius: 12px;
+      margin-bottom: 2rem;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .status-banner.draft {
+      background: rgba(100, 116, 139, 0.1);
+      color: var(--status-draft);
+      border-left: 4px solid var(--status-draft);
+    }
+
+    .status-banner.review {
+      background: rgba(245, 158, 11, 0.1);
+      color: var(--status-review);
+      border-left: 4px solid var(--status-review);
+    }
+
+    .status-banner.approved {
+      background: rgba(22, 163, 74, 0.1);
+      color: var(--status-approved);
+      border-left: 4px solid var(--status-approved);
+    }
+
+    section {
+      margin-bottom: 3rem;
+      scroll-margin-top: 2rem;
+    }
+
+    section h2 {
+      font-size: 1.4rem;
+      margin-bottom: 1.5rem;
+      padding-left: 1rem;
+      border-left: 4px solid var(--accent);
+      color: var(--text);
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .card h3 {
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+      color: var(--text);
+    }
+
+    .card h4 {
+      font-size: 1rem;
+      margin-top: 1.5rem;
+      margin-bottom: 0.75rem;
+      color: var(--accent);
+    }
+
+    .card p {
+      margin-bottom: 1rem;
+      color: var(--text);
+    }
+
+    .card ul, .card ol {
+      margin-left: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .card li {
+      margin-bottom: 0.5rem;
+      color: var(--text);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1rem;
+    }
+
+    table thead {
+      background: var(--bg);
+      border-bottom: 2px solid var(--border);
+    }
+
+    table th {
+      padding: 1rem;
+      text-align: left;
+      font-weight: 600;
+      color: var(--text);
+      font-size: 0.9rem;
+      white-space: nowrap;
+    }
+
+    table td {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      font-size: 0.95rem;
+      white-space: nowrap;
+    }
+
+    table tbody tr:nth-child(even) {
+      background: rgba(100, 116, 139, 0.02);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      margin-bottom: 1rem;
+    }
+
+    .mermaid-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 400px;
+      position: relative;
+    }
+
+    .mermaid {
+      display: flex;
+      justify-content: center;
+    }
+
+    .diagram-toggle-btn {
+      position: absolute;
+      top: 0.75rem;
+      right: 0.75rem;
+      width: 2rem;
+      height: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-muted);
+      font-size: 1rem;
+      line-height: 1;
+      cursor: pointer;
+      z-index: 2;
+      transition: all 0.2s;
+    }
+
+    .diagram-toggle-btn:hover {
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .diagram-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.6);
+      z-index: 999;
+    }
+
+    .diagram-backdrop.active {
+      display: block;
+    }
+
+    body.diagram-lock {
+      overflow: hidden;
+    }
+
+    .mermaid-card.diagram-maximized {
+      position: fixed;
+      inset: 2rem;
+      z-index: 1000;
+      overflow: auto;
+      box-shadow: 0 25px 70px rgba(0, 0, 0, 0.35);
+    }
+
+    .mermaid-card.diagram-maximized .mermaid {
+      width: 100%;
+      height: 100%;
+    }
+
+    .mermaid-card.diagram-maximized .mermaid svg {
+      width: 100% !important;
+      height: 100% !important;
+      max-width: 100% !important;
+      max-height: 100% !important;
+    }
+
+    pre, code {
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-width: 100%;
+      font-family: 'Courier New', Courier, monospace;
+    }
+
+    pre {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      overflow-x: auto;
+      margin-bottom: 1rem;
+      font-size: 0.85rem;
+      line-height: 1.4;
+    }
+
+    code {
+      background: rgba(100, 116, 139, 0.1);
+      padding: 0.2rem 0.4rem;
+      border-radius: 4px;
+      color: #e11d48;
+      font-size: 0.9rem;
+    }
+
+    pre code {
+      background: none;
+      padding: 0;
+      color: var(--text);
+    }
+
+    details {
+      margin-bottom: 1.5rem;
+    }
+
+    details summary {
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--accent);
+      padding: 0.75rem;
+      user-select: none;
+      transition: all 0.2s;
+    }
+
+    details summary:hover {
+      background: var(--bg);
+      border-radius: 6px;
+    }
+
+    details[open] summary {
+      margin-bottom: 1rem;
+    }
+
+    details pre {
+      margin-top: 1rem;
+    }
+
+    .approval-gate {
+      background: rgba(22, 163, 74, 0.1);
+      border-left: 4px solid var(--status-approved);
+      padding: 1rem 1.5rem;
+      border-radius: 8px;
+      color: var(--status-approved);
+      font-weight: 500;
+      margin-top: 2rem;
+    }
+
+    section, .card {
+      overflow-wrap: break-word;
+      word-break: break-word;
+    }
+
+    @media (max-width: 900px) {
+      nav#toc {
+        position: static;
+        width: 100%;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        padding: 1rem;
+        margin-bottom: 1rem;
+      }
+
+      nav#toc .brand {
+        display: inline-block;
+        margin-right: 2rem;
+      }
+
+      nav#toc a {
+        display: inline-block;
+        margin: 0 0.5rem;
+        padding: 0.4rem 0.6rem;
+        font-size: 0.85rem;
+      }
+
+      main {
+        margin-left: 0;
+        padding: 2rem 1rem;
+      }
+
+      header h1 {
+        font-size: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav id="toc">
+    <span class="brand">🏛️ Architecture</span>
+    <a href="#s0">0 · Document Control</a>
+    <a href="#s1">1 · Overview</a>
+    <a href="#s2">2 · Use Cases &amp; Scope</a>
+    <a href="#s3">3 · C4 Context &amp; Containers</a>
+    <a href="#s4">4 · Domain &amp; Data Model</a>
+    <a href="#s5">5 · API Design</a>
+    <a href="#s6">6 · UI/UX</a>
+    <a href="#s7">7 · Behaviour &amp; Process</a>
+    <a href="#s8">8 · Deployment</a>
+    <a href="#s9">9 · Monitoring &amp; Alerts</a>
+    <a href="#s10">10 · Open Questions &amp; Risks</a>
+  </nav>
+
+  <main>
+    <header>
+      <h1>🏛️ Architecture — Swagger, API Versioning, and Advanced EFCore for templates-dotnet</h1>
+      <p class="subtitle">Add OpenAPI/Swagger documentation, semantic API versioning (v1/v2 routes), and EFCore enhancements (value converters, shadow properties) to v8-controller pack. · .NET 8 · ASP.NET Core · EF Core · Swagger/OpenAPI · API Versioning</p>
+    </header>
+
+    <section id="s0">
+      <h2>0 · Document Control</h2>
+      <div class="status-banner draft">
+        <strong>Status:</strong> DRAFT, version v1, first revision log entry · <strong>Version:</strong> v1 · <strong>Last Updated:</strong> 2026-07-11 · <strong>Author:</strong> Claude Haiku 4.5
+      </div>
+
+      <div class="card">
+        <h3>Revision Log</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Version</th>
+                <th>Date</th>
+                <th>Summary of Changes</th>
+                <th>Driven By</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>v1</td><td>2026-07-11</td><td>Initial draft: Swagger documentation, semantic versioning (v1/v2 routes), EFCore value converters and shadow property support</td><td>First generation</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="approval-gate">
+        <strong>Approval Gate:</strong> This document must reach APPROVED status before implementation begins.
+      </div>
+    </section>
+
+    <section id="s1">
+      <h2>1 · Overview — Feature, Audience &amp; Dependencies</h2>
+      <div class='card'><h3>Overview</h3><p><strong>Feature:</strong> Add OpenAPI/Swagger endpoint documentation, semantic REST API versioning (v1/v2 routes), and EFCore value converter + shadow property support to the v8-controller pack.</p><p><strong>Audience:</strong> Backend engineers scaffolding ASP.NET Core 8 services; API consumers (SDK/frontend teams); infrastructure/platform teams deploying versioned APIs.</p><div class='card'><strong>Actors &amp; Responsibilities</strong><table><thead><tr><th>Actor/Role</th><th>Responsibility</th><th>System(s)</th></tr></thead><tbody><tr><td>Backend Developer</td><td>Scaffolds new entities; AI fills business logic in Create/Update/Get handlers</td><td>scaffold CLI, v8-controller pack</td></tr><tr><td>API Consumer (SDK/Frontend)</td><td>Consumes versioned endpoints; reads Swagger docs for contract</td><td>ASP.NET Core API (v1, v2)</td></tr><tr><td>Infrastructure Team</td><td>Deploys versioned API; configures routing and versioning strategy</td><td>Kestrel, Kubernetes/Docker</td></tr><tr><td>Database Administrator</td><td>Applies migrations; manages schema changes across versions</td><td>SQL Server / PostgreSQL</td></tr></tbody></table></div><div class='card'><strong>Dependencies</strong><table><thead><tr><th>System / Package</th><th>Purpose</th><th>Version / Location</th><th>Protocol</th></tr></thead><tbody><tr><td>Asp.Versioning.Mvc</td><td>Semantic API versioning middleware</td><td>8.1.0+</td><td>NuGet</td></tr><tr><td>Swashbuckle.AspNetCore</td><td>OpenAPI 3.0 documentation and Swagger UI</td><td>6.5.0+</td><td>NuGet</td></tr><tr><td>Swashbuckle.AspNetCore.Annotations</td><td>Attribute-based operation tags and descriptions</td><td>6.5.0+</td><td>NuGet</td></tr><tr><td>EF Core</td><td>ORM, value converters, shadow properties</td><td>8.0+</td><td>NuGet</td></tr></tbody></table></div><div class='card'><strong>At-a-Glance</strong><table><thead><tr><th>Attribute</th><th>Value</th></tr></thead><tbody><tr><td>Owner</td><td>Backend Platform / Scaffold Team</td></tr><tr><td>Repos Touched</td><td>scaffold-toolkit (packages/templates-dotnet/v8-controller)</td></tr><tr><td>Data Store</td><td>SQL Server / PostgreSQL (same AppDbContext)</td></tr><tr><td>Auth Method</td><td>Bearer (inherited from base pack); optionally per-version OAuth scopes</td></tr><tr><td>Environments</td><td>Dev, Staging, Prod (versioning supports canary rollout)</td></tr><tr><td>New Package Templates</td><td>6 (Swagger config, versioning setup, value converter factory, shadow property helpers)</td></tr><tr><td>Modified Package Templates</td><td>4 (Program.cs, ApplicationDbContext, Entity{entity}Controller, manifest.templates.json)</td></tr></tbody></table></div>
+    </section>
+
+    <section id="s2">
+      <h2>2 · Use Cases &amp; Scope</h2>
+      <div class='card'><h3>Use Cases &amp; Scope</h3><div style='border: 1px solid #ccc; padding: 1rem; background: #f9f9f9; border-radius: 0.25rem; margin-bottom: 1rem;'><strong>Use-Case Flowchart</strong><pre style='white-space: pre-wrap; word-wrap: break-word; font-size: 0.9rem;'>graph LR
+  A["API Consumer"] -->|"GET /api/v1/invoices"| B["Router"]
+  A -->|"GET /api/v2/invoices"| B
+  B -->|"Dispatch to v1 Handler"| C["InvoiceControllerV1"]
+  B -->|"Dispatch to v2 Handler"| D["InvoiceControllerV2"]
+  C -->|"Read value-converted entity"| E["AppDbContext<br/>(EFCore)"]
+  D -->|"Read with shadow props"| E
+  E -->|"Encrypt PII via converter"| F["SQL Server"]
+  G["API Consumer"] -->|"GET /swagger"| H["Swagger UI"]
+  H -->|"OpenAPI 3.0 spec"| H</pre></div><div class='card'><strong>Functional Requirements</strong><table><thead><tr><th>ID</th><th>Requirement</th><th>Acceptance Criteria</th></tr></thead><tbody><tr><td>FR1</td><td>Generate OpenAPI 3.0 spec from controllers</td><td>Swagger UI at /swagger; spec at /swagger/v1/swagger.json and /swagger/v2/swagger.json</td></tr><tr><td>FR2</td><td>Support semantic API versioning (v1, v2 routes)</td><td>Same entity entity scaffolded to /api/v1/{entity} and /api/v2/{entity}; routing middleware selects correct handler</td></tr><tr><td>FR3</td><td>Per-version controller definitions</td><td>Each version has separate controller file (EntityControllerV1.cs, EntityControllerV2.cs); can differ in response DTOs, validation, HTTP status codes</td></tr><tr><td>FR4</td><td>EFCore value converters for encrypted/encoded fields</td><td>Manifest author declares field option: { 'encrypt': true }; template injects ValueConverter<string, string>(encrypt, decrypt) into EntityConfiguration</td></tr><tr><td>FR5</td><td>Shadow property support in EFCore</td><td>Configuration template supports shadow properties (e.g., CreatedAt, UpdatedAt); queries can include them without exposing in entity class</td></tr><tr><td>FR6</td><td>OpenAPI descriptions per version</td><td>Swagger operation summaries differ between v1 and v2; deprecated fields marked in v1 with 'deprecated: true' in OpenAPI schema</td></tr></tbody></table></div><div class='card'><strong>Non-Functional Requirements</strong><table><thead><tr><th>Attribute</th><th>Measurable Target</th></tr></thead><tbody><tr><td>Performance</td><td>Value converter overhead &lt;1ms per entity; shadow properties add no query cost vs. explicit columns</td></tr><tr><td>Security</td><td>Encrypted fields are never exposed unencrypted in logs, DTOs, or exception traces; value converter uses DPAPI or AES-256</td></tr><tr><td>Maintainability</td><td>Versioning and encryption logic in base templates; per-entity scaffolded code requires no duplication</td></tr><tr><td>Compatibility</td><td>v1 routes remain active indefinitely; v2 routes coexist; no breaking changes to existing clients until v1 EOL announced</td></tr><tr><td>Documentation</td><td>Swagger UI updates automatically; no manual OpenAPI YAML editing required</td></tr></tbody></table></div>
+    </section>
+
+    <section id="s3">
+      <h2>3 · C4 — Context &amp; Containers</h2>
+      <div class='card'><h3>C4 Diagrams</h3><div style='border: 1px solid #ccc; padding: 1rem; background: #f9f9f9; border-radius: 0.25rem; margin-bottom: 1rem;'><strong>C4 Context Diagram</strong><pre style='white-space: pre-wrap; word-wrap: break-word; font-size: 0.9rem;'>graph TB
+  Client["Mobile App / Web Client"]
+  SDK["SDK Consumer"]
+  Admin["Admin / Operations"]
+  System["Invoice API<br/>(ASP.NET Core 8)"]
+  AuthSvc["Auth Service<br/>(OIDC/OAuth)"]
+  DB[("SQL Server<br/>(Invoices)")]
+  Logger["Logging (Serilog)"]
+  
+  Client -->|"REST + Bearer Token"| System
+  SDK -->|"REST + Bearer Token"| System
+  Admin -->|"OpenAPI / Swagger UI"| System
+  System -->|"Verify Token"| AuthSvc
+  System -->|"Read/Write Entities"| DB
+  System -->|"Structured Logs"| Logger</pre></div><div style='border: 1px solid #ccc; padding: 1rem; background: #f9f9f9; border-radius: 0.25rem; margin-bottom: 1rem;'><strong>C4 Container Diagram</strong><pre style='white-space: pre-wrap; word-wrap: break-word; font-size: 0.9rem;'>graph TB
+  subgraph "ASP.NET Core 8 API"
+    MVC["MVC Routing<br/>(v1/v2 versioning)"]
+    V1C["Invoice Controller v1"]
+    V2C["Invoice Controller v2"]
+    Swagger["Swagger Middleware<br/>(OpenAPI gen)"]
+    MediatR["MediatR Handlers<br/>(business logic)"]
+  end
+  
+  subgraph "Application Layer"
+    IRepo["IInvoiceRepository"]
+    IService["IInvoiceService"]
+    DTOv1["InvoiceDtoV1"]
+    DTOv2["InvoiceDtoV2"]
+  end
+  
+  subgraph "Infrastructure Layer"
+    AppDbCtx["AppDbContext"]
+    EntConfig["EntityConfiguration<br/>(value converters,<br/>shadow props)"]
+    Repo["InvoiceRepository"]
+  end
+  
+  subgraph "Data Layer"
+    DB[("SQL Server")]
+  end
+  
+  MVC -->|"Route to v1"| V1C
+  MVC -->|"Route to v2"| V2C
+  V1C -->|"Send MediatR"| MediatR
+  V2C -->|"Send MediatR"| MediatR
+  Swagger -->|"Reflect on"| V1C
+  Swagger -->|"Reflect on"| V2C
+  MediatR -->|"Query"| IService
+  IService -->|"Use"| IRepo
+  IRepo -->|"DbContext"| AppDbCtx
+  AppDbCtx -->|"Apply converters"| EntConfig
+  EntConfig -->|"Read/Write"| DB
+  V1C -->|"Map to"| DTOv1
+  V2C -->|"Map to"| DTOv2</pre></div>
+    </section>
+
+    <section id="s4">
+      <h2>4 · Domain &amp; Data Model</h2>
+      <div class='card'><h3>Domain &amp; Data Model</h3><div style='border: 1px solid #ccc; padding: 1rem; background: #f9f9f9; border-radius: 0.25rem; margin-bottom: 1rem;'><strong>Domain Model (Class Diagram)</strong><pre style='white-space: pre-wrap; word-wrap: break-word; font-size: 0.9rem;'>classDiagram
+  class Invoice {
+    Guid Id
+    string InvoiceNumber
+    string CustomerEmail
+    decimal Amount
+    DateTime IssuedDate
+  }
+  
+  class InvoiceConfigurationV2 {
+    +ToTable(name)
+    +HasKey(x => x.Id)
+    +Property(x => x.CustomerEmail).HasConversion(new ValueConverter<string, string>)
+    +Property(x => x.Amount).HasColumnType('decimal(18,2)')
+    +HasQueryFilter(x => !x.IsDeleted)
+  }
+  
+  class InvoiceDtoV1 {
+    Guid Id
+    string InvoiceNumber
+    string CustomerEmail
+    decimal Amount
+    DateTime IssuedDate
+  }
+  
+  class InvoiceDtoV2 {
+    Guid Id
+    string InvoiceNumber
+    string CustomerMasked
+    decimal Amount
+    DateTime IssuedDate
+    string CurrencyCode
+  }
+  
+  Invoice --> InvoiceConfigurationV2
+  Invoice --> InvoiceDtoV1
+  Invoice --> InvoiceDtoV2</pre></div><div style='border: 1px solid #ccc; padding: 1rem; background: #f9f9f9; border-radius: 0.25rem; margin-bottom: 1rem;'><strong>Entity-Relationship Diagram (EFCore Schema)</strong><pre style='white-space: pre-wrap; word-wrap: break-word; font-size: 0.9rem;'>erDiagram
+  INVOICE ||
+ to o{ AUDIT_LOG : "creates"
+  INVOICE {
+    uniqueidentifier Id PK
+    nvarchar(100) InvoiceNumber UK
+    nvarchar(max) CustomerEmail "ENCRYPTED via ValueConverter"
+    decimal Amount
+    datetime2 IssuedDate
+    nvarchar(3) CurrencyCode "shadow property (v2 only)"
+    datetime2 CreatedAt "shadow property"
+    datetime2 UpdatedAt "shadow property"
+  }
+  
+  AUDIT_LOG {
+    uniqueidentifier Id PK
+    uniqueidentifier InvoiceId FK
+    nvarchar(max) Action
+    datetime2 ChangedAt
+  }</pre></div><div class='card'><strong>Schema Migration Strategy</strong><p><strong>EFCore enhancements impact:</strong></p><ul><li><strong>Value Converters:</strong> No schema change; existing column persists as plaintext in DB, decrypted in memory. On opt-in, developer manually creates migration to re-encrypt existing rows.</li><li><strong>Shadow Properties:</strong> No EFCore annotation in entity class; automatically generated columns (e.g., <code>CreatedAt</code>) via configuration. Migration creates columns silently.</li><li><strong>Per-Version DTOs:</strong> No DB change; application layer only. Clients see different response shapes based on route version.</li></ul></div>
+    </section>
+
+    <section id="s5">
+      <h2>5 · API Design (.NET)</h2>
+      <div class='card'><h3>API Design</h3><div class='card'><strong>Endpoints by Version</strong><table><thead><tr><th>Method</th><th>Route (v1)</th><th>Route (v2)</th><th>Auth</th><th>Request Body</th><th>Response (200)</th><th>Other Codes</th></tr></thead><tbody><tr><td>POST</td><td>/api/v1/invoices</td><td>/api/v2/invoices</td><td>Bearer</td><td>CreateInvoiceCommand (v1/v2)</td><td>InvoiceDtoV1 / InvoiceDtoV2</td><td>400 (validation), 409 (duplicate)</td></tr><tr><td>GET</td><td>/api/v1/invoices/{id}</td><td>/api/v2/invoices/{id}</td><td>Bearer</td><td>—</td><td>InvoiceDtoV1 / InvoiceDtoV2</td><td>404 (not found), 403 (not owned)</td></tr><tr><td>PUT</td><td>/api/v1/invoices/{id}</td><td>/api/v2/invoices/{id}</td><td>Bearer</td><td>UpdateInvoiceCommand (v1/v2)</td><td>InvoiceDtoV1 / InvoiceDtoV2</td><td>400, 404, 409 (stale)</td></tr><tr><td>DELETE</td><td>/api/v1/invoices/{id}</td><td>/api/v2/invoices/{id}</td><td>Bearer</td><td>—</td><td>204 (no content)</td><td>404, 409 (in use)</td></tr><tr><td>GET</td><td>/api/v1/invoices</td><td>/api/v2/invoices</td><td>Bearer</td><td>—</td><td>List&lt;InvoiceDtoV1/V2&gt;</td><td>400 (bad filter)</td></tr></tbody></table></div><details style='margin-top: 1.5rem;'><summary><strong>OpenAPI 3.0 Spec (excerpt)</strong></summary><pre style='background: #f5f5f5; padding: 1rem; overflow-x: auto; border-radius: 0.25rem; font-size: 0.85rem;'>openapi: 3.0.0
+info:
+  title: Invoice API
+  version: 2.0.0
+  description: Versioned invoice management with encrypted PII
+servers:
+  - url: https://api.example.com
+paths:
+  /api/v1/invoices:
+    post:
+      deprecated: false
+      tags: [Invoices v1]
+      operationId: createInvoiceV1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInvoiceCommandV1'
+      responses:
+        '201':
+          description: Invoice created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoiceDtoV1'
+  /api/v2/invoices:
+    post:
+      tags: [Invoices v2]
+      operationId: createInvoiceV2
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInvoiceCommandV2'
+      responses:
+        '201':
+          description: Invoice created (v2 response includes CurrencyCode)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoiceDtoV2'
+components:
+  schemas:
+    InvoiceDtoV1:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        invoiceNumber:
+          type: string
+        customerEmail:
+          type: string
+          description: PII - decrypted in-memory
+        amount:
+          type: number
+          format: decimal
+        issuedDate:
+          type: string
+          format: date-time
+    InvoiceDtoV2:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        invoiceNumber:
+          type: string
+        customerMasked:
+          type: string
+          description: "PII masked (e.g., customer@*.com)"
+        amount:
+          type: number
+          format: decimal
+        issuedDate:
+          type: string
+          format: date-time
+        currencyCode:
+          type: string
+          maxLength: 3
+          description: "New in v2: ISO 4217 currency code"
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+security:
+  - BearerAuth: []</pre></details><div style='margin-top: 1.5rem;'><strong>Sequence Diagram: Create Invoice Flow</strong><pre style='white-space: pre-wrap; word-wrap: break-word; font-size: 0.9rem;'>sequenceDiagram
+  actor C as Client
+  participant R as InvoiceControllerV2
+  participant M as CreateInvoiceCommandHandler
+  participant R2 as IInvoiceRepository
+  participant Ctx as AppDbContext
+  participant DB as SQL Server
+  
+  C->>R: POST /api/v2/invoices {invoiceNumber, customerEmail, amount, currency}
+  R->>R: Validate Bearer token
+  R->>M: Send CreateInvoiceCommandV2
+  M->>M: Validate business rules (e.g., amount > 0)
+  M->>R2: Create(invoice)
+  R2->>Ctx: Add(invoice)
+  R2->>Ctx: SaveChangesAsync()
+  Ctx->>DB: INSERT INTO Invoices (Id, InvoiceNumber, CustomerEmail, Amount, ...)
+  Note over Ctx,DB: ValueConverter encrypts CustomerEmail before insert
+  DB-->>Ctx: RowVersion updated
+  Ctx-->>R2: invoice returned
+  R2-->>M: invoice
+  M-->>R: InvoiceDtoV2(id, number, customerMasked, amount, currencyCode)
+  R-->>C: 201 Created {dto}</pre></div>
+    </section>
+
+    <section id="s6">
+      <h2>6 · UI/UX (React)</h2>
+      <div class='card'><h3>UI/UX</h3><div style='border: 1px solid #ccc; padding: 1rem; background: #f9f9f9; border-radius: 0.25rem; margin-bottom: 1rem;'><strong>Swagger UI User Flow</strong><pre style='white-space: pre-wrap; word-wrap: break-word; font-size: 0.9rem;'>graph LR
+  A["Open /swagger"] -->|"Loads Swagger UI"| B["Select API Version<br/>(v1 / v2 tabs)"]
+  B -->|"Click v2"| C["Show v2 Operations<br/>(Create, Get, Update, Delete, List)"]
+  C -->|"Click 'Create Invoice'"| D["Expand Schema<br/>(RequestBody, Responses)"]
+  D -->|"Try It Out"| E["Fill JSON<br/>(invoiceNumber, customer, amount, currency)"]
+  E -->|"Execute"| F["Show Response<br/>(200 + InvoiceDtoV2)"]
+  F -->|"Copy curl"| G["Integrate into SDK"]
+  
+  C -->|"Deprecated Warning (v1)"| H["Migrate to v2<br/>(currencyCode required)"]
+  H -->|"Update SDK"| I["Commit & Deploy"]
+</pre></div><div class='card'><strong>Admin/Developer Workflow</strong><pre style='white-space: pre-wrap; word-wrap: break-word; font-size: 0.9rem;'>graph TD
+  A["Engineer: scaffold init --pack v8-controller"] -->|"Add Entity (Invoice)"| B["Write Intent Manifest<br/>{entity, fields}"]  
+  B -->|"Set options.encrypt for email"| C["Run scaffold generate"]
+  C -->|"Generate Per-Version Controllers"| D["InvoiceControllerV1, InvoiceControllerV2"]
+  D -->|"Generate Configuration<br/>(value converters)"| E["InvoiceConfiguration.cs"]
+  E -->|"Generate DTOs"| F["InvoiceDtoV1, InvoiceDtoV2"]
+  F -->|"Run dotnet build"| G["Compile + Swagger gen"]
+  G -->|"Open /swagger"| H["Review API<br/>(both versions visible)"]
+  H -->|"Test v1 deprecation warning"| I["Deploy to Staging"]
+  I -->|"Monitor client adoption"| J["Announce v1 EOL (6mo)"]
+  J -->|"Turn off v1 routes"| K["Retire"]
+</pre></div><div class='card'><strong>Component Hierarchy</strong><p>Controller layers and their responsibilities:</p><pre style='background: #f5f5f5; padding: 1rem; border-radius: 0.25rem; font-size: 0.9rem;'>InvoiceControllerBase (shared DI, logging)
+├── InvoiceControllerV1 : InvoiceControllerBase
+│   └── [HttpPost("/api/v1/invoices")] CreateAsync(CreateInvoiceCommandV1)
+│   └── [HttpGet("/api/v1/invoices/{id}")] GetByIdAsync(Guid id)
+│   └── Response: InvoiceDtoV1 (no currencyCode)
+└── InvoiceControllerV2 : InvoiceControllerBase
+    └── [HttpPost("/api/v2/invoices")] CreateAsync(CreateInvoiceCommandV2)
+    └── [HttpGet("/api/v2/invoices/{id}")] GetByIdAsync(Guid id)
+    └── Response: InvoiceDtoV2 (includes currencyCode, masked email)</pre></div><div class='card'><strong>Wireframe: Swagger UI (v2 Tab)</strong><pre style='background: #f5f5f5; padding: 1rem; border-radius: 0.25rem; font-family: monospace; white-space: pre;'>┌────────────────────────────────────────────────────────┐
+│  Swagger UI - Invoice API v2.0.0                       │
+├────────────────────────────────────────────────────────┤
+│  [ v1 ]  [ v2 ]  [ Schemas ]  [ Auth ]                 │
+├────────────────────────────────────────────────────────┤
+│                                                        │
+│  Invoices v2                                           │
+│  ─────────────────────────────────────────────────────  │
+│                                                        │
+│  POST /api/v2/invoices                                 │
+│  ▼ Create a new invoice (v2 requires currencyCode)    │
+│  ├─ Request body: application/json                     │
+│  │  ├─ invoiceNumber (string) [required]              │
+│  │  ├─ customerEmail (string) [required, encrypted]   │
+│  │  ├─ amount (number) [required, min: 0.01]          │
+│  │  └─ currencyCode (string) [required, max: 3]       │
+│  ├─ Responses:                                         │
+│  │  ├─ 201 Created: InvoiceDtoV2                       │
+│  │  ├─ 400 Bad Request: ValidationProblemDetails       │
+│  │  └─ 409 Conflict: Duplicate invoice                 │
+│  └─ [Try it out] [Download curl]                      │
+│                                                        │
+│  GET /api/v2/invoices/{id}                             │
+│  ▼ Get invoice by ID                                   │
+│  ├─ Parameters: id (string, uuid) [required]          │
+│  ├─ Responses: 200 InvoiceDtoV2 | 404 Not Found      │
+│  └─ [Try it out]                                       │
+│                                                        │
+└────────────────────────────────────────────────────────┘</pre></div>
+    </section>
+
+    <section id="s7">
+      <h2>7 · Behaviour — State &amp; Process</h2>
+      <div class='card'><h3>Behaviour (State Machines &amp; Activity)</h3><div style='border: 1px solid #ccc; padding: 1rem; background: #f9f9f9; border-radius: 0.25rem; margin-bottom: 1rem;'><strong>Invoice Entity Lifecycle State Diagram</strong><pre style='white-space: pre-wrap; word-wrap: break-word; font-size: 0.9rem;'>stateDiagram-v2
+  [*] --> Draft: Create
+  Draft --> Sent: Send to Customer
+  Sent --> Paid: Payment Received
+  Sent --> Overdue: 30 days elapsed
+  Overdue --> Paid: Late Payment
+  Paid --> Archived: End of fiscal year
+  Overdue --> Archived: Write-off
+  Archived --> [*]
+  
+  note right of Draft
+    Shadow props:
+    CreatedAt, UpdatedAt
+  end note
+  
+  note right of Sent
+    v2 adds: CurrencyCode
+  end note</pre></div><div style='border: 1px solid #ccc; padding: 1rem; background: #f9f9f9; border-radius: 0.25rem; margin-bottom: 1rem;'><strong>Versioning Migration Activity Diagram</strong><pre style='white-space: pre-wrap; word-wrap: break-word; font-size: 0.9rem;'>flowchart TD
+  A["Existing v1 Clients<br/>(GET /api/v1/invoices)"] -->|"Call v1 endpoint"| B{"Route Match?"}
+  B -->|"Yes"| C["Route to InvoiceControllerV1"]
+  B -->|"No"| D["404 Not Found"]
+  C -->|"Execute handler"| E["Load Invoice from DB<br/>(EFCore applies<br/>value converter)"]
+  E -->|"Map to DTO"| F["InvoiceDtoV1"]
+  F -->|"Response 200"| G["Client receives<br/>v1 schema"]
+  G -->|"(NO currencyCode field)"| H["Client unaffected"]
+  
+  I["New v2 Clients<br/>(GET /api/v2/invoices)"] -->|"Call v2 endpoint"| J{"Route Match?"}
+  J -->|"Yes"| K["Route to InvoiceControllerV2"]
+  K -->|"Execute handler<br/>(queries CurrencyCode<br/>from shadow prop)"| L["Load Invoice + shadow<br/>properties"]
+  L -->|"Map to DTO"| M["InvoiceDtoV2"]
+  M -->|"Response 200"| N["Client receives<br/>v2 schema<br/>(includes currencyCode)"]
+  
+  O["Deprecation Announced<br/>(v1 EOL = 2027-07-11)"] -->|"6-month window"| P["v1 Clients Migrate"]
+  P -->|"Update endpoint URLs"| Q["Use /api/v2 routes"]
+  Q -->|"Rebuild/redeploy"| R["Traffic shifted to v2"]
+  R -->|"2027-07-11"| S["Remove v1 routes<br/>(InvoiceControllerV1)"]
+  S -->|"Recompile & deploy"| T["v1 endpoints gone"]
+</pre></div>
+    </section>
+
+    <section id="s8">
+      <h2>8 · Deployment — Docker, Terraform, GitLab CI/CD</h2>
+      <div class='card'><h3>Deployment &amp; Infrastructure</h3><div style='border: 1px solid #ccc; padding: 1rem; background: #f9f9f9; border-radius: 0.25rem; margin-bottom: 1rem;'><strong>Deployment Architecture</strong><pre style='white-space: pre-wrap; word-wrap: break-word; font-size: 0.9rem;'>graph TB
+  Dev["Developer Workstation"]
+  Repo["GitHub Main Branch"]
+  CI["GitHub Actions<br/>- npm test<br/>- dotnet build<br/>- swagger-validate"]
+  Registry["Container Registry<br/>(Docker Hub / GCR)"]
+  K8s["Kubernetes Cluster"]
+  
+  subgraph K8sServices
+    ServiceV1["InvoiceService v1<br/>(3 replicas)"]
+    ServiceV2["InvoiceService v2<br/>(5 replicas)"]
+    LB["Load Balancer"]
+    Ingress["Ingress Controller"]
+  end
+  
+  DB[("PostgreSQL<br/>(Invoices DB)")]
+  Monitoring["Datadog / New Relic<br/>(metrics, logs, apm)"]
+  
+  Dev -->|"Push"| Repo
+  Repo -->|"Trigger"| CI
+  CI -->|"Build + Push"| Registry
+  Registry -->|"Pull"| K8s
+  K8s -->|"Deploy"| ServiceV1
+  K8s -->|"Deploy"| ServiceV2
+  ServiceV1 -->|"Route /api/v1"| Ingress
+  ServiceV2 -->|"Route /api/v2"| Ingress
+  ServiceV1 -->|"Read/Write"| DB
+  ServiceV2 -->|"Read/Write"| DB
+  ServiceV1 -->|"Emit metrics"| Monitoring
+  ServiceV2 -->|"Emit metrics"| Monitoring
+</pre></div><details style='margin-top: 1.5rem;'><summary><strong>Terraform Modules (Outline)</strong></summary><pre style='background: #f5f5f5; padding: 1rem; overflow-x: auto; border-radius: 0.25rem; font-size: 0.85rem;'>modules/
+├── k8s_deployment/
+│   ├── main.tf        # Kubernetes Deployment resource
+│   ├── vars.tf        # version, replicas, image_tag
+│   └── outputs.tf     # endpoint_url
+├── service/
+│   ├── main.tf        # Service (ClusterIP or LoadBalancer)
+│   └── vars.tf        # port, selector_version
+├── ingress/
+│   ├── main.tf        # Ingress rule: /api/v1 → service-v1, /api/v2 → service-v2
+│   ├── tls.tf         # Certificate + TLS termination
+│   └── vars.tf        # hostname, cert_arn
+└── database/
+    ├── main.tf        # Cloud SQL / RDS Postgres
+    ├── backup.tf      # Automated backups, point-in-time restore
+    └── vars.tf        # db_name, instance_class, backup_retention
+
+root/
+├── main.tf            # Provider (GCP/AWS), backend (Terraform Cloud)
+├── environments/
+│   ├── dev.tfvars     # replicas=1, instance_class=db-f1-micro
+│   ├── staging.tfvars # replicas=3, instance_class=db-n1-standard-1
+│   └── prod.tfvars    # replicas=5, instance_class=db-n1-standard-2, HA enabled
+└── outputs.tf         # api_endpoint_v1, api_endpoint_v2</pre></details><div style='margin-top: 1.5rem;'><strong>CI/CD Pipeline (GitHub Actions)</strong><pre style='white-space: pre-wrap; word-wrap: break-word; font-size: 0.9rem;'>flowchart LR
+  A["Merge to main"] -->|"Trigger workflow"| B["Lint v8-controller"]
+  B -->|"Pass"| C["Validate manifest.templates.json"]
+  C -->|"Pass"| D["Smoke-test: npm test"]
+  D -->|"Pass"| E["Swagger-validate: ./scripts/validate-swagger.sh"]
+  E -->|"Pass"| F["Build Docker image<br/>(tag = git commit SHA)"]
+  F -->|"Push to registry"| G["Staging: Deploy v1 + v2<br/>Helm chart"]
+  G -->|"Health check"| H["Run smoke tests<br/>(curl both /v1 and /v2)"]
+  H -->|"Pass"| I{"Manual approval"}
+  I -->|"Approved"| J["Prod: Deploy v2<br/>(v1 canary: 10% traffic)"]
+  I -->|"Rejected"| K["Rollback"]
+  J -->|"Monitor metrics 4h"| L{"Error rate<br/>&lt; 0.5%?"}
+  L -->|"Yes"| M["Promote: v2 to 100%"]
+  L -->|"No"| N["Rollback to v1"]
+  M -->|"v1 EOL timer"| O["Schedule v1 removal<br/>(6 months)"]
+</pre></div>
+    </section>
+
+    <section id="s9">
+      <h2>9 · Monitoring &amp; Custom Alerts</h2>
+      <div class='card'><h3>Monitoring &amp; Observability</h3><div class='card'><strong>Golden Signals</strong><table><thead><tr><th>Signal</th><th>Metric</th><th>Source</th><th>Target/SLO</th></tr></thead><tbody><tr><td>Latency</td><td>p50, p95, p99 response time (ms)</td><td>Datadog APM / New Relic</td><td>p99 &lt; 500ms for GET; &lt; 1s for POST</td></tr><tr><td>Traffic</td><td>Requests per second (RPS) by version</td><td>Prometheus / Datadog Agent</td><td>v1: 100-200 RPS (declining); v2: 300+ RPS (growing)</td></tr><tr><td>Errors</td><td>5xx rate, validation errors (4xx rate)</td><td>Application logs (Serilog)</td><td>&lt; 0.1% 5xx; &lt; 5% 4xx (normal)</td></tr><tr><td>Saturation</td><td>DB connection pool usage; CPU; memory</td><td>Container metrics</td><td>&lt; 80% pool utilization; &lt; 70% CPU; &lt; 75% memory</td></tr></tbody></table></div><div class='card'><strong>Custom Alerts</strong><table><thead><tr><th>Alert Name</th><th>Query / Condition</th><th>Threshold</th><th>Severity</th><th>Notify</th></tr></thead><tbody><tr><td>APIv1HighLatency</td><td>p95_latency_v1 > 2000ms</td><td>3 consecutive minutes</td><td>WARNING</td><td>#incidents (Slack)</td></tr><tr><td>APIv2ErrorRate</td><td>5xx_errors_v2 / total_requests_v2 > 1%</td><td>5 minutes</td><td>CRITICAL</td><td>Pagerduty on-call</td></tr><tr><td>DBConnectionPoolExhausted</td><td>pool_available &lt; 5 (of 100)</td><td>1 minute</td><td>CRITICAL</td><td>DBA + on-call</td></tr><tr><td>EncryptionLatencySpike</td><td>value_converter_duration_p99 > 50ms</td><td>10 minutes</td><td>WARNING</td><td>#performance (Slack)</td></tr><tr><td>V1Deprecation30DaysWarning</td><td>TODAY == (EOL_DATE - 30 days)</td><td>Once daily</td><td>INFO</td><td>#platform (Slack)</td></tr></tbody></table></div><div style='border: 1px solid #ccc; padding: 1rem; background: #f9f9f9; border-radius: 0.25rem; margin-bottom: 1rem;'><strong>Incident Escalation Sequence Diagram</strong><pre style='white-space: pre-wrap; word-wrap: break-word; font-size: 0.9rem;'>sequenceDiagram
+  participant A as Alert
+  participant D as Datadog
+  participant S as ServiceNow
+  participant Slack
+  participant OC as On-Call
+  participant Eng as Engineer
+  
+  A->>D: 5xx error rate spike (v2 endpoints)
+  D->>S: Create incident ISN-12345
+  S->>Slack: #incidents: [CRITICAL] API error spike
+  Slack->>OC: Page: on-call engineer
+  OC->>Eng: Call / IM
+  Eng->>D: Check dashboard (latency, error breakdown, DB metrics)
+  Eng->>D: Query logs: errors in InvoiceControllerV2.CreateAsync
+  Eng->>Eng: Root cause: DB pool exhausted; update query N+1
+  Eng->>Slack: Post fix: optimize GetByIdAsync (add .Include())
+  Eng->>S: Deploy hotfix ISN-12345-fix-01
+  Eng->>D: Monitor error rate (confirm recovery)
+  D->>S: Error rate < 0.1%; close ISN-12345
+  S->>Slack: [RESOLVED] API error spike
+  Slack->>OC: Incident closed; manual all-clear
+</pre></div><div class='card'><strong>Dashboard Widgets</strong><ul><li><strong>Versioning Dashboard:</strong><ul><li>Traffic split: v1 % vs. v2 % (gauge, pie chart)</li><li>Latency comparison: p50/p95/p99 v1 vs. v2 (line graph, overlay)</li><li>Error rate by version (time series)</li><li>Per-endpoint latency heatmap (operation name vs. time)</li></ul></li><li><strong>Encryption Performance:</strong><ul><li>Value converter duration percentiles (p50, p95, p99 ms)</li><li>Encrypted field access frequency (bar chart: CustomerEmail encrypts/sec)</li><li>Cache hit rate (if caching decrypted values)</li></ul></li><li><strong>Database Health:</strong><ul><li>Connection pool utilization (gauge)</li><li>Query duration (slow query top 10)</li><li>Migration status (pending / applied count)</li></ul></li><li><strong>API Contract Compliance:</strong><ul><li>Schema validation violations (count by field)</li><li>Deprecated endpoint access (v1 route usage trend)</li><li>SDK version distribution (% on v1 vs. v2)</li></ul></li></ul></div>
+    </section>
+
+    <section id="s10">
+      <h2>10 · Open Questions, Decisions &amp; Risks</h2>
+      <div class='card'><h3>Open Questions, Decisions &amp; Risks</h3><div class='card'><strong>Open Questions</strong><table><thead><tr><th>ID</th><th>Question</th><th>Why It Matters</th><th>Proposed Default</th><th>Status</th></tr></thead><tbody><tr><td>OQ1</td><td>Which value converter algorithm (DPAPI vs. AES-256) for encrypted fields?</td><td>DPAPI ties encryption to the machine; AES-256 is portable across servers and containers.</td><td>Use AES-256 with key rotation in AppSettings. Encode as Base64 in DB.</td><td>Open</td></tr><tr><td>OQ2</td><td>How long to support v1 endpoints in parallel (6mo / 12mo / indefinite)?</td><td>Longer support = easier client migration; shorter = reduced operational overhead. Industry standard is 12–24 months.</td><td>Announce v1 EOL 6 months after v2 launch; retire in month 7.</td><td>Open</td></tr><tr><td>OQ3</td><td>Do we need separate database connections for v1 vs. v2, or share AppDbContext?</td><td>Sharing reduces overhead; separate enables staged rollout per DB replica.</td><td>Single AppDbContext, shared connection pool. Route versioning is application-layer only.</td><td>Open</td></tr><tr><td>OQ4</td><td>Should shadow properties (CreatedAt, UpdatedAt) be in the entity class or truly shadow?</td><td>Shadow = less boilerplate; explicit class property = simpler for business logic access.</td><td>Keep shadow. Expose via a virtual .Metadata property on entity for optional access.</td><td>Open</td></tr><tr><td>OQ5</td><td>Generate separate v1/v2 swagger.json files or merge into single spec with version markers?</td><td>Separate = easier SDK generation per version; merged = single source of truth but complex.</td><td>Generate separate /swagger/v1/swagger.json and /swagger/v2/swagger.json. Swagger UI tabs to switch.</td><td>Open</td></tr><tr><td>OQ6</td><td>Who owns API versioning strategy docs (platform team / product team / shared)?</td><td>Clarity reduces future disputes on when to version, how to deprecate, rollout sequencing.</td><td>Platform team (infrastructure) owns the versioning framework template; product team owns per-feature migration windows.</td><td>Open</td></tr></tbody></table></div><div class='card'><strong>Architecture Decision Records (ADR)</strong><table><thead><tr><th>Decision</th><th>Options Considered</th><th>Choice + Rationale</th><th>Date</th></tr></thead><tbody><tr><td>API Versioning Strategy</td><td>URL path (/api/v1 vs. /api/v2) vs. header (Accept: application/vnd.api+json;version=2) vs. subdomain (v2.api.example.com)</td><td><strong>URL path versioning.</strong> Easiest for developers to test in browser/curl; widely documented; compatible with CDN/reverse proxy routing. Header versioning requires client awareness. Subdomains add DNS overhead.</td><td>2026-07-11</td></tr><tr><td>EFCore Value Converter Scope</td><td>Apply to all fields by default vs. opt-in per field</td><td><strong>Opt-in per field via manifest options.</strong> Encryption has performance cost; must be intentional. Manifest author sets { 'encrypt': true } for sensitive fields only. Reduces accidental overhead.</td><td>2026-07-11</td></tr><tr><td>Shadow Properties Exposure</td><td>Truly shadow (not in entity) vs. abstract base class properties vs. explicit class properties</td><td><strong>Truly shadow properties.</strong> Keeps entity class focused on business domain. Shadow props (CreatedAt, UpdatedAt, IsDeleted) are infrastructure concerns. EFCore configuration handles materialization for queries that need them.</td><td>2026-07-11</td></tr><tr><td>Template Pack Scope</td><td>Add v10-minimal-api as separate pack now vs. defer</td><td><strong>Defer v10-minimal-api.  Focus this feature on v8-controller first.  v10-minimal-api shares Swagger, value converters, and versioning patterns; once v8 is stable, clone and adapt minimal-api-specific templates (Endpoint classes instead of Controllers) and test independently.</strong></td><td>2026-07-11</td></tr></tbody></table></div><div class='card'><strong>Risks &amp; Mitigations</strong><table><thead><tr><th>Risk</th><th>Likelihood</th><th>Impact</th><th>Mitigation</th></tr></thead><tbody><tr><td>Value converter encryption introduces latency spike on large batch updates</td><td>Medium</td><td>High (batch job timeout, customer frustration)</td><td>Benchmark value converter overhead on 10k+ row batches. Consider bulk copy for unencrypted fields. Cache decrypted values if query-heavy. Monitor p99 latency alerting on value_converter_duration.</td></tr><tr><td>Database migration for encrypted fields corrupts existing plaintext rows</td><td>Low</td><td>High (data loss, compliance violation)</td><td>Run migration in staging first. Back up production DB. Test rollback scenario. Encrypt in-app during read; write encrypted to shadow column; cut over after verification.</td></tr><tr><td>Swagger spec diverges from implementation (schema drift)</td><td>Medium</td><td>Medium (SDK generation breaks; client integration fails)</td><td>Add Swagger validation to CI pipeline (Swagger CLI or OpenAPI Validator). Pin Swashbuckle version; test new versions in staging. Generate SDK from spec and cross-compile against real API in integration tests.</td></tr><tr><td>v1 clients don't migrate in time; v1 EOL forces breaking change</td><td>Medium</td><td>High (customer escalations; support burden)</td><td>Announce deprecation 6 months in advance with email + in-app banner. Monitor v1 traffic monthly. Offer 1:1 migration help for high-value customers. Extend EOL if &gt; 20% traffic remains on v1.</td></tr><tr><td>Shadow property query accidental inclusion of deleted rows (missing IsDeleted filter)</td><td>Low</td><td>High (data breach; compliance violation)</td><td>Add HasQueryFilter(e => !e.IsDeleted) to EntityConfiguration template. Document in code comments. Add integration test that verifies deleted entities are not returned by any query endpoint.</td></tr><tr><td>Controller explosion: many versions (v3, v4, ...) becomes unmaintainable</td><td>Medium</td><td>Medium (code duplication; merge conflict friction)</td><td>After v2 stable, establish versioning cadence: minimum 18 months between major versions. Use shared abstract base controller to extract common logic (auth, logging, error handling). Consider a future API gateway / API management tool (Azure API Management, Kong) to decouple API version lifecycle from code versioning.</td></tr></tbody></table></div>
+    </section>
+  </main>
+
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true, theme: 'default', securityLevel: 'loose' });
+  </script>
+
+  <script>
+    const toc = document.getElementById('toc');
+    const sections = document.querySelectorAll('section[id^="s"]');
+
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const id = entry.target.id;
+          const link = toc.querySelector(`a[href="#${id}"]`);
+          toc.querySelectorAll('a').forEach(a => a.classList.remove('active'));
+          if (link) link.classList.add('active');
+        }
+      });
+    }, { threshold: 0.3, rootMargin: '-50% 0px -50% 0px' });
+
+    sections.forEach(section => observer.observe(section));
+
+    toc.querySelectorAll('a').forEach(link => {
+      link.addEventListener('click', e => {
+        e.preventDefault();
+        const target = document.querySelector(link.getAttribute('href'));
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+  </script>
+
+  <script>
+    document.querySelectorAll('table').forEach(table => {
+      if (table.closest('.table-wrap')) return;
+      const wrap = document.createElement('div');
+      wrap.className = 'table-wrap';
+      table.parentNode.insertBefore(wrap, table);
+      wrap.appendChild(table);
+    });
+  </script>
+
+  <script>
+    (function () {
+      const backdrop = document.createElement('div');
+      backdrop.className = 'diagram-backdrop';
+      document.body.appendChild(backdrop);
+
+      let activeCard = null;
+
+      function minimize(card) {
+        card.classList.remove('diagram-maximized');
+        const btn = card.querySelector('.diagram-toggle-btn');
+        if (btn) {
+          btn.textContent = '⛶';
+          btn.title = 'Maximize diagram';
+        }
+        backdrop.classList.remove('active');
+        document.body.classList.remove('diagram-lock');
+        activeCard = null;
+      }
+
+      function maximize(card) {
+        if (activeCard && activeCard !== card) minimize(activeCard);
+        card.classList.add('diagram-maximized');
+        const btn = card.querySelector('.diagram-toggle-btn');
+        if (btn) {
+          btn.textContent = '✕';
+          btn.title = 'Minimize diagram';
+        }
+        backdrop.classList.add('active');
+        document.body.classList.add('diagram-lock');
+        activeCard = card;
+      }
+
+      document.querySelectorAll('div.mermaid').forEach(diagram => {
+        let card = diagram.closest('.mermaid-card');
+        if (!card) {
+          card = document.createElement('div');
+          card.className = 'mermaid-card';
+          diagram.parentNode.insertBefore(card, diagram);
+          card.appendChild(diagram);
+        }
+        if (card.querySelector('.diagram-toggle-btn')) return;
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'diagram-toggle-btn';
+        btn.textContent = '⛶';
+        btn.title = 'Maximize diagram';
+        btn.addEventListener('click', () => {
+          if (card.classList.contains('diagram-maximized')) {
+            minimize(card);
+          } else {
+            maximize(card);
+          }
+        });
+        card.appendChild(btn);
+      });
+
+      backdrop.addEventListener('click', () => {
+        if (activeCard) minimize(activeCard);
+      });
+
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && activeCard) minimize(activeCard);
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -28,6 +28,8 @@ import { writeChangeManifest, nextChangesetId, sha256Hex } from './changeManifes
 import type { ChangeEntry } from './changeManifest.js';
 import { writePending } from './pendingTracker.js';
 import type { GenerateReport, ReportAiImplementationEntry, ReportCreatedEntry, ReportInjectedEntry } from './report.js';
+import { checkCreationGate } from './creationGate.js';
+import type { CreationGateTarget } from './creationGate.js';
 
 export interface GenerateOptions {
   repoRoot: string;
@@ -124,13 +126,39 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRep
 
   const context = buildHandlebarsContext(manifest);
 
-  // --- Plan create-mode targets --------------------------------------------------
-  const plannedCreates: PlannedCreate[] = [];
+  // --- Resolve and gate creation-mode targets -------------------------------------
+  // Resolve all targets once before any rendering or gating. Store the resolved
+  // paths so we can gate against the creation manifest before any side effects.
+  interface ResolvedTarget {
+    target: DescriptorTarget;
+    absPath: string;
+    relPath: string;
+    existedBefore: boolean;
+  }
+  const resolvedTargets: ResolvedTarget[] = [];
   for (const target of descriptor.targets) {
     const outputRel = renderPathTemplate(target.output, context);
     const absPath = resolveInsideRepo(repoRoot, outputRel);
     const relPath = path.relative(repoRoot, absPath);
     const existedBefore = existsSync(absPath);
+    resolvedTargets.push({ target, absPath, relPath, existedBefore });
+  }
+
+  // Gate: `overwrite`-mode targets must already exist on disk
+  const creationGateTargets: CreationGateTarget[] = resolvedTargets.map((rt) => ({
+    relPath: rt.relPath,
+    mode: rt.target.mode,
+    existedBefore: rt.existedBefore,
+  }));
+  checkCreationGate(creationGateTargets);
+
+  // --- Plan create-mode targets --------------------------------------------------
+  const plannedCreates: PlannedCreate[] = [];
+  for (const resolved of resolvedTargets) {
+    const absPath = resolved.absPath;
+    const relPath = resolved.relPath;
+    const target = resolved.target;
+    const existedBefore = resolved.existedBefore;
 
     if (existedBefore && target.mode === 'create') {
       throw new Error(`${relPath} already exists and its target mode is "create" — use "skip-if-exists" or "overwrite" in the pack descriptor`);
