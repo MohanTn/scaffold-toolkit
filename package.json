@@ -21,7 +21,8 @@
     "build": "npm run build --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "validate:templates-dotnet": "node packages/templates-dotnet/tools/validate-build.mjs"
+    "validate:templates-dotnet": "node packages/templates-dotnet/tools/validate-build.mjs",
+    "benchmark": "node tools/benchmark/run-benchmark.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",

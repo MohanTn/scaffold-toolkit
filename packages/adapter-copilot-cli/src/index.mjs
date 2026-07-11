@@ -37,10 +37,16 @@ Usage:
 
   gh scaffold install-hooks [--cwd <dir>]
       Write .github/hooks/scaffold-toolkit.json into the target repo,
-      registering this package's postToolUse (soft nudge) and agentStop
-      (hard block) hooks with Copilot CLI. Run this once per repo. This is
-      what gives Copilot CLI the same "cannot stop with unfilled
-      AI_IMPLEMENTATION blocks" guarantee Claude Code's Stop hook gives.
+      registering this package's preToolUse (hard gate on direct writes/
+      edits to pack-owned files — *** VERIFY BEFORE SHIP: its toolName/
+      toolArgs field-shape assumptions are unconfirmed against a live
+      Copilot CLI session, see hooks/pre-tool-use.mjs's header comment ***),
+      postToolUse (soft nudge), and agentStop (hard block) hooks with
+      Copilot CLI. Run this once per repo. preToolUse is what gives Copilot
+      CLI the same "structurally can't hand-write a pack-owned file" guarantee
+      Claude Code's PreToolUse hook gives; agentStop is what gives it the
+      same "cannot stop with unfilled AI_IMPLEMENTATION blocks" guarantee
+      Claude Code's Stop hook gives.
 
   gh scaffold status [--cwd <dir>] [--json]
       Run \`scaffold status --json\` in the target directory. Exits 0 when

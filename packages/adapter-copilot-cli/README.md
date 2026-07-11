@@ -36,7 +36,9 @@ gh scaffold generate --manifest <file> [--cwd <dir>] [--dry-run] [--force] [--js
 
 ### `gh scaffold install-hooks`
 
-Run once per repo. Writes `.github/hooks/scaffold-toolkit.json`, registering this package's `postToolUse` and `agentStop` hooks with Copilot CLI (schema: https://docs.github.com/en/copilot/reference/hooks-reference). Repo-level, not `~/.copilot/hooks/`, so it's committed and applies to every teammate using Copilot CLI on the repo automatically — the same one-time-per-repo model the Claude Code adapter's `SKILL.md` uses when it registers hooks into a target repo's `.claude/settings.json`. Re-running after a package upgrade is safe: it overwrites the file with the (possibly new) absolute script paths, deterministically.
+Run once per repo. Writes `.github/hooks/scaffold-toolkit.json`, registering this package's `preToolUse`, `postToolUse`, and `agentStop` hooks with Copilot CLI (schema: https://docs.github.com/en/copilot/reference/hooks-reference). Repo-level, not `~/.copilot/hooks/`, so it's committed and applies to every teammate using Copilot CLI on the repo automatically — the same one-time-per-repo model the Claude Code adapter's `SKILL.md` uses when it registers hooks into a target repo's `.claude/settings.json`. Re-running after a package upgrade is safe: it overwrites the file with the (possibly new) absolute script paths, deterministically.
+
+**`preToolUse` (`hooks/pre-tool-use.mjs`) ships with a `*** VERIFY BEFORE SHIP — HIGH RISK ***` caveat**: its `toolName`/`toolArgs` field-shape assumptions for a file write/edit are a guess, not a payload confirmed against a live Copilot CLI session — see the script's own header comment. Treat it as unverified until that live check has run.
 
 ### `gh scaffold status`
 
@@ -52,12 +54,13 @@ Pass-through flags `--dry-run` and `--force` are forwarded to `scaffold-core` af
 
 Prints the installed shim version.
 
-## Two independent enforcement layers
+## Three independent enforcement layers
 
-GitHub Copilot CLI has supported lifecycle hooks since its GA in February 2026 (`.github/hooks/*.json`, events including `postToolUse` and `agentStop`) — an earlier draft of this package predated that and described Copilot CLI as hooks-less; that's no longer accurate.
+GitHub Copilot CLI has supported lifecycle hooks since its GA in February 2026 (`.github/hooks/*.json`, events including `preToolUse`, `postToolUse`, and `agentStop`) — an earlier draft of this package predated that and described Copilot CLI as hooks-less; that's no longer accurate.
 
-1. **`agentStop` hook (`hooks/agent-stop.mjs`), installed via `gh scaffold install-hooks`.** Runs `scaffold status --json` before the agent's turn is allowed to end; if any `AI_IMPLEMENTATION` block is still pending, it returns `{ decision: "block", reason }`, the same hard, un-skippable guarantee Claude Code's `Stop` hook gives. This is the load-bearing mechanism, live within a Copilot agent session.
-2. **`generate` precheck**, always active, no install step needed. Refuses to start a *new* `generate` call while a prior changeset has unresolved blocks. This is what covers invocations of `gh scaffold generate` outside a live agent session (CI, a script, a bare terminal), where no hook fires at all.
+1. **`preToolUse` hook (`hooks/pre-tool-use.mjs`), installed via `gh scaffold install-hooks`.** The hard gate on direct writes/edits: fires *before* a file-write/edit tool call runs and shells out to `scaffold check-edit` (in `@mohantn/scaffold-core`) to decide whether the target is a pack-owned file being written directly, or edited outside an `AI_IMPLEMENTATION` interior — if so, it blocks with `{ permissionDecision: "deny", permissionDecisionReason }`. This mirrors the Claude Code adapter's `PreToolUse` hook and is the only layer that can stop a hand-written, un-scaffolded file from reaching disk at all. **Its input-field assumptions are unverified — see the "install-hooks" section above.**
+2. **`agentStop` hook (`hooks/agent-stop.mjs`), installed via `gh scaffold install-hooks`.** Runs `scaffold status --json` before the agent's turn is allowed to end; if any `AI_IMPLEMENTATION` block is still pending, it returns `{ decision: "block", reason }`, the same hard, un-skippable guarantee Claude Code's `Stop` hook gives. This is the load-bearing mechanism for phase-3 completion, live within a Copilot agent session.
+3. **`generate` precheck**, always active, no install step needed. Refuses to start a *new* `generate` call while a prior changeset has unresolved blocks. This is what covers invocations of `gh scaffold generate` outside a live agent session (CI, a script, a bare terminal), where no hook fires at all.
 
 There's also `hooks/post-tool-use.mjs` (installed by the same `install-hooks` command), a `postToolUse` soft nudge mirroring Claude Code's `PostToolUse` hook: it doesn't block anything (that event fires after the tool already ran), it just surfaces the pending list as `additionalContext` right after a `scaffold generate` call, before the agent even reaches the end of its turn.
 
@@ -80,10 +83,10 @@ There's also `hooks/post-tool-use.mjs` (installed by the same `install-hooks` co
 1. From the monorepo root: `npm install` (workspace link) and `npm run build` (so `scaffold` is on `PATH`).
 2. Create a fresh throwaway repo fixture, e.g. under `/tmp/scaffold-fixture/`.
 3. In the fixture: `npx @mohantn/scaffold-core init --project-type dotnet --pack backend=<local-path to scaffold-templates-dotnet>` and `npx @mohantn/scaffold-core templates sync`.
-4. Run `gh scaffold install-hooks` once, then confirm `.github/hooks/scaffold-toolkit.json` was written with absolute paths to `hooks/post-tool-use.mjs` and `hooks/agent-stop.mjs`.
+4. Run `gh scaffold install-hooks` once, then confirm `.github/hooks/scaffold-toolkit.json` was written with absolute paths to `hooks/pre-tool-use.mjs`, `hooks/post-tool-use.mjs`, and `hooks/agent-stop.mjs`.
 5. With `gh-scaffold` on `PATH`, run `gh scaffold generate --manifest <sample>.toon` and inspect the TOON report on stdout.
 6. With `AI_IMPLEMENTATION` blocks deliberately left unfilled, run `gh scaffold generate --manifest <sample>.toon` again and confirm exit `1` with the pending list on stderr (the precheck layer).
-7. Inside a live Copilot CLI agent session in the fixture repo, attempt to end the turn with a block still unfilled and confirm the `agentStop` hook blocks it (the hook layer) — this step needs a real Copilot CLI session and can't be driven headlessly; `test/installHooks.test.mjs` exercises the same hook scripts synthetically instead.
+7. Inside a live Copilot CLI agent session in the fixture repo: (a) attempt a raw file write to a pack-owned path and confirm `preToolUse` blocks it — **this is also the step that resolves the open verification question on `pre-tool-use.mjs`'s guessed field shape; capture the real payload here and correct the hook if the guess was wrong**; (b) attempt to end the turn with a block still unfilled and confirm the `agentStop` hook blocks it. Both need a real Copilot CLI session and can't be driven headlessly; `test/installHooks.test.mjs` and `test/hookPreToolUse.test.mjs` exercise the same hook scripts synthetically instead, against the guessed shape.
 8. Fill the blocks (the Copilot equivalent of the Claude Code Edit step), then re-run `gh scaffold generate` and confirm exit `0`.
 
 ## Tests
@@ -92,7 +95,7 @@ There's also `hooks/post-tool-use.mjs` (installed by the same `install-hooks` co
 npm test
 ```
 
-Six suites, all picked up by `node --test test/*.test.mjs`:
+Seven suites, all picked up by `node --test test/*.test.mjs`:
 
 | Suite | What it covers | External deps |
 |---|---|---|
@@ -100,7 +103,8 @@ Six suites, all picked up by `node --test test/*.test.mjs`:
 | `dispatch.test.mjs` | Subcommand-level dispatch: parser, exit codes, blocked-precheck IO branch, `buildGeneratePassthrough` | none — `process.env.PATH` overridden to force `scaffold` unreachable |
 | `bin-smoke.test.mjs` | Spawns the actual `bin/gh-scaffold` via `child_process.execFile`; catches import-extension bugs (e.g. `../src/index.js` against a `src/index.mjs` file) that the rest of the suite cannot detect because the test runner imports `src/index.mjs` directly and bypasses the bin entry | none |
 | `end-to-end.test.mjs` | Mirrors the README's manual-verification recipe end to end: builds a real fixture template pack (`mkdtempSync + git init + write Handlebars templates + git commit`), `scaffold init` + `scaffold templates sync`, then drives `gh scaffold status` / `gh scaffold generate` through the actual shim binary against the produced fixture target. Verifies precheck refusal (exit 1, pending list on stderr, file mtime unchanged), `--dry-run` passthrough (no disk write), block fill, and post-fill re-resolution | `git` on PATH, scaffold-core `dist/cli.js` built (`npm run build`) |
-| `hookPostToolUse.test.mjs` / `hookAgentStop.test.mjs` | Pure decision-function tests for the two Copilot hook scripts, against the exact input/output shapes in the hooks-reference schema | none |
-| `installHooks.test.mjs` | Unit tests for `buildHooksConfig`/`resolveHookScriptPaths`/`installHooks`, plus a full integration test: `install-hooks` against a fixture repo, then spawning the two written hook scripts with synthetic Copilot-shaped stdin to prove the nudge-while-pending → block-while-pending → allow-once-filled chain works end to end | `git` on PATH, scaffold-core `dist/cli.js` built |
+| `hookPreToolUse.test.mjs` | Pure decision-function tests for `hooks/pre-tool-use.mjs`, **against the unverified guessed `toolName`/`toolArgs` shape** (see the hook's header comment), plus a real end-to-end run of the script against a synced fixture repo proving its *logic* (block-on-write, allow-on-in-interior-edit) is internally consistent given that assumed shape | `git` on PATH, scaffold-core `dist/cli.js` built |
+| `hookPostToolUse.test.mjs` / `hookAgentStop.test.mjs` | Pure decision-function tests for the `postToolUse`/`agentStop` Copilot hook scripts, against the exact input/output shapes in the hooks-reference schema | none |
+| `installHooks.test.mjs` | Unit tests for `buildHooksConfig`/`resolveHookScriptPaths`/`installHooks`, plus a full integration test: `install-hooks` against a fixture repo, then spawning the three written hook scripts with synthetic Copilot-shaped stdin to prove the block-on-write/allow-on-edit (`preToolUse`) → nudge-while-pending (`postToolUse`) → block-while-pending → allow-once-filled (`agentStop`) chain works end to end | `git` on PATH, scaffold-core `dist/cli.js` built |
 
 Both the bin-smoke and end-to-end tests shell out via `child_process.execFile` rather than mocking — no mocking libraries are used anywhere in the shim's test suite. The end-to-end test resolves `scaffold` on PATH inside each child process via a private shell wrapper in a tmpdir (see `test/_harness.mjs`), so it does NOT require a global `npm link` or a `gh extension install` to run in CI.

@@ -120,6 +120,16 @@ export interface AiImplementationBlock {
    * optional extension points, tracked only when they ship empty.
    */
   required: boolean;
+  /**
+   * Char offset of the first line *after* the START line — where the
+   * interior region begins. Mirrors MarkerLocation.interiorStartOffset
+   * above (same buildLineOffsets computation); `scaffold check-edit` uses
+   * these to test whether a proposed edit's old_string falls fully inside
+   * this block's interior.
+   */
+  interiorStartOffset: number;
+  /** Char offset of the first char of the END line — where the interior region ends. Mirrors MarkerLocation.interiorEndOffset. */
+  interiorEndOffset: number;
 }
 
 // Both spellings pack authors use in the wild: `AI_IMPLEMENTATION_START`
@@ -146,6 +156,7 @@ function parseMarkerToken(token: string | undefined): { id?: string; required: b
  */
 export function scanAiImplementationBlocks(filePath: string, content: string): AiImplementationBlock[] {
   const lines = content.split('\n');
+  const lineOffsets = buildLineOffsets(lines);
   const blocks: AiImplementationBlock[] = [];
   const stack: { id?: string; required: boolean; startLine: number }[] = [];
 
@@ -176,6 +187,8 @@ export function scanAiImplementationBlocks(filePath: string, content: string): A
         content: innerLines.join('\n'),
         empty: innerLines.every((l) => l.trim().length === 0),
         required: open.required,
+        interiorStartOffset: lineOffsets[open.startLine + 1],
+        interiorEndOffset: lineOffsets[idx],
       });
     }
   });

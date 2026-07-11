@@ -1,0 +1,10 @@
+{
+  "name": "scaffold-toolkit-benchmark",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Reusable, checked-in benchmark comparing freehand vs. scaffold-CLI authoring of an Order endpoint. Not an npm workspace — see README.md.",
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  }
+}
