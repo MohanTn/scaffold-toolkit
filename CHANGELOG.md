@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format is based on 
 
 ## [Unreleased]
 
+### Changed
+
+- README.md expanded from minimal technical description to comprehensive project documentation with badges, quick-start instructions, clear value propositions, restructured package descriptions as a table, explicit contribution guidelines, and improved release notes. Maintains all existing technical content while significantly improving user onboarding and project presentation.
+
 ### Added
 
 - Implements descriptor v2 additive features (inputs, commentSyntax, bootstrapAnchors) that allow packs to define their own contracts and marker placement rules. Relaxes the base manifest schema to only require manifestSchemaVersion and targetStack, with per-pack input validation (including prototype-pollution defenses) enforced after descriptor load. Existing dotnet packs remain byte-for-byte compatible.
