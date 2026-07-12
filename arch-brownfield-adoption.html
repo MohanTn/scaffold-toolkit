@@ -1,0 +1,1791 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shared Understanding — Brownfield Adoption for Existing, Unmarked, Non-Standard-Path Services</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      :root {
+        --accent: #2563eb;
+        --bg: #f8fafc;
+        --card-bg: #ffffff;
+        --text: #1e293b;
+        --text-muted: #64748b;
+        --border: #e2e8f0;
+        --status-draft: #64748b;
+        --status-review: #f59e0b;
+        --status-approved: #16a34a;
+        --wrong: #e11d48;
+        --warn: #b45309;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        line-height: 1.6;
+        color: var(--text);
+        background: var(--bg);
+        min-height: 100vh;
+      }
+
+      nav#toc {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 240px;
+        height: 100vh;
+        background: var(--card-bg);
+        border-right: 1px solid var(--border);
+        overflow-y: auto;
+        z-index: 100;
+        padding: 2rem 1rem;
+      }
+
+      nav#toc .brand {
+        font-weight: bold;
+        font-size: 1.1rem;
+        color: var(--accent);
+        margin-bottom: 2rem;
+        display: block;
+      }
+
+      nav#toc a {
+        display: block;
+        padding: 0.5rem 0.75rem;
+        margin: 0.5rem 0;
+        color: var(--text);
+        text-decoration: none;
+        border-radius: 6px;
+        font-size: 0.95rem;
+        transition: all 0.2s;
+      }
+
+      nav#toc a:hover {
+        background: var(--bg);
+        color: var(--accent);
+      }
+
+      nav#toc a.active {
+        background: var(--accent);
+        color: white;
+        font-weight: 500;
+      }
+
+      main {
+        margin-left: 240px;
+        padding: 3rem 2rem;
+        margin-right: auto;
+      }
+
+      header {
+        margin-bottom: 3rem;
+      }
+
+      header h1 {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+        color: var(--text);
+      }
+
+      header .subtitle {
+        color: var(--text-muted);
+        font-size: 0.95rem;
+      }
+
+      .status-banner {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        padding: 1rem 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        font-size: 0.9rem;
+        font-weight: 500;
+      }
+
+      .status-banner.draft {
+        background: rgba(100, 116, 139, 0.1);
+        color: var(--status-draft);
+        border-left: 4px solid var(--status-draft);
+      }
+
+      .status-banner.review {
+        background: rgba(245, 158, 11, 0.1);
+        color: var(--status-review);
+        border-left: 4px solid var(--status-review);
+      }
+
+      .status-banner.approved {
+        background: rgba(22, 163, 74, 0.1);
+        color: var(--status-approved);
+        border-left: 4px solid var(--status-approved);
+      }
+
+      section {
+        margin-bottom: 3rem;
+        scroll-margin-top: 2rem;
+      }
+
+      section h2 {
+        font-size: 1.4rem;
+        margin-bottom: 1.5rem;
+        padding-left: 1rem;
+        border-left: 4px solid var(--accent);
+        color: var(--text);
+      }
+
+      .card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      }
+
+      .card h3 {
+        font-size: 1.1rem;
+        margin-bottom: 1rem;
+        color: var(--text);
+      }
+
+      .card h4 {
+        font-size: 1rem;
+        margin-top: 1.5rem;
+        margin-bottom: 0.75rem;
+        color: var(--accent);
+      }
+
+      .card h4:first-child {
+        margin-top: 0;
+      }
+
+      .card p {
+        margin-bottom: 1rem;
+        color: var(--text);
+      }
+
+      .card ul,
+      .card ol {
+        margin-left: 1.5rem;
+        margin-bottom: 1rem;
+      }
+
+      .card li {
+        margin-bottom: 0.5rem;
+        color: var(--text);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1rem;
+      }
+
+      table thead {
+        background: var(--bg);
+        border-bottom: 2px solid var(--border);
+      }
+
+      table th {
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        color: var(--text);
+        font-size: 0.9rem;
+        white-space: nowrap;
+      }
+
+      table td {
+        padding: 1rem;
+        border-bottom: 1px solid var(--border);
+        color: var(--text);
+        font-size: 0.95rem;
+        white-space: nowrap;
+      }
+
+      table tbody tr:nth-child(even) {
+        background: rgba(100, 116, 139, 0.02);
+      }
+
+      .table-wrap {
+        overflow-x: auto;
+        margin-bottom: 1rem;
+      }
+
+      /* Interactive tables hold sentences, not identifiers: let them wrap. */
+      #u-table td,
+      #oq-table td {
+        white-space: normal;
+        vertical-align: top;
+      }
+
+      #u-table .u-statement {
+        min-width: 320px;
+      }
+
+      #u-table .u-verdict {
+        min-width: 210px;
+      }
+
+      #oq-table td:nth-child(2) {
+        min-width: 260px;
+      }
+
+      .badge {
+        display: inline-block;
+        padding: 0.15rem 0.6rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+
+      .badge.src-user {
+        background: rgba(37, 99, 235, 0.12);
+        color: var(--accent);
+      }
+      .badge.src-code {
+        background: rgba(22, 163, 74, 0.12);
+        color: var(--status-approved);
+      }
+      .badge.src-inferred {
+        background: rgba(245, 158, 11, 0.15);
+        color: var(--warn);
+      }
+      .badge.src-assumed {
+        background: rgba(225, 29, 72, 0.12);
+        color: #be123c;
+      }
+      .badge.conf-high {
+        background: rgba(22, 163, 74, 0.12);
+        color: var(--status-approved);
+      }
+      .badge.conf-medium {
+        background: rgba(245, 158, 11, 0.15);
+        color: var(--warn);
+      }
+      .badge.conf-low {
+        background: rgba(225, 29, 72, 0.12);
+        color: #be123c;
+      }
+      .badge.kind-example {
+        background: rgba(22, 163, 74, 0.12);
+        color: var(--status-approved);
+      }
+      .badge.kind-counter {
+        background: rgba(225, 29, 72, 0.12);
+        color: #be123c;
+      }
+      .badge.tension-badge {
+        background: rgba(245, 158, 11, 0.15);
+        color: var(--warn);
+      }
+
+      .u-evidence {
+        margin-top: 0.35rem;
+        font-size: 0.8rem;
+        color: var(--text-muted);
+      }
+
+      .u-impact {
+        margin-top: 0.25rem;
+        font-size: 0.8rem;
+        color: var(--warn);
+      }
+
+      .priority-flag {
+        margin-top: 0.4rem;
+        display: inline-block;
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: #be123c;
+        background: rgba(225, 29, 72, 0.09);
+        border: 1px solid rgba(225, 29, 72, 0.25);
+        border-radius: 999px;
+        padding: 0.1rem 0.55rem;
+      }
+
+      .fork-hint {
+        margin-top: 0.4rem;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--accent);
+      }
+
+      .u-hint {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+      }
+
+      /* Verdict buttons (claims + examples) */
+      .verdict-group {
+        display: flex;
+        gap: 0.35rem;
+        margin-bottom: 0.4rem;
+      }
+
+      .verdict-btn {
+        width: 2rem;
+        height: 2rem;
+        border: 1px solid var(--border);
+        background: var(--card-bg);
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.95rem;
+        line-height: 1;
+        color: var(--text-muted);
+        transition: all 0.15s;
+      }
+
+      .verdict-btn:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+
+      .verdict-btn.v-yes.selected {
+        background: var(--status-approved);
+        border-color: var(--status-approved);
+        color: white;
+      }
+      .verdict-btn.v-partly.selected {
+        background: var(--status-review);
+        border-color: var(--status-review);
+        color: white;
+      }
+      .verdict-btn.v-no.selected {
+        background: var(--wrong);
+        border-color: var(--wrong);
+        color: white;
+      }
+
+      /* Row state colouring (agreed / flagged) for claims */
+      #u-table tbody tr[data-state="agreed"] {
+        background: rgba(22, 163, 74, 0.07);
+      }
+      #u-table tbody tr[data-state="flagged"] {
+        background: rgba(225, 29, 72, 0.07);
+      }
+      #u-table tbody tr[data-priority="high"] td:first-child {
+        box-shadow: inset 3px 0 0 #be123c;
+      }
+
+      /* Fork radio options */
+      .fork-opt,
+      .tension-opt {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.45rem;
+        font-size: 0.88rem;
+        padding: 0.3rem 0.4rem;
+        border-radius: 6px;
+        cursor: pointer;
+        margin-bottom: 0.2rem;
+      }
+      .fork-opt:hover,
+      .tension-opt:hover {
+        background: var(--bg);
+      }
+      .fork-opt input,
+      .tension-opt input {
+        margin-top: 0.28rem;
+      }
+      .fork-neither span {
+        color: var(--text-muted);
+      }
+
+      /* Structured correction options */
+      .u-correction {
+        margin-top: 0.25rem;
+      }
+      .correction-options {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        align-items: center;
+        margin-bottom: 0.5rem;
+      }
+      .correction-label {
+        font-size: 0.78rem;
+        color: var(--text-muted);
+        margin-right: 0.15rem;
+      }
+      .correction-opt {
+        border: 1px solid var(--border);
+        background: var(--card-bg);
+        border-radius: 6px;
+        padding: 0.25rem 0.6rem;
+        font-size: 0.82rem;
+        cursor: pointer;
+        color: var(--text);
+        transition: all 0.15s;
+      }
+      .correction-opt:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .correction-opt.selected {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: white;
+      }
+
+      /* Add-a-claim */
+      .add-claim-row {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 0.5rem;
+      }
+      .ghost-btn {
+        background: var(--card-bg);
+        border: 1px dashed var(--accent);
+        color: var(--accent);
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .ghost-btn:hover {
+        background: rgba(37, 99, 235, 0.06);
+      }
+      #u-table tbody tr.added-row {
+        background: rgba(37, 99, 235, 0.05);
+      }
+      textarea.added-text {
+        width: 100%;
+        min-width: 260px;
+        min-height: 2.5rem;
+        padding: 0.5rem;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-family: inherit;
+        font-size: 0.9rem;
+        color: var(--text);
+        resize: vertical;
+      }
+      .remove-added {
+        background: none;
+        border: none;
+        color: var(--wrong);
+        cursor: pointer;
+        font-size: 0.8rem;
+      }
+      .remove-added:hover {
+        text-decoration: underline;
+      }
+
+      /* Recall / success statement */
+      .recall-card {
+        border-left: 4px solid var(--status-review);
+        background: rgba(245, 158, 11, 0.05);
+      }
+      .recall-card h3 {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      textarea#recall-box {
+        width: 100%;
+        min-height: 4rem;
+        padding: 0.6rem;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-family: inherit;
+        font-size: 0.95rem;
+        color: var(--text);
+        resize: vertical;
+      }
+
+      /* Tensions */
+      .tension-card {
+        border-left: 4px solid var(--status-review);
+      }
+      .tension-head {
+        font-weight: 600;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .tension-cols {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin-bottom: 1rem;
+      }
+      .tension-col {
+        padding: 0.85rem 1rem;
+        border-radius: 8px;
+        background: var(--bg);
+      }
+      .tension-col.want {
+        border-top: 3px solid var(--accent);
+      }
+      .tension-col.code {
+        border-top: 3px solid var(--wrong);
+      }
+      .tension-col h4 {
+        margin: 0 0 0.4rem 0;
+      }
+      .tension-col p {
+        margin: 0;
+        font-size: 0.92rem;
+      }
+      .tension-rec {
+        font-size: 0.9rem;
+        background: rgba(37, 99, 235, 0.05);
+        border-radius: 8px;
+        padding: 0.6rem 0.85rem;
+        margin-bottom: 1rem;
+      }
+      .tension-resolve {
+        border-top: 1px solid var(--border);
+        padding-top: 0.85rem;
+      }
+      .resolve-label {
+        display: block;
+        font-weight: 600;
+        font-size: 0.88rem;
+        margin-bottom: 0.5rem;
+      }
+      .tension-card[data-choice] {
+        border-left-color: var(--status-approved);
+      }
+
+      /* Acceptance examples */
+      .example-card {
+        border-left: 4px solid var(--status-approved);
+      }
+      .example-card.ex-counter {
+        border-left-color: var(--wrong);
+      }
+      .ex-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 0.85rem;
+      }
+      .ex-verdict {
+        margin-bottom: 0;
+      }
+      .ex-gwt > div {
+        padding: 0.35rem 0;
+        font-size: 0.93rem;
+        border-bottom: 1px dashed var(--border);
+      }
+      .ex-gwt > div:last-child {
+        border-bottom: none;
+      }
+      .gwt-k {
+        display: inline-block;
+        width: 3.6rem;
+        font-weight: 700;
+        color: var(--text-muted);
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+      .ex-refs {
+        margin-top: 0.5rem;
+        font-size: 0.78rem;
+        color: var(--text-muted);
+      }
+      .example-card[data-verdict="yes"] {
+        background: rgba(22, 163, 74, 0.06);
+      }
+      .example-card[data-verdict="no"] {
+        background: rgba(225, 29, 72, 0.06);
+      }
+
+      .mermaid-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 400px;
+        position: relative;
+      }
+
+      .mermaid {
+        display: flex;
+        justify-content: center;
+      }
+
+      .diagram-toggle-btn {
+        position: absolute;
+        top: 0.75rem;
+        right: 0.75rem;
+        width: 2rem;
+        height: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--text-muted);
+        font-size: 1rem;
+        line-height: 1;
+        cursor: pointer;
+        z-index: 2;
+        transition: all 0.2s;
+      }
+
+      .diagram-toggle-btn:hover {
+        color: var(--accent);
+        border-color: var(--accent);
+      }
+
+      .diagram-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.6);
+        z-index: 999;
+      }
+
+      .diagram-backdrop.active {
+        display: block;
+      }
+
+      body.diagram-lock {
+        overflow: hidden;
+      }
+
+      .mermaid-card.diagram-maximized {
+        position: fixed;
+        inset: 2rem;
+        z-index: 1000;
+        overflow: auto;
+        box-shadow: 0 25px 70px rgba(0, 0, 0, 0.35);
+      }
+
+      .mermaid-card.diagram-maximized .mermaid {
+        width: 100%;
+        height: 100%;
+      }
+
+      .mermaid-card.diagram-maximized .mermaid svg {
+        width: 100% !important;
+        height: 100% !important;
+        max-width: 100% !important;
+        max-height: 100% !important;
+      }
+
+      pre,
+      code {
+        white-space: pre-wrap;
+        word-break: break-all;
+        max-width: 100%;
+        font-family: "Courier New", Courier, monospace;
+      }
+
+      pre {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 1rem;
+        overflow-x: auto;
+        margin-bottom: 1rem;
+        font-size: 0.85rem;
+        line-height: 1.4;
+      }
+
+      code {
+        background: rgba(100, 116, 139, 0.1);
+        padding: 0.2rem 0.4rem;
+        border-radius: 4px;
+        color: #e11d48;
+        font-size: 0.9rem;
+      }
+
+      pre code {
+        background: none;
+        padding: 0;
+        color: var(--text);
+      }
+
+      details {
+        margin-bottom: 1.5rem;
+      }
+
+      details summary {
+        cursor: pointer;
+        font-weight: 600;
+        color: var(--accent);
+        padding: 0.75rem;
+        user-select: none;
+        transition: all 0.2s;
+      }
+
+      details summary:hover {
+        background: var(--bg);
+        border-radius: 6px;
+      }
+
+      details[open] summary {
+        margin-bottom: 1rem;
+      }
+
+      details pre {
+        margin-top: 1rem;
+      }
+
+      .approval-gate {
+        background: rgba(22, 163, 74, 0.1);
+        border-left: 4px solid var(--status-approved);
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        color: var(--status-approved);
+        font-weight: 500;
+        margin-top: 2rem;
+      }
+
+      .ai-overview-card {
+        border-left: 4px solid var(--accent);
+        background: rgba(37, 99, 235, 0.04);
+      }
+
+      .copy-qa-btn {
+        background: var(--accent);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .copy-qa-btn:hover {
+        opacity: 0.9;
+      }
+      .copy-qa-btn.copied {
+        background: var(--status-approved);
+      }
+
+      textarea.oq-answer,
+      textarea.u-note,
+      textarea.t-note,
+      textarea.ex-note {
+        width: 100%;
+        min-width: 200px;
+        min-height: 3rem;
+        padding: 0.5rem;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-family: inherit;
+        font-size: 0.9rem;
+        color: var(--text);
+        resize: vertical;
+      }
+      textarea.u-note,
+      textarea.t-note,
+      textarea.ex-note {
+        min-width: 180px;
+        margin-top: 0.35rem;
+      }
+
+      #sync-widget {
+        position: fixed;
+        right: 1.25rem;
+        bottom: 1.25rem;
+        z-index: 500;
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+        padding: 0.9rem 1rem;
+        width: 250px;
+        font-size: 0.85rem;
+      }
+      #sync-widget .sync-title {
+        font-weight: 600;
+        margin-bottom: 0.35rem;
+      }
+      #sync-widget .sync-counts {
+        color: var(--text-muted);
+        margin-bottom: 0.5rem;
+      }
+      #sync-widget .sync-bar {
+        height: 6px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        overflow: hidden;
+        margin-bottom: 0.5rem;
+      }
+      #sync-bar-fill {
+        height: 100%;
+        width: 0;
+        background: var(--status-approved);
+        transition: width 0.2s;
+      }
+      .sync-gate {
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-bottom: 0.6rem;
+        color: var(--text-muted);
+      }
+      .sync-gate.warn {
+        color: #be123c;
+      }
+      .sync-gate.ok {
+        color: var(--status-approved);
+      }
+      #copy-review-btn {
+        width: 100%;
+      }
+
+      section,
+      .card {
+        overflow-wrap: break-word;
+        word-break: break-word;
+      }
+
+      @media (max-width: 900px) {
+        nav#toc {
+          position: static;
+          width: 100%;
+          height: auto;
+          border-right: none;
+          border-bottom: 1px solid var(--border);
+          padding: 1rem;
+          margin-bottom: 1rem;
+        }
+        nav#toc .brand {
+          display: inline-block;
+          margin-right: 2rem;
+        }
+        nav#toc a {
+          display: inline-block;
+          margin: 0 0.5rem;
+          padding: 0.4rem 0.6rem;
+          font-size: 0.85rem;
+        }
+        main {
+          margin-left: 0;
+          padding: 2rem 1rem;
+        }
+        header h1 {
+          font-size: 1.5rem;
+        }
+        .tension-cols {
+          grid-template-columns: 1fr;
+        }
+        #sync-widget {
+          right: 0.75rem;
+          bottom: 0.75rem;
+          width: 210px;
+          padding: 0.7rem 0.8rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <nav id="toc">
+      <span class="brand">🧠 Understanding</span>
+      <a href="#s-overview">★ At a Glance</a>
+      <a href="#s0">0 · Document Control</a>
+      <a href="#s1">1 · The Concept</a>
+      <a href="#s2">2 · The Code Today</a>
+      <a href="#s3">3 · The Change</a>
+      <a href="#s4">4 · Acceptance Examples</a>
+      <a href="#s5">5 · Understanding Checklist</a>
+      <a href="#s6">6 · Tensions</a>
+      <a href="#s7">7 · Scope</a>
+      <a href="#s8">8 · Open Questions</a>
+      <a href="#s9">9 · Risks</a>
+      <a href="#s10">10 · Implementation Sketch</a>
+    </nav>
+
+    <main>
+      <header>
+        <h1>🧠 Shared Understanding — Brownfield Adoption for Existing, Unmarked, Non-Standard-Path Services</h1>
+        <p class="subtitle">A single unified command (extending scaffold bootstrap-markers) that scans an existing codebase, auto-generates a path mapping from the pack&#039;s declared targets/injections to real repo files, persists it in .scaffold/config.json, inserts markers, and makes the enforcement hooks mapping-aware. · scaffold-toolkit · packages/core (TypeScript ESM) · packages/adapter-claude-code hooks · packages/templates-dotnet</p>
+      </header>
+
+      <section id="s-overview">
+        <h2>🤖 At a Glance — Do We Agree on the Goal?</h2>
+        <div class="card ai-overview-card">
+          <h3>My understanding of what you want</h3>
+          <p><strong>Approved.</strong> One unified command (extending <code>scaffold bootstrap-markers</code> in place, not a second parallel <code>scaffold adopt</code>) scans a brownfield repo, and for each entry a synced pack descriptor already declares in <code>targets[].output</code>/<code>injections[].file</code>, resolves and persists a mapping to the real file in <code>.scaffold/config.json</code> per pack slot. Confident matches are written immediately (mapping + empty <code>SCAFFOLD:&lt;marker&gt;</code> pairs); ambiguous ones are left flagged/unmapped in the same config file for the user to fill in by hand &mdash; no blocking per-file confirmation prompt. Path-layout differences (e.g. <code>Services/</code> vs. the pack's hardcoded convention) are solved the same way: a resolved <code>pathConfig</code>/<code>companyProjectName</code> block persisted per pack slot, read automatically by every subsequent <code>generate</code> and <code>check-edit</code> call, replacing the old per-manifest-only convention. <code>collectPackOwnership.ts</code> and the PreToolUse/PostToolUse/Stop hooks now consult that persisted mapping, so an adopted file is gated identically to a freshly scaffold-generated one. Where the mapper can't confidently place a marker inside a resolved file (no cataloged anchor, no pack-declared <code>bootstrapAnchors[]</code>), the command refuses and reports <code>needsManual</code> rather than guessing &mdash; never a speculative whole-file wrap. This ships CLI-only: the user runs it themselves, with no wiring into the Claude Code adapter's SKILL.md agent-driven workflow.</p>
+        </div>
+        <div class="card recall-card">
+          <h3>✍️ Your turn — success in your own words</h3>
+          <p class="u-hint">
+            Before trusting my summary, write what a correct result looks like
+            to you, in a sentence or two. If your words and mine diverge, that
+            gap is the most important thing on this page. Your text is included
+            in the copied review so I can reconcile the two.
+          </p>
+          <textarea
+            id="recall-box"
+            placeholder="In my words, this is done when…"
+          ></textarea>
+        </div>
+      </section>
+
+      <section id="s0">
+        <h2>0 · Document Control</h2>
+        <div class="status-banner approved">
+          <strong>Status:</strong> APPROVED — READY FOR IMPLEMENTATION ·
+          <strong>Version:</strong> v3 ·
+          <strong>Last Updated:</strong> 2026-07-12 ·
+          <strong>Author:</strong> claude-sonnet-5
+        </div>
+
+        <div class="card">
+          <h3>Revision Log</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Version</th>
+                  <th>Date</th>
+                  <th>Summary of Changes</th>
+                  <th>Driven By</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>v1</td><td>2026-07-12</td><td>First generation from repo research.</td><td>First generation</td></tr>
+<tr><td>v2</td><td>2026-07-12</td><td>Merged bootstrap-markers and the proposed adoption command into a single unified command per user correction (new claim U13, resolves OQ1). Mapper reframed as descriptor-driven (targets[].output/injections[].file entries mapped to real repo paths, persisted in .scaffold/config.json) rather than heuristic anchor-discovery (U8 corrected). Confirmed U9&#039;s fork choice (persisted per-repo pathConfig). Corrected U6 with a concrete empty-string-path example, U7 to auto-generate-and-persist rather than propose-then-confirm, U11 to bring the enforcement hooks into scope. Resolved OQ1 and OQ3; OQ2 and OQ4 remain open. All 8 confirmed claims re-tagged source:user/confidence:high. All six acceptance examples approved as binding.</td><td>User review pass v1</td></tr>
+<tr><td>v3</td><td>2026-07-12</td><td>All 13 claims confirmed by user. Tensions resolved: T1 to descriptor-driven mapper scoping, T2 to auto-generate-and-persist with flagged ambiguous entries, T3 to a persisted pathConfig/companyProjectName block per pack slot in .scaffold/config.json. OQ2 resolved: refuse and require explicit bootstrapAnchors, no speculative whole-file-wrap fallback. OQ4 resolved: CLI-only, no SKILL.md/agent wiring. Status moved to APPROVED — READY FOR IMPLEMENTATION.</td><td>User review pass v2 — approved</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="approval-gate">
+          <strong>Approval Gate:</strong> Implementation begins only after every
+          high-stakes claim in Section 5 is verdicted, every tension is resolved,
+          the acceptance examples you approve are agreed as binding, and you flip
+          this document to APPROVED. Matching mental models is the deliverable
+          here; code comes later.
+        </div>
+      </section>
+
+      <section id="s1">
+        <h2>1 · The Concept, In My Own Words</h2>
+        <div class='card'><p>Right now, <code>scaffold generate</code> assumes a greenfield or already-scaffolded target: every file it writes into is either brand new, or an existing file that <em>scaffold itself</em> put markers into on a prior run. The moment you point it at a real brownfield repo &mdash; one with an <code>OrdersController.cs</code> that a human wrote by hand two years ago, no markers, possibly not even matching the pack's expected directory layout &mdash; two independent things break at once: (1) the injector can't find the marker it's looking for and aborts the whole run with zero writes, and (2) even if markers existed, <code>check-edit</code>'s ownership detection is a pure path-pattern match against the pack's hardcoded template, so a file at the wrong path is invisible to the ownership system no matter what's inside it.</p><p>The approved design is deliberately a <strong>single</strong> command: <code>scaffold bootstrap-markers</code> is extended in place to absorb both problems (mapping real files to the pack's declared targets/injections, and inserting the markers those files need) rather than adding a second, parallel <code>scaffold adopt</code>. It writes confident matches immediately and never guesses on ambiguous ones &mdash; a file with no clear anchor is reported <code>needsManual</code>, full stop, matching the existing bootstrap-markers philosophy.</p></div>
+      </section>
+
+      <section id="s2">
+        <h2>2 · What the Code Does Today</h2>
+        <div class='card'><p>Two mechanisms exist today, and neither solves brownfield adoption in general:</p><p><strong>Ownership detection</strong> (<code>packages/core/src/checkEdit/collectPackOwnership.ts:32-71</code>) reverse-compiles every configured pack's <code>targets[].output</code> and <code>injections[].file</code> Handlebars path templates into regexes, and tests candidate paths against them on every <code>check-edit</code> call. There is no persisted "here are the files we own" list &mdash; ownership is recomputed from the pack descriptor every time. A file whose real path doesn't match the template (wrong directory convention) is simply invisible to this system: <code>packOwned: false</code>, same as a file the pack has nothing to do with.</p><p><strong>Marker bootstrapping</strong> (<code>packages/core/src/bootstrapMarkers/bootstrapMarkers.ts</code>) is the one real brownfield primitive that exists. It walks a fixed catalog of 4 dotnet pack versions (<code>anchorCatalog.ts:91-104</code>), each mapped to a handful of specific filenames (<code>Program.cs</code>, <code>AppDbContext.cs</code>, a DI extensions file), finds a single unambiguous anchor point via regex or brace-matching, and splices in <em>empty</em> marker pairs &mdash; never marker content. It refuses to touch dirty or untracked files (<code>gitSafety.ts:49-61</code>) and reports ambiguous matches as <code>needsManual</code> rather than guessing. This is exactly the git-safety and anchor-placement machinery the approved unified command reuses and extends.</p><pre class='mermaid'>flowchart TD
+  A[Existing repo file] --> B{In ANCHOR_CATALOG\nfor this pack version?}
+  B -- No --> C[unsupportedPacks: skipped entirely]
+  B -- Yes --> D{Git-tracked and clean?}
+  D -- No --> E[needsManual: untouched]
+  D -- Yes --> F{Exactly one anchor match?}
+  F -- No 0 or 2+ --> E
+  F -- Yes --> G[Insert empty SCAFFOLD marker pair]
+  G --> H[scaffold generate can now inject into this file]</pre></div>
+      </section>
+
+      <section id="s3">
+        <h2>3 · The Change — Before → After</h2>
+        <div class='card'><table><tr><th></th><th>Before (today)</th><th>After (approved, v3)</th></tr><tr><td>Existing file, no marker, in anchor catalog</td><td><code>bootstrap-markers</code> inserts empty marker shell for a handful of infra files only, as its own separate command</td><td>Same marker-insertion logic, absorbed into <code>bootstrap-markers</code> extended in place</td></tr><tr><td>Existing service file, no marker, <strong>not</strong> in anchor catalog, no pack-declared bootstrapAnchors</td><td>No path exists; file stays invisible to <code>check-edit</code>, and any <code>generate</code> touching it hard-fails the whole run</td><td>Reported <code>needsManual</code> — never a speculative marker or whole-file wrap (OQ2, resolved)</td></tr><tr><td>Path layout mismatch (e.g. <code>Services/</code> vs pack's hardcoded path)</td><td>Per-manifest, unvalidated <code>pathConfig</code> override; must be resupplied on every <code>generate</code> call; silent empty-string on typos</td><td><code>bootstrap-markers</code> auto-generates the mapping/pathConfig override and persists it once to <code>.scaffold/config.json</code> per pack slot (T3, resolved); user can hand-edit anytime</td></tr><tr><td>Ambiguous/unmatched files during a repo-wide scan</td><td>N/A &mdash; no repo-wide scan exists</td><td>Left as flagged/unmapped entries in <code>.scaffold/config.json</code>; run still succeeds and persists mappings for everything else (T2, resolved)</td></tr><tr><td>PreToolUse/PostToolUse/Stop hooks on an adopted file</td><td>N/A &mdash; adoption doesn't exist, so this case can't occur</td><td>Hooks consult the persisted mapping (not just the descriptor template) so an adopted file is gated identically to a scaffold-generated one</td></tr></table><pre class='mermaid'>flowchart LR
+  A[scaffold bootstrap-markers, extended] --> B[Scan repo for files matching descriptor's targets/injections entries]
+  B --> C[Auto-generate mapping: descriptor entry -> real repo path]
+  C --> D{Confident match?}
+  D -- Yes --> E[Persist mapping to .scaffold/config.json + insert empty SCAFFOLD markers]
+  D -- No --> F[Leave flagged/unmapped, report needsManual]
+  E --> G[collectPackOwnership.ts reads persisted mapping]
+  G --> H[check-edit reports adopted files as packOwned]
+  H --> I[PreToolUse/PostToolUse/Stop hooks gate adopted files same as generated ones]</pre></div>
+      </section>
+
+      <section id="s4">
+        <h2>4 · Acceptance Examples — Sign Off the Behaviour</h2>
+        <p class="u-hint">
+          Each example is a concrete input → outcome I believe you want (or, for a
+          counter-example, one that must NOT happen). Mark ✓ if that's the behaviour
+          you expect, ✗ if the outcome is wrong. The ones you ✓ become the binding
+          acceptance criteria the implementation is graded against — this is where
+          understanding turns into something testable.
+        </p>
+        <div class="card example-card ex-example" data-id="E1" data-example="Given A brownfield dotnet repo has an existing OrdersController.cs with real business logic, no SCAFFOLD markers, using pack v8-controller, and the file&#039;s path already matches the pack&#039;s targets[].output template exactly.; When The user runs the unified bootstrap/adopt command against this repo/entity.; Then The command inserts empty SCAFFOLD:&lt;marker&gt;:START/END pairs at the correct injection points inside the existing file content (no business logic lines are altered, moved, or deleted), and afterward scaffold check-edit reports the file as packOwned: true."><div class="ex-head"><span class="badge kind-example">E1 · must happen</span><div class="verdict-group ex-verdict"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Right — this is the behaviour I want">✓</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong outcome">✗</button></div></div><div class="ex-gwt"><div><span class="gwt-k">Given</span> A brownfield dotnet repo has an existing OrdersController.cs with real business logic, no SCAFFOLD markers, using pack v8-controller, and the file&#039;s path already matches the pack&#039;s targets[].output template exactly.</div><div><span class="gwt-k">When</span> The user runs the unified bootstrap/adopt command against this repo/entity.</div><div><span class="gwt-k">Then</span> The command inserts empty SCAFFOLD:&lt;marker&gt;:START/END pairs at the correct injection points inside the existing file content (no business logic lines are altered, moved, or deleted), and afterward scaffold check-edit reports the file as packOwned: true.</div></div><div class="ex-refs">Pins claims: U1, U3, U8, U10</div><textarea class="ex-note" name="exnote-E1" rows="2" placeholder="What should the outcome be instead?" hidden></textarea></div>
+<div class="card example-card ex-example" data-id="E2" data-example="Given The same repo instead stores controllers under Services/ (not src/{{companyProjectName}}.Api/{{pathConfig.apiControllers}}/ as v8-controller&#039;s descriptor hardcodes).; When The user runs the unified bootstrap/adopt command.; Then The command detects the path mismatch, auto-generates a pathConfig-style override (e.g. apiControllers: &quot;../../Services&quot;) and persists it to .scaffold/config.json so that both a subsequent scaffold generate and scaffold check-edit resolve the same real path without the user resupplying pathConfig on every manifest; the user can open .scaffold/config.json and hand-adjust the value at any time."><div class="ex-head"><span class="badge kind-example">E2 · must happen</span><div class="verdict-group ex-verdict"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Right — this is the behaviour I want">✓</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong outcome">✗</button></div></div><div class="ex-gwt"><div><span class="gwt-k">Given</span> The same repo instead stores controllers under Services/ (not src/{{companyProjectName}}.Api/{{pathConfig.apiControllers}}/ as v8-controller&#039;s descriptor hardcodes).</div><div><span class="gwt-k">When</span> The user runs the unified bootstrap/adopt command.</div><div><span class="gwt-k">Then</span> The command detects the path mismatch, auto-generates a pathConfig-style override (e.g. apiControllers: &quot;../../Services&quot;) and persists it to .scaffold/config.json so that both a subsequent scaffold generate and scaffold check-edit resolve the same real path without the user resupplying pathConfig on every manifest; the user can open .scaffold/config.json and hand-adjust the value at any time.</div></div><div class="ex-refs">Pins claims: U6, U9</div><textarea class="ex-note" name="exnote-E2" rows="2" placeholder="What should the outcome be instead?" hidden></textarea></div>
+<div class="card example-card ex-counter" data-id="E3" data-example="Given A brownfield repo has 12 existing service files, 3 of which have ambiguous or no clear single insertion point for a marker (e.g. multiple candidate anchor lines, or the file doesn&#039;t match any known pack pattern at all).; When The user runs the unified bootstrap/adopt command against the whole repo.; Then The command must NOT guess and insert markers at a wrong or arbitrary location for those 3 files; it leaves them flagged/unmapped in .scaffold/config.json (mirroring bootstrap-markers&#039; existing needsManual behavior) while still succeeding and persisting mappings for the other 9, rather than aborting the entire run or silently skipping the ambiguous ones without telling the user."><div class="ex-head"><span class="badge kind-counter">E3 · must NOT happen</span><div class="verdict-group ex-verdict"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Right — this is the behaviour I want">✓</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong outcome">✗</button></div></div><div class="ex-gwt"><div><span class="gwt-k">Given</span> A brownfield repo has 12 existing service files, 3 of which have ambiguous or no clear single insertion point for a marker (e.g. multiple candidate anchor lines, or the file doesn&#039;t match any known pack pattern at all).</div><div><span class="gwt-k">When</span> The user runs the unified bootstrap/adopt command against the whole repo.</div><div><span class="gwt-k">Then</span> The command must NOT guess and insert markers at a wrong or arbitrary location for those 3 files; it leaves them flagged/unmapped in .scaffold/config.json (mirroring bootstrap-markers&#039; existing needsManual behavior) while still succeeding and persisting mappings for the other 9, rather than aborting the entire run or silently skipping the ambiguous ones without telling the user.</div></div><div class="ex-refs">Pins claims: U5, U7</div><textarea class="ex-note" name="exnote-E3" rows="2" placeholder="What should the outcome be instead?" hidden></textarea></div>
+<div class="card example-card ex-counter" data-id="E4" data-example="Given A brownfield repo has uncommitted local changes (dirty working tree) in a file the unified command wants to insert markers into.; When The user runs the unified bootstrap/adopt command.; Then The command must NOT modify that file; consistent with bootstrap-markers&#039; existing git-safety-net behavior, it reports the file as needing manual handling (commit or stash first) rather than writing into a dirty file."><div class="ex-head"><span class="badge kind-counter">E4 · must NOT happen</span><div class="verdict-group ex-verdict"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Right — this is the behaviour I want">✓</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong outcome">✗</button></div></div><div class="ex-gwt"><div><span class="gwt-k">Given</span> A brownfield repo has uncommitted local changes (dirty working tree) in a file the unified command wants to insert markers into.</div><div><span class="gwt-k">When</span> The user runs the unified bootstrap/adopt command.</div><div><span class="gwt-k">Then</span> The command must NOT modify that file; consistent with bootstrap-markers&#039; existing git-safety-net behavior, it reports the file as needing manual handling (commit or stash first) rather than writing into a dirty file.</div></div><div class="ex-refs">Pins claims: U5</div><textarea class="ex-note" name="exnote-E4" rows="2" placeholder="What should the outcome be instead?" hidden></textarea></div>
+<div class="card example-card ex-example" data-id="E5" data-example="Given A repo has already been adopted (mapping persisted, pathConfig recorded, markers inserted) for entity Orders.; When The user later runs scaffold generate for a new entity, Customers, using the same pack slot.; Then generate resolves Customers&#039; target/injection paths using the same persisted pathConfig from .scaffold/config.json without the manifest needing to repeat pathConfig/companyProjectName values — the adoption-time configuration applies to every future generate call on that pack slot, not just the entity adopted at the time."><div class="ex-head"><span class="badge kind-example">E5 · must happen</span><div class="verdict-group ex-verdict"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Right — this is the behaviour I want">✓</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong outcome">✗</button></div></div><div class="ex-gwt"><div><span class="gwt-k">Given</span> A repo has already been adopted (mapping persisted, pathConfig recorded, markers inserted) for entity Orders.</div><div><span class="gwt-k">When</span> The user later runs scaffold generate for a new entity, Customers, using the same pack slot.</div><div><span class="gwt-k">Then</span> generate resolves Customers&#039; target/injection paths using the same persisted pathConfig from .scaffold/config.json without the manifest needing to repeat pathConfig/companyProjectName values — the adoption-time configuration applies to every future generate call on that pack slot, not just the entity adopted at the time.</div></div><div class="ex-refs">Pins claims: U9</div><textarea class="ex-note" name="exnote-E5" rows="2" placeholder="What should the outcome be instead?" hidden></textarea></div>
+<div class="card example-card ex-counter" data-id="E6" data-example="Given A pack slot has never been synced (no version folder present, or descriptor fails to load) at the time the unified command is run.; When The user runs the unified bootstrap/adopt command for that pack slot.; Then The command must NOT silently treat every file in the repo as unowned/adoptable; it should surface the sync/descriptor-load failure explicitly rather than inheriting check-edit&#039;s existing fail-open-per-slot behavior, since fail-open is appropriate for a live edit-time gate but not for a one-time adoption decision that gets persisted."><div class="ex-head"><span class="badge kind-counter">E6 · must NOT happen</span><div class="verdict-group ex-verdict"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Right — this is the behaviour I want">✓</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong outcome">✗</button></div></div><div class="ex-gwt"><div><span class="gwt-k">Given</span> A pack slot has never been synced (no version folder present, or descriptor fails to load) at the time the unified command is run.</div><div><span class="gwt-k">When</span> The user runs the unified bootstrap/adopt command for that pack slot.</div><div><span class="gwt-k">Then</span> The command must NOT silently treat every file in the repo as unowned/adoptable; it should surface the sync/descriptor-load failure explicitly rather than inheriting check-edit&#039;s existing fail-open-per-slot behavior, since fail-open is appropriate for a live edit-time gate but not for a one-time adoption decision that gets persisted.</div></div><div class="ex-refs">Pins claims: U2</div><textarea class="ex-note" name="exnote-E6" rows="2" placeholder="What should the outcome be instead?" hidden></textarea></div>
+      </section>
+
+      <section id="s5">
+        <h2>5 · Understanding Checklist — Confirm, Correct, or Fork Each Claim</h2>
+        <div class="card">
+          <p class="u-hint">
+            Each row is one claim I hold about your concept or your code. Mark it
+            ✓ correct, ≈ partly right, or ✗ wrong (and pick the right answer or
+            leave a note). Some rows are <strong>forks</strong> — I read them more
+            than one way, so choose the intended reading. Rows flagged
+            <strong>high stakes</strong> matter most: confirm those first. If I
+            missed something entirely, add it with the button below the table.
+          </p>
+          <div class="table-wrap">
+            <table id="u-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Area</th>
+                  <th>What I Understand</th>
+                  <th>Source</th>
+                  <th>Confidence</th>
+                  <th>Your Verdict</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr data-id="U1" data-statement="&quot;Adoption&quot; means bringing pre-existing service files under scaffold&#039;s pack-ownership model (so check-edit&#039;s PreToolUse gate protects them and generate can later inject into them), without deleting or rewriting the business logic already in those files."><td>U1</td><td>Concept</td><td class="u-statement"><div>&quot;Adoption&quot; means bringing pre-existing service files under scaffold&#039;s pack-ownership model (so check-edit&#039;s PreToolUse gate protects them and generate can later inject into them), without deleting or rewriting the business logic already in those files.</div><div class="u-impact">⚠ If wrong: If adoption instead meant regenerating/replacing those files from the pack&#039;s templates, the whole design (markers, mapping, path aliasing) would be unnecessary and a much simpler &quot;start fresh&quot; flow would suffice.</div></td><td><span class="badge src-user">you said</span></td><td><span class="badge conf-high">high</span></td><td class="u-verdict"><div class="verdict-group"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Correct">✓</button><button type="button" class="verdict-btn v-partly" data-verdict="partly" title="Partly right">≈</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong">✗</button></div><div class="u-correction" hidden><textarea class="u-note" name="note-U1" rows="2" placeholder="What's off? Correct me…"></textarea></div></td></tr>
+<tr data-id="U2" data-statement="check-edit today decides pack ownership purely by testing a candidate path against regexes reverse-compiled from the pack descriptor&#039;s targets[].output and injections[].file Handlebars templates — there is no persisted list of &quot;owned files&quot; anywhere."><td>U2</td><td>Code</td><td class="u-statement"><div>check-edit today decides pack ownership purely by testing a candidate path against regexes reverse-compiled from the pack descriptor&#039;s targets[].output and injections[].file Handlebars templates — there is no persisted list of &quot;owned files&quot; anywhere.</div><div class="u-evidence">📎 packages/core/src/checkEdit/collectPackOwnership.ts:32-71, packages/core/src/checkEdit/checkEdit.ts:10-28</div></td><td><span class="badge src-user">you said</span></td><td><span class="badge conf-high">high</span></td><td class="u-verdict"><div class="verdict-group"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Correct">✓</button><button type="button" class="verdict-btn v-partly" data-verdict="partly" title="Partly right">≈</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong">✗</button></div><div class="u-correction" hidden><textarea class="u-note" name="note-U2" rows="2" placeholder="What's off? Correct me…"></textarea></div></td></tr>
+<tr data-id="U3" data-statement="scaffold generate hard-fails the entire invocation (writes nothing) if any target file the current manifest touches lacks its expected SCAFFOLD:&lt;marker&gt;:START/END pair — there is no skip-this-file or best-effort mode."><td>U3</td><td>Code</td><td class="u-statement"><div>scaffold generate hard-fails the entire invocation (writes nothing) if any target file the current manifest touches lacks its expected SCAFFOLD:&lt;marker&gt;:START/END pair — there is no skip-this-file or best-effort mode.</div><div class="u-evidence">📎 packages/core/src/generate/injector.ts:136-141 (scanMarkers call), packages/core/src/generate/markerScan.ts:68-94 (MarkerScanError cases), packages/core/src/cli.ts:171-178 (process.exit(1) on uncaught error)</div></td><td><span class="badge src-user">you said</span></td><td><span class="badge conf-high">high</span></td><td class="u-verdict"><div class="verdict-group"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Correct">✓</button><button type="button" class="verdict-btn v-partly" data-verdict="partly" title="Partly right">≈</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong">✗</button></div><div class="u-correction" hidden><textarea class="u-note" name="note-U3" rows="2" placeholder="What's off? Correct me…"></textarea></div></td></tr>
+<tr data-id="U4" data-statement="scaffold bootstrap-markers only inserts empty marker shells for a fixed catalog of 4 dotnet pack versions (or a pack&#039;s own declared bootstrapAnchors[]), targeting a small fixed set of filenames like Program.cs — it does not create, rename, or relocate any targets[] file (controllers, DTOs, entities, generic &quot;services&quot;)."><td>U4</td><td>Code</td><td class="u-statement"><div>scaffold bootstrap-markers only inserts empty marker shells for a fixed catalog of 4 dotnet pack versions (or a pack&#039;s own declared bootstrapAnchors[]), targeting a small fixed set of filenames like Program.cs — it does not create, rename, or relocate any targets[] file (controllers, DTOs, entities, generic &quot;services&quot;).</div><div class="u-evidence">📎 packages/core/src/bootstrapMarkers/anchorCatalog.ts:63-104 (ANCHOR_CATALOG, candidateFilenames), packages/core/src/bootstrapMarkers/bootstrapMarkers.ts:5-6 (never writes marker content)</div></td><td><span class="badge src-user">you said</span></td><td><span class="badge conf-high">high</span></td><td class="u-verdict"><div class="verdict-group"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Correct">✓</button><button type="button" class="verdict-btn v-partly" data-verdict="partly" title="Partly right">≈</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong">✗</button></div><div class="u-correction" hidden><textarea class="u-note" name="note-U4" rows="2" placeholder="What's off? Correct me…"></textarea></div></td></tr>
+<tr data-id="U5" data-statement="bootstrap-markers only modifies files that are git-tracked and clean; a dirty or untracked candidate is reported as needsManual and left untouched, never silently modified."><td>U5</td><td>Code</td><td class="u-statement"><div>bootstrap-markers only modifies files that are git-tracked and clean; a dirty or untracked candidate is reported as needsManual and left untouched, never silently modified.</div><div class="u-evidence">📎 packages/core/src/bootstrapMarkers/gitSafety.ts:49-61, packages/core/src/bootstrapMarkers/bootstrapMarkers.ts:229-233</div></td><td><span class="badge src-user">you said</span></td><td><span class="badge conf-high">high</span></td><td class="u-verdict"><div class="verdict-group"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Correct">✓</button><button type="button" class="verdict-btn v-partly" data-verdict="partly" title="Partly right">≈</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong">✗</button></div><div class="u-correction" hidden><textarea class="u-note" name="note-U5" rows="2" placeholder="What's off? Correct me…"></textarea></div></td></tr>
+<tr data-id="U6" data-statement="pathConfig and companyProjectName aren&#039;t declared in any schema (not manifest/types.ts, not descriptor/schema.ts) — they&#039;re plain JSON keys a manifest author types by convention, matched only by the literal {{pathConfig.apiControllers}} text baked into a pack&#039;s .hbs template. Concrete example: generate a manifest for entity Orders without setting pathConfig.apiControllers, and Handlebars doesn&#039;t error — it renders the missing property as an empty string, so the target resolves to src/Foo.Api//OrdersController.cs (double slash) instead of failing loudly. And because this value lives inside one manifest JSON file rather than .scaffold/config.json, the same pathConfig block must be re-typed into every future manifest (e.g. adding a Customers entity next month) or the silent-empty-string bug recurs."><td>U6</td><td>Code</td><td class="u-statement"><div>pathConfig and companyProjectName aren&#039;t declared in any schema (not manifest/types.ts, not descriptor/schema.ts) — they&#039;re plain JSON keys a manifest author types by convention, matched only by the literal {{pathConfig.apiControllers}} text baked into a pack&#039;s .hbs template. Concrete example: generate a manifest for entity Orders without setting pathConfig.apiControllers, and Handlebars doesn&#039;t error — it renders the missing property as an empty string, so the target resolves to src/Foo.Api//OrdersController.cs (double slash) instead of failing loudly. And because this value lives inside one manifest JSON file rather than .scaffold/config.json, the same pathConfig block must be re-typed into every future manifest (e.g. adding a Customers entity next month) or the silent-empty-string bug recurs.</div><div class="u-evidence">📎 packages/core/src/manifest/schema.ts:26 (additionalProperties: true), packages/core/src/generate/generate.ts:58-74 (buildHandlebarsContext spreads the whole manifest), packages/templates-dotnet/v8-controller/manifest.templates.json:7-19 (pathConfig defaults)</div><div class="u-impact">⚠ If wrong: A brownfield adoption feature that relies on pathConfig alone inherits its silent-empty-string failure mode — a project could end up with malformed paths with no error surfaced.</div></td><td><span class="badge src-user">you said</span></td><td><span class="badge conf-high">high</span></td><td class="u-verdict"><div class="verdict-group"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Correct">✓</button><button type="button" class="verdict-btn v-partly" data-verdict="partly" title="Partly right">≈</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong">✗</button></div><div class="u-correction" hidden><textarea class="u-note" name="note-U6" rows="2" placeholder="What's off? Correct me…"></textarea></div></td></tr>
+<tr data-id="U7" data-statement="The unified command auto-generates a path mapping between the existing project&#039;s real files and the pack&#039;s declared targets[].output / injections[].file entries, and persists that mapping into .scaffold/config.json — the user can inspect and hand-edit the mapping at any time afterward, rather than being walked through a per-file confirmation step before anything is written."><td>U7</td><td>Change</td><td class="u-statement"><div>The unified command auto-generates a path mapping between the existing project&#039;s real files and the pack&#039;s declared targets[].output / injections[].file entries, and persists that mapping into .scaffold/config.json — the user can inspect and hand-edit the mapping at any time afterward, rather than being walked through a per-file confirmation step before anything is written.</div><div class="u-impact">⚠ If wrong: An auto-generated mapping that&#039;s wrong gets persisted and relied upon by every subsequent generate/check-edit call until the user manually corrects .scaffold/config.json — there&#039;s no per-file interactive gate to catch a bad match before it&#039;s written.</div></td><td><span class="badge src-user">you said</span></td><td><span class="badge conf-high">high</span></td><td class="u-verdict"><div class="verdict-group"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Correct">✓</button><button type="button" class="verdict-btn v-partly" data-verdict="partly" title="Partly right">≈</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong">✗</button></div><div class="u-correction" hidden><textarea class="u-note" name="note-U7" rows="2" placeholder="What's off? Correct me…"></textarea></div></td></tr>
+<tr data-id="U8" data-statement="The mapper is keyed to the pack descriptor&#039;s own declared targets[].output and injections[].file template entries — for each such entry, it resolves a concrete repo-relative path in the existing project (auto-detected, user-adjustable) and persists it in .scaffold/config.json, then inserts the appropriate SCAFFOLD:&lt;marker&gt; pair into whichever real file that path resolves to. This reframes marker placement as descriptor-driven path mapping rather than heuristic anchor-discovery across arbitrary, unknown files."><td>U8</td><td>Change</td><td class="u-statement"><div>The mapper is keyed to the pack descriptor&#039;s own declared targets[].output and injections[].file template entries — for each such entry, it resolves a concrete repo-relative path in the existing project (auto-detected, user-adjustable) and persists it in .scaffold/config.json, then inserts the appropriate SCAFFOLD:&lt;marker&gt; pair into whichever real file that path resolves to. This reframes marker placement as descriptor-driven path mapping rather than heuristic anchor-discovery across arbitrary, unknown files.</div><div class="u-evidence">📎 packages/templates-dotnet/v8-controller/manifest.templates.json:20-379 (targets[]/injections[] — the descriptor&#039;s exhaustive, closed list of what the pack cares about), packages/core/src/checkEdit/collectPackOwnership.ts:59-65 (existing precedent for iterating descriptor.targets/descriptor.injections)</div><div class="u-impact">⚠ If wrong: The anchor-detection problem is now scoped only to *where inside* an already-identified mapped file the marker goes, not *which* files are pack-relevant in the first place — the descriptor already enumerates that exhaustively.</div></td><td><span class="badge src-user">you said</span></td><td><span class="badge conf-high">high</span></td><td class="u-verdict"><div class="verdict-group"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Correct">✓</button><button type="button" class="verdict-btn v-partly" data-verdict="partly" title="Partly right">≈</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong">✗</button></div><div class="u-correction" hidden><textarea class="u-note" name="note-U8" rows="2" placeholder="What's off? Correct me…"></textarea></div></td></tr>
+<tr data-id="U9" data-statement="Path-structure migration (e.g. a project uses Services/ where the pack expects src/{{companyProjectName}}.Api/{{pathConfig.apiControllers}}/) is solved by persisting pathConfig-style overrides into .scaffold/config.json per pack slot, read automatically by every subsequent generate call — not a per-manifest field the user must resupply, and not a requirement to physically relocate existing files to match the pack&#039;s hardcoded convention."><td>U9</td><td>Change</td><td class="u-statement"><div>Path-structure migration (e.g. a project uses Services/ where the pack expects src/{{companyProjectName}}.Api/{{pathConfig.apiControllers}}/) is solved by persisting pathConfig-style overrides into .scaffold/config.json per pack slot, read automatically by every subsequent generate call — not a per-manifest field the user must resupply, and not a requirement to physically relocate existing files to match the pack&#039;s hardcoded convention.</div><div class="u-evidence">📎 packages/templates-dotnet/v8-controller/manifest.templates.json:7-19 (pathConfig as it exists today, per-manifest only)</div></td><td><span class="badge src-user">you said</span></td><td><span class="badge conf-high">high</span></td><td class="u-verdict"><div class="verdict-group"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Correct">✓</button><button type="button" class="verdict-btn v-partly" data-verdict="partly" title="Partly right">≈</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong">✗</button></div><div class="u-correction" hidden><textarea class="u-note" name="note-U9" rows="2" placeholder="What's off? Correct me…"></textarea></div></td></tr>
+<tr data-id="U10" data-statement="Adoption should never modify the runtime behavior of an existing service&#039;s business logic — marker insertion is purely structural (empty marker pairs / ownership registration), and any subsequent AI_IMPLEMENTATION content fill-in is a separate, explicit step the user or agent takes afterward."><td>U10</td><td>Change</td><td class="u-statement"><div>Adoption should never modify the runtime behavior of an existing service&#039;s business logic — marker insertion is purely structural (empty marker pairs / ownership registration), and any subsequent AI_IMPLEMENTATION content fill-in is a separate, explicit step the user or agent takes afterward.</div><div class="u-evidence">📎 packages/core/src/bootstrapMarkers/bootstrapMarkers.ts:5-6 (existing precedent: never writes marker content)</div></td><td><span class="badge src-user">you said</span></td><td><span class="badge conf-high">high</span></td><td class="u-verdict"><div class="verdict-group"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Correct">✓</button><button type="button" class="verdict-btn v-partly" data-verdict="partly" title="Partly right">≈</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong">✗</button></div><div class="u-correction" hidden><textarea class="u-note" name="note-U10" rows="2" placeholder="What's off? Correct me…"></textarea></div></td></tr>
+<tr data-id="U11" data-statement="The PreToolUse/PostToolUse/Stop hooks must also consult the persisted per-repo mapping (not just the pack descriptor&#039;s own path templates) so that an AI editing an adopted, pre-existing file (e.g. a hand-written OrdersService.cs registered via the mapper) is gated identically to a freshly scaffold-generated file."><td>U11</td><td>Scope</td><td class="u-statement"><div>The PreToolUse/PostToolUse/Stop hooks must also consult the persisted per-repo mapping (not just the pack descriptor&#039;s own path templates) so that an AI editing an adopted, pre-existing file (e.g. a hand-written OrdersService.cs registered via the mapper) is gated identically to a freshly scaffold-generated file.</div><div class="u-evidence">📎 packages/core/src/checkEdit/collectPackOwnership.ts:32-71 (current ownership matchers derive purely from descriptor templates, with no mapping-aware step — this is the extension point)</div><div class="u-impact">⚠ If wrong: Without this, check-edit&#039;s existing path-pattern matching would still report an adopted file as packOwned:false even after adoption registers it, silently defeating the determinism guarantee for every adopted file.</div></td><td><span class="badge src-user">you said</span></td><td><span class="badge conf-high">high</span></td><td class="u-verdict"><div class="verdict-group"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Correct">✓</button><button type="button" class="verdict-btn v-partly" data-verdict="partly" title="Partly right">≈</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong">✗</button></div><div class="u-correction" hidden><textarea class="u-note" name="note-U11" rows="2" placeholder="What's off? Correct me…"></textarea></div></td></tr>
+<tr data-id="U12" data-statement="This applies to any pack (dotnet, react, or a hypothetical future one), not just packages/templates-dotnet, since the underlying gaps (no generic ownership registry, closed anchor catalog, per-manifest-only path overrides) are all in packages/core, not pack-specific code."><td>U12</td><td>Scope</td><td class="u-statement"><div>This applies to any pack (dotnet, react, or a hypothetical future one), not just packages/templates-dotnet, since the underlying gaps (no generic ownership registry, closed anchor catalog, per-manifest-only path overrides) are all in packages/core, not pack-specific code.</div><div class="u-evidence">📎 packages/core/src/checkEdit/collectPackOwnership.ts and packages/core/src/bootstrapMarkers/bootstrapMarkers.ts are both pack-agnostic engine code; anchorCatalog.ts&#039;s fixed catalog is the only pack-specific hardcoding found</div></td><td><span class="badge src-user">you said</span></td><td><span class="badge conf-high">high</span></td><td class="u-verdict"><div class="verdict-group"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Correct">✓</button><button type="button" class="verdict-btn v-partly" data-verdict="partly" title="Partly right">≈</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong">✗</button></div><div class="u-correction" hidden><textarea class="u-note" name="note-U12" rows="2" placeholder="What's off? Correct me…"></textarea></div></td></tr>
+<tr data-id="U13" data-statement="Adoption and marker-bootstrapping must ship as a single command/flag, not two separate commands that each solve half the migration problem — the existing scaffold bootstrap-markers surface and the newly proposed mapping/adoption logic are to be unified into one entry point."><td>U13</td><td>Change</td><td class="u-statement"><div>Adoption and marker-bootstrapping must ship as a single command/flag, not two separate commands that each solve half the migration problem — the existing scaffold bootstrap-markers surface and the newly proposed mapping/adoption logic are to be unified into one entry point.</div><div class="u-impact">⚠ If wrong: Two separate commands force the user to run two steps and manually reconcile their results — exactly the friction this feature exists to remove.</div></td><td><span class="badge src-user">you said</span></td><td><span class="badge conf-high">high</span></td><td class="u-verdict"><div class="verdict-group"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Correct">✓</button><button type="button" class="verdict-btn v-partly" data-verdict="partly" title="Partly right">≈</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong">✗</button></div><div class="u-correction" hidden><textarea class="u-note" name="note-U13" rows="2" placeholder="What's off? Correct me…"></textarea></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="add-claim-row">
+            <button type="button" id="add-claim-btn" class="ghost-btn">
+              ＋ Add a claim I missed
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section id="s6">
+        <h2>6 · Tensions — What You Want vs. What the Code Allows</h2>
+        <p class="u-hint">
+          Reading the code, I found places where your intent and the current
+          reality pull against each other. Rather than silently pick for you, I'm
+          surfacing them: choose how each should resolve. An unresolved tension is
+          a likely source of a surprise later.
+        </p>
+        <div class="card tension-card" data-id="T1" data-summary="A general adoption path that works for any pre-existing service file, in any pack, regardless of directory convention. — vs — bootstrap-markers&#039; only mechanism for finding where to place a marker (its &quot;anchor&quot;) is a closed catalog of 4 hardcoded dotnet PackVersion keys, each keyed to specific filenames like Program.cs and AppDbContext.cs — there is no generic &quot;find the right insertion point in an arbitrary service file&quot; capability anywhere in the engine."><div class="tension-head"><span class="badge tension-badge">T1</span> Tension I found</div><div class="tension-cols"><div class="tension-col want"><h4>You want</h4><p>A general adoption path that works for any pre-existing service file, in any pack, regardless of directory convention.</p></div><div class="tension-col code"><h4>But the code…</h4><p>bootstrap-markers&#039; only mechanism for finding where to place a marker (its &quot;anchor&quot;) is a closed catalog of 4 hardcoded dotnet PackVersion keys, each keyed to specific filenames like Program.cs and AppDbContext.cs — there is no generic &quot;find the right insertion point in an arbitrary service file&quot; capability anywhere in the engine.</p><div class="u-evidence">📎 packages/core/src/bootstrapMarkers/anchorCatalog.ts:63-104</div></div></div><div class="tension-rec"><strong>My recommendation:</strong> RESOLVED (v3): option 4. The mapper works off the descriptor&#039;s own exhaustive target/injection list. Marker placement inside a resolved file follows OQ2&#039;s resolution: refuse and require an explicit pack-declared bootstrapAnchors[] entry rather than guessing.</div><div class="tension-resolve"><span class="resolve-label">Your call:</span><label class="tension-opt"><input type="radio" name="tension-T1" value="0"><span>Extend the pack descriptor schema so any pack (not just the 4 cataloged dotnet versions) can declare bootstrapAnchors[] for its own targets[] files, and have adoption consult the descriptor first, catalog second (catalog becomes a fallback/default for dotnet packs specifically)</span></label><label class="tension-opt"><input type="radio" name="tension-T1" value="1"><span>Build adoption around wrapping the *whole file* in a single marker pair (e.g. inserting SCAFFOLD:&lt;Entity&gt;:START at the top and :END at the bottom) rather than anchoring inside the file&#039;s existing structure — sidesteps the anchor-detection problem entirely at the cost of the injector only ever being able to append/replace, not surgically inject</span></label><label class="tension-opt"><input type="radio" name="tension-T1" value="2"><span>Scope this feature to dotnet packs only for v1 (reuse the existing anchor catalog as-is) and treat generalizing to other packs as a later iteration</span></label><label class="tension-opt"><input type="radio" name="tension-T1" value="3"><span>RESOLVED: scope the mapper entirely to the descriptor&#039;s own declared targets[].output/injections[].file list (a closed, exhaustive set the pack already publishes) — this removes the need to discover *which* files are pack-relevant at all; only *where inside* an already-identified file the marker goes remains open, and that sub-problem is resolved by OQ2 (refuse, never guess)</span></label><label class="tension-opt"><input type="radio" name="tension-T1" value="other"><span>other →</span></label><textarea class="t-note" name="tnote-T1" rows="2" placeholder="How we should resolve it…" hidden></textarea></div></div>
+<div class="card tension-card" data-id="T2" data-summary="Adoption should be safe to run against a real, already-in-production brownfield codebase without risk of silent data loss or corruption. — vs — scaffold generate&#039;s all-or-nothing failure model (a single missing marker aborts the entire invocation with zero writes, per U3) means any adoption tooling built on top of it inherits an unforgiving surface: partial/ambiguous matches in a large adoption run have nowhere graceful to land except bootstrap-markers&#039; existing needsManual bucket, which was designed for a handful of well-known files, not dozens of arbitrary pre-existing services."><div class="tension-head"><span class="badge tension-badge">T2</span> Tension I found</div><div class="tension-cols"><div class="tension-col want"><h4>You want</h4><p>Adoption should be safe to run against a real, already-in-production brownfield codebase without risk of silent data loss or corruption.</p></div><div class="tension-col code"><h4>But the code…</h4><p>scaffold generate&#039;s all-or-nothing failure model (a single missing marker aborts the entire invocation with zero writes, per U3) means any adoption tooling built on top of it inherits an unforgiving surface: partial/ambiguous matches in a large adoption run have nowhere graceful to land except bootstrap-markers&#039; existing needsManual bucket, which was designed for a handful of well-known files, not dozens of arbitrary pre-existing services.</p><div class="u-evidence">📎 packages/core/src/generate/injector.ts:136-141, packages/core/src/cli.ts:171-178</div></div></div><div class="tension-rec"><strong>My recommendation:</strong> RESOLVED (v3): option 4. Confident matches (mapping + empty markers) are written immediately in one command run; ambiguous matches are never guessed — they&#039;re left as flagged/unmapped entries in .scaffold/config.json (git-safety per U5/E4 still applies per file: dirty/untracked candidates are also left unmapped, not modified).</div><div class="tension-resolve"><span class="resolve-label">Your call:</span><label class="tension-opt"><input type="radio" name="tension-T2" value="0"><span>The unified command never calls generate directly during adoption — it only registers ownership/inserts empty markers; generate is invoked separately afterward per-entity once the mapping is confirmed, so generate&#039;s all-or-nothing behavior only ever applies to a scope the user already vetted</span></label><label class="tension-opt"><input type="radio" name="tension-T2" value="1"><span>The unified command produces a mapping report (files matched, markers to insert, needsManual list) that the user must explicitly approve/apply in a second step, never a single implicit action</span></label><label class="tension-opt"><input type="radio" name="tension-T2" value="2"><span>Loosen generate&#039;s all-or-nothing semantics to allow partial success (skip unmatched targets, report them) — this changes existing, already-shipped generate behavior for all users, not just brownfield adopters</span></label><label class="tension-opt"><input type="radio" name="tension-T2" value="3"><span>RESOLVED: auto-generate the mapping and persist it directly to .scaffold/config.json in one step (no blocking confirmation prompt); confident matches are written immediately, ambiguous ones are left as unmapped/flagged entries in the same config file for the user to fill in by hand whenever they choose</span></label><label class="tension-opt"><input type="radio" name="tension-T2" value="other"><span>other →</span></label><textarea class="t-note" name="tnote-T2" rows="2" placeholder="How we should resolve it…" hidden></textarea></div></div>
+<div class="card tension-card" data-id="T3" data-summary="Existing services with a different directory structure than the pack expects should be usable without moving files around. — vs — targets[].output paths are fixed Handlebars strings baked into each pack&#039;s manifest.templates.json (e.g. v8-controller&#039;s src/{{companyProjectName}}.Api/{{pathConfig.apiControllers}}/{{entity}}Controller.cs) and check-edit&#039;s ownership matching is a direct regex test against that same template — if a repo&#039;s real path doesn&#039;t match the template (even after pathConfig substitution), check-edit will never recognize that file as pack-owned in the first place, regardless of what markers are inserted into it."><div class="tension-head"><span class="badge tension-badge">T3</span> Tension I found</div><div class="tension-cols"><div class="tension-col want"><h4>You want</h4><p>Existing services with a different directory structure than the pack expects should be usable without moving files around.</p></div><div class="tension-col code"><h4>But the code…</h4><p>targets[].output paths are fixed Handlebars strings baked into each pack&#039;s manifest.templates.json (e.g. v8-controller&#039;s src/{{companyProjectName}}.Api/{{pathConfig.apiControllers}}/{{entity}}Controller.cs) and check-edit&#039;s ownership matching is a direct regex test against that same template — if a repo&#039;s real path doesn&#039;t match the template (even after pathConfig substitution), check-edit will never recognize that file as pack-owned in the first place, regardless of what markers are inserted into it.</p><div class="u-evidence">📎 packages/templates-dotnet/v8-controller/manifest.templates.json:305, packages/core/src/checkEdit/pathTemplateMatch.ts:20-31</div></div></div><div class="tension-rec"><strong>My recommendation:</strong> RESOLVED (v3): option 1. .scaffold/config.json&#039;s PackConfig gains a persisted pathConfig/companyProjectName block per pack slot, read automatically by generate and check-edit. This is the schema field the per-target/per-injection mapper (U8, T1) writes its resolved real paths alongside.</div><div class="tension-resolve"><span class="resolve-label">Your call:</span><label class="tension-opt"><input type="radio" name="tension-T3" value="0"><span>RESOLVED: persist a resolved pathConfig/companyProjectName block per pack slot into .scaffold/config.json (new schema field) so both check-edit&#039;s ownership matching and generate&#039;s rendering consistently use the repo&#039;s real layout, established once during adoption</span></label><label class="tension-opt"><input type="radio" name="tension-T3" value="1"><span>Add an explicit path-alias table to .scaffold/config.json (concrete existing-path → logical target identity), independent of pathConfig, so ownership matching doesn&#039;t require the Handlebars template to resolve to the real path at all</span></label><label class="tension-opt"><input type="radio" name="tension-T3" value="2"><span>Don&#039;t solve this in code; adoption&#039;s output is documentation/instructions telling the user which manifest pathConfig values to pass on every future generate call</span></label><label class="tension-opt"><input type="radio" name="tension-T3" value="other"><span>other →</span></label><textarea class="t-note" name="tnote-T3" rows="2" placeholder="How we should resolve it…" hidden></textarea></div></div>
+      </section>
+
+      <section id="s7">
+        <h2>7 · Scope Boundaries</h2>
+        <div class='card'><p><strong>In scope:</strong></p><ul><li><code>scaffold bootstrap-markers</code> extended in place (not a second, parallel command) to both map existing files to the pack's declared <code>targets[].output</code>/<code>injections[].file</code> entries and insert markers into them</li><li>Auto-generating and persisting that mapping into <code>.scaffold/config.json</code> per pack slot, editable by the user at any time afterward; confident matches written immediately, ambiguous ones left flagged</li><li>A persisted <code>pathConfig</code>/<code>companyProjectName</code> block per pack slot in <code>.scaffold/config.json</code>, replacing the old per-manifest-only convention</li><li>Updating <code>collectPackOwnership.ts</code> and the PreToolUse/PostToolUse/Stop hooks to consult the persisted mapping, so an adopted file is gated identically to a freshly scaffold-generated one</li><li>Refuse-not-guess as the fixed policy when no confident anchor exists for a marker (no whole-file-wrap fallback, ever)</li></ul><p><strong>Out of scope:</strong></p><ul><li>Changing <code>scaffold generate</code>'s existing all-or-nothing failure semantics for already-adopted repos (T2) &mdash; that contract stays as-is</li><li>Normalizing, refactoring, or rewriting the business logic inside adopted files (U10) &mdash; adoption is structural registration only</li><li>Any non-dotnet pack's specific adoption story beyond making the underlying engine mechanism pack-agnostic (U12) &mdash; templates-react or a hypothetical new pack would still need its own <code>bootstrapAnchors[]</code> declarations</li><li>Extending the SKILL.md agent-driven workflow to trigger adoption mid-conversation (OQ4, resolved: out of scope) — CLI-only, user-run</li></ul></div>
+      </section>
+
+      <section id="s8">
+        <h2>8 · Open Questions</h2>
+        <div class="card">
+          <p class="u-hint">Answers typed here are included in the copied review.</p>
+          <div class="table-wrap">
+            <table id="oq-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Question</th>
+                  <th>Why it Matters</th>
+                  <th>Proposed Default</th>
+                  <th>Status</th>
+                  <th>Your Answer</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr data-id="OQ1"><td>OQ1</td><td>Should the new command be named scaffold adopt (register ownership + markers for existing files) as a distinct thing from scaffold bootstrap-markers (marker-only, fixed catalog), or should bootstrap-markers itself be generalized/renamed to absorb this?</td><td>bootstrap-markers already has real, working git-safety and idempotency logic (packages/core/src/bootstrapMarkers/) that a new command would want to reuse — building a second parallel command risks duplicating that logic instead of extending it.</td><td>Resolved: single unified command, not two (per U13). scaffold bootstrap-markers is extended in place to absorb the full scope (descriptor-driven mapper generation + persisted pathConfig + marker insertion) — it already owns the git-safety/anchor-placement machinery this needs to reuse.</td><td>Resolved-in-v2</td><td><textarea class="oq-answer" name="answer-OQ1" rows="2" placeholder="Type your answer…"></textarea></td></tr>
+<tr data-id="OQ2"><td>OQ2</td><td>Once a target/injection entry is resolved to a real file via the descriptor-driven mapper (U8), and that file needs a marker inserted inside it (not just registered), how should the exact insertion line be found when the file isn&#039;t one of bootstrap-markers&#039; 4 cataloged dotnet pack versions — fall back to whole-file wrapping, or refuse and require the pack author to declare bootstrapAnchors explicitly?</td><td>This determines whether the unified command ever writes speculative markers at a guessed location inside a file the pack author didn&#039;t anticipate, versus always requiring an explicit, reviewed anchor declaration — directly trades off adoption coverage against injection-safety guarantees.</td><td>Resolved: refuse. No speculative marker placement, ever — a file with no cataloged anchor and no pack-declared bootstrapAnchors[] is reported needsManual, exactly like bootstrap-markers&#039; existing behavior for ambiguous anchor matches. Whole-file-wrap is explicitly rejected, not even as an opt-in flag.</td><td>Resolved-in-v3</td><td><textarea class="oq-answer" name="answer-OQ2" rows="2" placeholder="Type your answer…"></textarea></td></tr>
+<tr data-id="OQ3"><td>OQ3</td><td>Does the persisted per-repo mapping (T3/U9) live in .scaffold/config.json as a new schema field, or somewhere else (a separate .scaffold/pathconfig.json, or inside the pack&#039;s own cached/synced copy)?</td><td>config.json is already the source both check-edit and generate read at startup, so adding the field there is the smallest change, but it also means every scaffold status/init consumer needs to tolerate the new optional field appearing.</td><td>Resolved: new optional field on PackConfig in .scaffold/config.json (config/schema.ts), read the same way provenance already is. Confirmed via T3: the field holds the pathConfig/companyProjectName block plus the per-target/per-injection mapper entries from U8.</td><td>Resolved-in-v2</td><td><textarea class="oq-answer" name="answer-OQ3" rows="2" placeholder="Type your answer…"></textarea></td></tr>
+<tr data-id="OQ4"><td>OQ4</td><td>Should the unified command be a single interactive command a human runs once per repo, or something the Claude Code adapter&#039;s SKILL.md workflow should also be able to trigger/guide a host agent through mid-conversation?</td><td>The former is a simpler, self-contained CLI feature; the latter means updating packages/adapter-claude-code/SKILL.md&#039;s instructions and possibly the PostToolUse nudge hook, expanding scope significantly.</td><td>Resolved: CLI-only. The user runs the command themselves; no SKILL.md or agent-workflow wiring is added in this scope.</td><td>Resolved-in-v3</td><td><textarea class="oq-answer" name="answer-OQ4" rows="2" placeholder="Type your answer…"></textarea></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="s9">
+        <h2>9 · Risks &amp; Sharp Edges</h2>
+        <div class='card'><table><tr><th>Risk</th><th>Likelihood</th><th>Impact</th><th>Mitigation</th></tr><tr><td>Auto-generate-and-persist (U7/T2) writes a wrong mapping directly to <code>.scaffold/config.json</code> with no per-file confirmation gate, and it silently drives every subsequent generate/check-edit call until manually caught</td><td>Medium</td><td>High</td><td>Ambiguous matches must land as flagged/unmapped entries, not confident-but-wrong ones (T2, E3); confident matches should still be easy to diff/review in the persisted config before relying on them</td></tr><tr><td>collectPackOwnership.ts and the enforcement hooks are not updated to read the persisted mapping (U11), so adopted files remain <code>packOwned: false</code> and slip past the PreToolUse gate entirely</td><td>Medium</td><td>High</td><td>This is explicitly in-scope (Section 7), not deferred — the hook update must ship in the same change as the mapper, not as a follow-up</td></tr><tr><td>Merging mapping-generation and marker-insertion into one command/flag (U13) means a mistake in path-mapping detection can also cause markers to be inserted at wrong locations in the same run</td><td>Medium</td><td>Medium</td><td>Keep the two phases internally separable and inspectable (mapping written to config first, markers inserted second) even though they're exposed as one user-facing command, so a bad mapping can be caught/corrected before markers are written</td></tr><tr><td>Refuse-not-guess policy (OQ2, resolved) means adoption coverage is intentionally incomplete for packs that haven't declared bootstrapAnchors[] — some repos will have a large needsManual list on first run</td><td>Medium</td><td>Low</td><td>Accepted tradeoff per explicit user decision; needsManual is a clear, actionable report, not a silent gap</td></tr></table></div>
+      </section>
+
+      <section id="s10">
+        <h2>10 · Implementation Sketch (Non-Binding)</h2>
+        <div class='card'><p>Non-binding, for later planning:</p><ol><li>Extend the descriptor schema so any pack can declare <code>bootstrapAnchors[]</code> for arbitrary <code>targets[]</code> files, not just the current infra-file precedent (builds on existing partial support per <code>docs/prd.md:127-129</code>)</li><li>Extend <code>.scaffold/config.json</code>'s schema (<code>config/schema.ts</code>) with a per-pack-slot structure: the resolved <code>pathConfig</code>/<code>companyProjectName</code> block, plus each descriptor <code>targets[].output</code>/<code>injections[].file</code> template paired with its resolved real repo path</li><li>Build a repo-scanning mapper that, for each declared entry in a synced pack descriptor, auto-detects a matching real file (reusing <code>pathTemplateMatch.ts</code>'s reverse-compiled templates as a starting point) and writes confident results to that new config structure; ambiguous ones are left flagged, never guessed</li><li>Extend <code>scaffold bootstrap-markers</code> in place (no new CLI subcommand): scan → auto-map → persist → insert markers, reusing <code>bootstrapMarkers.ts</code>'s existing anchor/git-safety logic</li><li>Update <code>collectPackOwnership.ts</code> to check the persisted mapping first, falling back to descriptor-template regex matching for un-adopted files, so <code>check-edit</code> and the PreToolUse/PostToolUse/Stop hooks recognize adopted files correctly</li><li>Add fixture-driven acceptance tests (per CLAUDE.md's determinism section) covering a brownfield fixture repo with mismatched paths and unmarked files, using E1&ndash;E6 as the acceptance criteria</li></ol></div>
+      </section>
+    </main>
+
+    <div
+      id="sync-widget"
+      data-doc="Brownfield Adoption for Existing, Unmarked, Non-Standard-Path Services"
+      data-version="v3"
+      data-status="APPROVED — READY FOR IMPLEMENTATION"
+    >
+      <div class="sync-title">Understanding sync</div>
+      <div class="sync-counts">
+        <span id="sync-confirmed">0</span> agreed ·
+        <span id="sync-flagged">0</span> to fix ·
+        <span id="sync-pending">0</span> pending
+      </div>
+      <div class="sync-bar"><div id="sync-bar-fill"></div></div>
+      <div id="sync-gate" class="sync-gate">Review the claims above</div>
+      <button type="button" id="copy-review-btn" class="copy-qa-btn">
+        📋 Copy review for the AI
+      </button>
+    </div>
+
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+      mermaid.initialize({
+        startOnLoad: true,
+        theme: "default",
+        securityLevel: "loose",
+      });
+    </script>
+
+    <script>
+      const toc = document.getElementById("toc");
+      const sections = document.querySelectorAll('section[id^="s"]');
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              const id = entry.target.id;
+              const link = toc.querySelector(`a[href="#${id}"]`);
+              toc
+                .querySelectorAll("a")
+                .forEach((a) => a.classList.remove("active"));
+              if (link) link.classList.add("active");
+            }
+          });
+        },
+        { threshold: 0.3, rootMargin: "-50% 0px -50% 0px" },
+      );
+
+      sections.forEach((section) => observer.observe(section));
+
+      toc.querySelectorAll("a").forEach((link) => {
+        link.addEventListener("click", (e) => {
+          e.preventDefault();
+          const target = document.querySelector(link.getAttribute("href"));
+          if (target) {
+            target.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        });
+      });
+    </script>
+
+    <script>
+      document.querySelectorAll("table").forEach((table) => {
+        if (table.closest(".table-wrap")) return;
+        const wrap = document.createElement("div");
+        wrap.className = "table-wrap";
+        table.parentNode.insertBefore(wrap, table);
+        wrap.appendChild(table);
+      });
+    </script>
+
+    <script>
+      (function () {
+        const backdrop = document.createElement("div");
+        backdrop.className = "diagram-backdrop";
+        document.body.appendChild(backdrop);
+
+        let activeCard = null;
+
+        function minimize(card) {
+          card.classList.remove("diagram-maximized");
+          const btn = card.querySelector(".diagram-toggle-btn");
+          if (btn) {
+            btn.textContent = "⛶";
+            btn.title = "Maximize diagram";
+          }
+          backdrop.classList.remove("active");
+          document.body.classList.remove("diagram-lock");
+          activeCard = null;
+        }
+
+        function maximize(card) {
+          if (activeCard && activeCard !== card) minimize(activeCard);
+          card.classList.add("diagram-maximized");
+          const btn = card.querySelector(".diagram-toggle-btn");
+          if (btn) {
+            btn.textContent = "✕";
+            btn.title = "Minimize diagram";
+          }
+          backdrop.classList.add("active");
+          document.body.classList.add("diagram-lock");
+          activeCard = card;
+        }
+
+        document.querySelectorAll("div.mermaid").forEach((diagram) => {
+          let card = diagram.closest(".mermaid-card");
+          if (!card) {
+            card = document.createElement("div");
+            card.className = "mermaid-card";
+            diagram.parentNode.insertBefore(card, diagram);
+            card.appendChild(diagram);
+          }
+          if (card.querySelector(".diagram-toggle-btn")) return;
+
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "diagram-toggle-btn";
+          btn.textContent = "⛶";
+          btn.title = "Maximize diagram";
+          btn.addEventListener("click", () => {
+            if (card.classList.contains("diagram-maximized")) {
+              minimize(card);
+            } else {
+              maximize(card);
+            }
+          });
+          card.appendChild(btn);
+        });
+
+        backdrop.addEventListener("click", () => {
+          if (activeCard) minimize(activeCard);
+        });
+
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "Escape" && activeCard) minimize(activeCard);
+        });
+      })();
+    </script>
+
+    <script>
+      // Co-authoring engine: verdicts, forks, structured corrections, added
+      // claims, tension resolutions, example sign-off, recall, live sync, and
+      // the review export. All state persists per browser keyed by doc+version.
+      (function () {
+        const widget = document.getElementById("sync-widget");
+        if (!widget) return;
+
+        const docName = widget.dataset.doc || "";
+        const docVersion = widget.dataset.version || "";
+        const docStatus = widget.dataset.status || "";
+        const storeKey = "arch-review:" + docName + ":" + docVersion;
+
+        const state = load();
+        state.recall = state.recall || "";
+        state.claims = state.claims || {};
+        state.added = Array.isArray(state.added) ? state.added : [];
+        state.tensions = state.tensions || {};
+        state.examples = state.examples || {};
+        state.answers = state.answers || {};
+
+        function load() {
+          try {
+            return JSON.parse(localStorage.getItem(storeKey)) || {};
+          } catch (e) {
+            return {};
+          }
+        }
+        function save() {
+          try {
+            localStorage.setItem(storeKey, JSON.stringify(state));
+          } catch (e) {
+            /* private mode: review still works, just not persisted */
+          }
+        }
+        const txt = (el) => (el ? el.value.trim() : "");
+        const setText = (sel, val) => {
+          const el = document.querySelector(sel);
+          if (el) el.textContent = val;
+        };
+
+        // ---------- Recall / success statement ----------
+        const recall = document.getElementById("recall-box");
+        if (recall) {
+          recall.value = state.recall;
+          recall.addEventListener("input", () => {
+            state.recall = recall.value;
+            save();
+          });
+        }
+
+        // ---------- Understanding rows ----------
+        const uTableBody = document.querySelector("#u-table tbody");
+        const claimRows = () =>
+          Array.from(document.querySelectorAll("#u-table tbody tr[data-id]"));
+
+        function rowState(row) {
+          if (row.dataset.fork === "true") {
+            const c = row.dataset.forkChoice;
+            if (c && c !== "neither") return "agreed";
+            if (c === "neither") return "flagged";
+            return "pending";
+          }
+          const v = row.dataset.verdict;
+          if (v === "yes") return "agreed";
+          if (v === "no" || v === "partly") return "flagged";
+          return "pending";
+        }
+        function paintRow(row) {
+          row.dataset.state = rowState(row);
+        }
+
+        function applyVerdict(row, verdict) {
+          if (verdict) row.dataset.verdict = verdict;
+          else row.removeAttribute("data-verdict");
+          row.querySelectorAll(".verdict-btn").forEach((b) => {
+            b.classList.toggle("selected", b.dataset.verdict === verdict);
+          });
+          const correction = row.querySelector(".u-correction");
+          if (correction)
+            correction.hidden = !(verdict === "no" || verdict === "partly");
+          paintRow(row);
+        }
+
+        function wireClaim(row) {
+          const id = row.dataset.id;
+          const note = row.querySelector(".u-note");
+
+          if (row.dataset.fork === "true") {
+            row.querySelectorAll('input[type="radio"]').forEach((radio) => {
+              radio.addEventListener("change", () => {
+                row.dataset.forkChoice = radio.value;
+                if (note) note.hidden = radio.value !== "neither";
+                state.claims[id] = { fork: radio.value, note: txt(note) };
+                paintRow(row);
+                save();
+                refresh();
+              });
+            });
+            if (note)
+              note.addEventListener("input", () => {
+                state.claims[id] = {
+                  fork: row.dataset.forkChoice || "",
+                  note: note.value,
+                };
+                save();
+              });
+            const s = state.claims[id];
+            if (s && s.fork) {
+              row.querySelectorAll('input[type="radio"]').forEach((r) => {
+                if (r.value === s.fork) r.checked = true;
+              });
+              row.dataset.forkChoice = s.fork;
+              if (note) {
+                note.hidden = s.fork !== "neither";
+                note.value = s.note || "";
+              }
+            }
+            paintRow(row);
+            return;
+          }
+
+          row.querySelectorAll(".verdict-btn").forEach((btn) => {
+            btn.addEventListener("click", () => {
+              const next =
+                row.dataset.verdict === btn.dataset.verdict
+                  ? ""
+                  : btn.dataset.verdict;
+              applyVerdict(row, next);
+              const cur = state.claims[id] || {};
+              state.claims[id] = {
+                verdict: next,
+                note: txt(note),
+                correction: cur.correction || "",
+              };
+              save();
+              refresh();
+            });
+          });
+          row.querySelectorAll(".correction-opt").forEach((opt) => {
+            opt.addEventListener("click", () => {
+              const cur = state.claims[id] || {};
+              const nextVal =
+                cur.correction === opt.dataset.value ? "" : opt.dataset.value;
+              row.querySelectorAll(".correction-opt").forEach((o) =>
+                o.classList.toggle("selected", o.dataset.value === nextVal),
+              );
+              state.claims[id] = {
+                verdict: row.dataset.verdict || "",
+                note: txt(note),
+                correction: nextVal,
+              };
+              save();
+            });
+          });
+          if (note)
+            note.addEventListener("input", () => {
+              const cur = state.claims[id] || {};
+              state.claims[id] = {
+                verdict: row.dataset.verdict || "",
+                note: note.value,
+                correction: cur.correction || "",
+              };
+              save();
+            });
+
+          const s = state.claims[id];
+          if (s) {
+            if (note) note.value = s.note || "";
+            if (s.correction)
+              row.querySelectorAll(".correction-opt").forEach((o) =>
+                o.classList.toggle("selected", o.dataset.value === s.correction),
+              );
+            applyVerdict(row, s.verdict || "");
+          }
+        }
+
+        // ---------- Added claims (human authors what the AI missed) ----------
+        function renderAdded(item) {
+          const tr = document.createElement("tr");
+          tr.className = "added-row";
+          tr.dataset.addedId = item.id;
+          tr.innerHTML =
+            `<td>${item.id}</td><td>you</td>` +
+            `<td class="u-statement"><textarea class="added-text" name="added-${item.id}" placeholder="The thing I missed…"></textarea></td>` +
+            `<td><span class="badge src-user">you said</span></td>` +
+            `<td><span class="badge conf-high">high</span></td>` +
+            `<td><button type="button" class="remove-added">✕ remove</button></td>`;
+          uTableBody.appendChild(tr);
+          const ta = tr.querySelector(".added-text");
+          ta.value = item.text || "";
+          ta.addEventListener("input", () => {
+            item.text = ta.value;
+            save();
+          });
+          tr.querySelector(".remove-added").addEventListener("click", () => {
+            state.added = state.added.filter((x) => x.id !== item.id);
+            tr.remove();
+            save();
+            refresh();
+          });
+        }
+        const addBtn = document.getElementById("add-claim-btn");
+        if (addBtn) {
+          state.added.forEach(renderAdded);
+          addBtn.addEventListener("click", () => {
+            let n = state.added.length + 1;
+            let id = "A" + n;
+            while (state.added.some((x) => x.id === id)) id = "A" + ++n;
+            const item = { id: id, text: "" };
+            state.added.push(item);
+            renderAdded(item);
+            save();
+          });
+        }
+
+        // ---------- Tensions ----------
+        const tensionCards = Array.from(
+          document.querySelectorAll(".tension-card[data-id]"),
+        );
+        tensionCards.forEach((card) => {
+          const id = card.dataset.id;
+          const note = card.querySelector(".t-note");
+          card.querySelectorAll('input[type="radio"]').forEach((radio) => {
+            radio.addEventListener("change", () => {
+              card.dataset.choice = radio.value;
+              if (note) note.hidden = radio.value !== "other";
+              state.tensions[id] = { choice: radio.value, note: txt(note) };
+              save();
+              refresh();
+            });
+          });
+          if (note)
+            note.addEventListener("input", () => {
+              state.tensions[id] = {
+                choice: card.dataset.choice || "",
+                note: note.value,
+              };
+              save();
+            });
+          const s = state.tensions[id];
+          if (s && s.choice) {
+            card.querySelectorAll('input[type="radio"]').forEach((r) => {
+              if (r.value === s.choice) r.checked = true;
+            });
+            card.dataset.choice = s.choice;
+            if (note) {
+              note.hidden = s.choice !== "other";
+              note.value = s.note || "";
+            }
+          }
+        });
+
+        // ---------- Acceptance examples ----------
+        const exCards = Array.from(
+          document.querySelectorAll(".example-card[data-id]"),
+        );
+        exCards.forEach((card) => {
+          const id = card.dataset.id;
+          const note = card.querySelector(".ex-note");
+          card.querySelectorAll(".verdict-btn").forEach((btn) => {
+            btn.addEventListener("click", () => {
+              const next =
+                card.dataset.verdict === btn.dataset.verdict
+                  ? ""
+                  : btn.dataset.verdict;
+              if (next) card.dataset.verdict = next;
+              else card.removeAttribute("data-verdict");
+              card.querySelectorAll(".verdict-btn").forEach((b) =>
+                b.classList.toggle("selected", b.dataset.verdict === next),
+              );
+              if (note) note.hidden = next !== "no";
+              state.examples[id] = { verdict: next, note: txt(note) };
+              save();
+              refresh();
+            });
+          });
+          if (note)
+            note.addEventListener("input", () => {
+              state.examples[id] = {
+                verdict: card.dataset.verdict || "",
+                note: note.value,
+              };
+              save();
+            });
+          const s = state.examples[id];
+          if (s) {
+            if (s.verdict) card.dataset.verdict = s.verdict;
+            card.querySelectorAll(".verdict-btn").forEach((b) =>
+              b.classList.toggle("selected", b.dataset.verdict === s.verdict),
+            );
+            if (note) {
+              note.hidden = s.verdict !== "no";
+              note.value = s.note || "";
+            }
+          }
+        });
+
+        // ---------- Open questions ----------
+        const oqRows = Array.from(
+          document.querySelectorAll("#oq-table tbody tr[data-id]"),
+        );
+        oqRows.forEach((row) => {
+          const id = row.dataset.id;
+          const ta = row.querySelector("textarea");
+          if (!ta) return;
+          if (state.answers[id]) ta.value = state.answers[id];
+          ta.addEventListener("input", () => {
+            state.answers[id] = ta.value;
+            save();
+          });
+        });
+
+        // ---------- Live sync tally + approval gate ----------
+        function refresh() {
+          let agreed = 0;
+          let flagged = 0;
+          let pending = 0;
+          let highPending = 0;
+
+          claimRows().forEach((row) => {
+            paintRow(row);
+            const s = rowState(row);
+            if (s === "agreed") agreed++;
+            else if (s === "flagged") flagged++;
+            else {
+              pending++;
+              if (row.dataset.priority === "high") highPending++;
+            }
+          });
+          tensionCards.forEach((card) => {
+            if (card.dataset.choice) agreed++;
+            else {
+              pending++;
+              highPending++;
+            }
+          });
+          exCards.forEach((card) => {
+            const v = card.dataset.verdict;
+            if (v === "yes") agreed++;
+            else if (v === "no") flagged++;
+            else pending++;
+          });
+
+          const total = agreed + flagged + pending;
+          setText("#sync-confirmed", agreed);
+          setText("#sync-flagged", flagged);
+          setText("#sync-pending", pending);
+          document.getElementById("sync-bar-fill").style.width = total
+            ? (agreed / total) * 100 + "%"
+            : "0%";
+
+          const gate = document.getElementById("sync-gate");
+          if (highPending > 0) {
+            gate.textContent =
+              "⚠ " +
+              highPending +
+              " high-stakes item" +
+              (highPending > 1 ? "s" : "") +
+              " need a decision";
+            gate.className = "sync-gate warn";
+          } else if (pending > 0) {
+            gate.textContent =
+              pending + " item" + (pending > 1 ? "s" : "") + " left to review";
+            gate.className = "sync-gate";
+          } else if (flagged > 0) {
+            gate.textContent =
+              "✓ all reviewed · " + flagged + " to revise next pass";
+            gate.className = "sync-gate";
+          } else {
+            gate.textContent = "✓ fully synced — ready to approve";
+            gate.className = "sync-gate ok";
+          }
+        }
+
+        claimRows().forEach(wireClaim);
+        refresh();
+
+        // ---------- Review export (the manifest carried to the next pass) ----------
+        function labelFor(input) {
+          const label = input && input.closest("label");
+          const span = label && label.querySelector("span");
+          return span ? span.textContent.trim() : "";
+        }
+        function checkedLabel(container, name) {
+          const input = container.querySelector(
+            'input[name="' + name + '"]:checked',
+          );
+          return input ? labelFor(input) : "";
+        }
+
+        function buildReview() {
+          const confirmed = [];
+          const forks = [];
+          const corrections = [];
+          const unreviewed = [];
+
+          claimRows().forEach((row) => {
+            const id = row.dataset.id;
+            const stmt = row.dataset.statement || "";
+            if (row.dataset.fork === "true") {
+              const c = row.dataset.forkChoice;
+              if (!c) {
+                unreviewed.push(id);
+              } else if (c === "neither") {
+                const note = txt(row.querySelector(".u-note"));
+                corrections.push(
+                  `${id} [FORK: none fit] "${stmt}"\n  Right reading: ${note || "(no note)"}`,
+                );
+              } else {
+                forks.push(`${id} → "${checkedLabel(row, "fork-" + id)}"`);
+                confirmed.push(id);
+              }
+              return;
+            }
+            const v = row.dataset.verdict;
+            const cur = state.claims[id] || {};
+            if (v === "yes") {
+              confirmed.push(id);
+            } else if (v === "no" || v === "partly") {
+              const tag = v === "no" ? "WRONG" : "PARTLY";
+              const fix = cur.correction
+                ? `right answer: "${cur.correction}"  (structured)`
+                : `note: ${txt(row.querySelector(".u-note")) || "(no note)"}  (prose)`;
+              corrections.push(`${id} [${tag}] "${stmt}"\n  ${fix}`);
+            } else {
+              unreviewed.push(id);
+            }
+          });
+
+          const added = state.added
+            .filter((a) => (a.text || "").trim())
+            .map((a) => `+${a.id}: ${a.text.trim()}`);
+
+          const tensions = tensionCards.map((card) => {
+            const id = card.dataset.id;
+            const c = card.dataset.choice;
+            if (!c) return `${id}: UNRESOLVED`;
+            if (c === "other")
+              return `${id} → other: ${txt(card.querySelector(".t-note")) || "(no note)"}`;
+            return `${id} → ${checkedLabel(card, "tension-" + id)}`;
+          });
+
+          const exApproved = [];
+          const exRejected = [];
+          const exUnreviewed = [];
+          exCards.forEach((card) => {
+            const id = card.dataset.id;
+            const v = card.dataset.verdict;
+            if (v === "yes") exApproved.push(id);
+            else if (v === "no")
+              exRejected.push(
+                `${id}: ${card.dataset.example}\n  should be: ${txt(card.querySelector(".ex-note")) || "(no note)"}`,
+              );
+            else exUnreviewed.push(id);
+          });
+
+          const answers = oqRows.map((row) => {
+            const q = row.children[1] ? row.children[1].textContent.trim() : "";
+            const a = txt(row.querySelector("textarea"));
+            return `${row.dataset.id}: ${q}\n→ ${a || "(no answer)"}`;
+          });
+
+          return [
+            `ARCH REVIEW — ${docName} ${docVersion} [${docStatus.toUpperCase()}]`,
+            "",
+            "YOUR SUCCESS STATEMENT (your words):",
+            state.recall.trim() || "(not provided)",
+            "(reconcile this against the AI Overview at the top of the doc)",
+            "",
+            `CONFIRMED CLAIMS: ${confirmed.join(", ") || "none"}`,
+            "",
+            forks.length ? "FORK CHOICES:\n" + forks.join("\n") : "FORK CHOICES: none",
+            "",
+            "CORRECTIONS (apply these):",
+            corrections.length ? corrections.join("\n") : "none",
+            "",
+            added.length
+              ? "NEW CLAIMS YOU ADDED:\n" + added.join("\n")
+              : "NEW CLAIMS YOU ADDED: none",
+            "",
+            "TENSIONS:",
+            tensions.length ? tensions.join("\n") : "none",
+            "",
+            "ACCEPTANCE EXAMPLES:",
+            `  APPROVED (binding): ${exApproved.join(", ") || "none"}`,
+            exRejected.length
+              ? "  REJECTED:\n    " + exRejected.join("\n    ")
+              : "  REJECTED: none",
+            `  UNREVIEWED: ${exUnreviewed.join(", ") || "none"}`,
+            "",
+            "OPEN QUESTION ANSWERS:",
+            answers.length ? answers.join("\n") : "none",
+            "",
+            `UNREVIEWED CLAIMS: ${unreviewed.join(", ") || "none"}`,
+            "",
+            "NEXT: reconcile my overview with your success statement; apply the corrections, fork choices, new claims, tension resolutions, and rejected-example fixes to the arch JSON; bump the version and add a revision-log row; regenerate with arch-inject.js. On APPROVED, the CONFIRMED claims + APPROVED examples are the acceptance criteria the implementation must satisfy — carry them into /feature as verification anchors.",
+          ].join("\n");
+        }
+
+        document
+          .getElementById("copy-review-btn")
+          .addEventListener("click", (e) => {
+            const btn = e.currentTarget;
+            navigator.clipboard.writeText(buildReview()).then(() => {
+              const original = btn.textContent;
+              btn.textContent = "✓ Copied";
+              btn.classList.add("copied");
+              setTimeout(() => {
+                btn.textContent = original;
+                btn.classList.remove("copied");
+              }, 1500);
+            });
+          });
+      })();
+    </script>
+  </body>
+</html>

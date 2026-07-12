@@ -29,8 +29,9 @@
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { configExists, loadConfig } from '../config/loader.js';
+import { configExists, loadConfig, saveConfig } from '../config/loader.js';
 import { isPathPack } from '../config/schema.js';
+import type { PackConfig, ScaffoldConfig } from '../config/schema.js';
 import { loadDescriptor } from '../descriptor/load.js';
 import type { TemplateDescriptor, PackCommentSyntaxMap } from '../descriptor/schema.js';
 import { ANCHOR_CATALOG, compileBootstrapAnchors } from './anchorCatalog.js';
@@ -38,6 +39,7 @@ import type { AnchorGroup, PackVersion } from './anchorCatalog.js';
 import { findCandidateFiles } from './repoWalk.js';
 import { isInsideGitWorkTree, isFileCleanAndTracked } from './gitSafety.js';
 import { placeMarkerGroup } from './markerPlacement.js';
+import { mapDescriptorToRepo, adoptedPathKey } from './descriptorMapper.js';
 import type { BootstrapMarkersReport } from './bootstrapMarkersReport.js';
 import { packCacheDir } from '../templates/cache.js';
 import { defaultCacheRoot } from '../templates/sync.js';
@@ -66,8 +68,9 @@ interface Slot {
   packPath?: string;
 }
 
-/** Resolved packs from an optional descriptor, plus the pack-level comment-syntax map that host files in this slot use. */
+/** Resolved packs from an optional descriptor, plus the pack-level comment-syntax map that host files in this slot use. `full` is the whole loaded descriptor, carried through for the descriptor-driven mapping phase (`targets[]`/`injections[]`), which needs more than just `bootstrapAnchors`/`commentSyntax`. */
 interface SlotDescriptor {
+  full: TemplateDescriptor;
   bootstrapAnchors?: AnchorGroup[];
   packSyntaxMap?: PackCommentSyntaxMap;
 }
@@ -117,6 +120,7 @@ function loadBootstrapDescriptorForLocal(packDir: string, packVersion: string): 
 function bootstrapFromDescriptor(descriptor: TemplateDescriptor): { descriptor: SlotDescriptor; warning?: string } {
   return {
     descriptor: {
+      full: descriptor,
       bootstrapAnchors: descriptor.bootstrapAnchors !== undefined ? compileBootstrapAnchors(descriptor.bootstrapAnchors) : undefined,
       packSyntaxMap: descriptor.commentSyntax,
     },
@@ -127,23 +131,24 @@ function isKnownPackVersion(version: string): version is PackVersion {
   return Object.prototype.hasOwnProperty.call(ANCHOR_CATALOG, version);
 }
 
-function resolveConfiguredSlots(repoRoot: string): Slot[] {
+function resolveConfiguredSlots(repoRoot: string): { slots: Slot[]; config: ScaffoldConfig } {
   if (!configExists(repoRoot)) {
     throw new Error(
       'no .scaffold/config.json found — run "scaffold init --pack <name>=<path>@<version>" first, or pass --pack-version <version> to bootstrap against one version directly without a config file',
     );
   }
   const config = loadConfig(repoRoot);
-  return Object.entries(config.packs).map(([name, pack]) =>
+  const slots = Object.entries(config.packs).map(([name, pack]) =>
     isPathPack(pack)
       ? { name, version: pack.version, packPath: pack.path }
       : { name, version: pack.version, packUrl: pack.url, pinnedSha: pack.pinnedSha },
   );
+  return { slots, config };
 }
 
 export function runBootstrapMarkers(options: RunBootstrapMarkersOptions): BootstrapMarkersReport {
   const { repoRoot, dryRun } = options;
-  const report: BootstrapMarkersReport = { dryRun, placed: [], alreadyPresent: [], needsManual: [], unsupportedPacks: [], warnings: [] };
+  const report: BootstrapMarkersReport = { dryRun, placed: [], alreadyPresent: [], needsManual: [], unsupportedPacks: [], warnings: [], mapped: [], mappingNeedsManual: [] };
 
   // The configured-slot path consults each pack's descriptor in the cache and
   // uses its declared `bootstrapAnchors` when present, falling back to the
@@ -155,7 +160,17 @@ export function runBootstrapMarkers(options: RunBootstrapMarkersOptions): Bootst
   // fails to load (e.g. `requires.scaffoldCli` out of range) never blocks
   // the fallback — it produces a warning and falls through to the built-in
   // catalog, preserving the legacy "just use the built-in" behavior.
-  const configuredSlots: Slot[] = options.packVersion ? [] : resolveConfiguredSlots(repoRoot);
+  //
+  // `config` (when resolved) is also the descriptor-mapping phase's
+  // persistence target: a confident mapping for a *configured* slot mutates
+  // `config.packs[name].adoptedPaths` in place, and the whole config is
+  // saved once at the end (only if `!dryRun` and something actually
+  // changed) — an override slot (`--pack-version`) has no config-backed
+  // slot to persist into, so its mappings are reported but never saved.
+  const resolved = options.packVersion ? undefined : resolveConfiguredSlots(repoRoot);
+  const configuredSlots: Slot[] = resolved?.slots ?? [];
+  const config = resolved?.config;
+  let configDirty = false;
 
   const overrideSlots: { name: string; version: string }[] = options.packVersion
     ? [{ name: options.packDir ? '(--pack + --pack-version override)' : '(--pack-version override)', version: options.packVersion }]
@@ -174,7 +189,7 @@ export function runBootstrapMarkers(options: RunBootstrapMarkersOptions): Bootst
   const pendingContent = new Map<string, string>();
   const touchedFiles = new Set<string>();
 
-  function processSlot(slotName: string, slotVersion: string, slotDescriptor: SlotDescriptor | undefined, descriptorWarning?: string): void {
+  function processSlot(slotName: string, slotVersion: string, slotDescriptor: SlotDescriptor | undefined, descriptorWarning?: string, persistTarget?: PackConfig): void {
     // A descriptor existed but failed to load (e.g. `requires.scaffoldCli`
     // out of range). Surface the failure on a separate channel — the
     // report's `warnings` array — so it stays observable, while still
@@ -187,6 +202,41 @@ export function runBootstrapMarkers(options: RunBootstrapMarkersOptions): Bootst
     // "placed" for the same marker in the same report.
     if (descriptorWarning) {
       report.warnings.push({ packSlot: slotName, message: descriptorWarning });
+    }
+
+    // Descriptor-driven ownership mapping runs independently of the
+    // anchor/marker-placement machinery below (and of whether this pack
+    // version has any ANCHOR_CATALOG/bootstrapAnchors entry at all) — it
+    // only needs the descriptor's own targets[]/injections[] list, which
+    // every pack has. A confident match for a *configured* slot
+    // (`persistTarget` set) is persisted into `adoptedPaths`; for an
+    // override slot it's reported but not saved, since there is no
+    // `.scaffold/config.json` pack entry to persist into.
+    if (slotDescriptor?.full) {
+      const context = { companyProjectName: persistTarget?.companyProjectName, pathConfig: persistTarget?.pathConfig };
+      const { mapped, needsManual: mappingNeedsManual } = mapDescriptorToRepo(repoRoot, slotDescriptor.full, context, insideGitWorkTree);
+      for (const entry of mapped) {
+        report.mapped.push({ ...entry, packSlot: slotName });
+        if (persistTarget) {
+          persistTarget.adoptedPaths = { ...persistTarget.adoptedPaths, [adoptedPathKey(entry.kind, entry.template, entry.entity)]: entry.file };
+          configDirty = true;
+        }
+      }
+      for (const entry of mappingNeedsManual) {
+        report.mappingNeedsManual.push({ ...entry, packSlot: slotName });
+      }
+    } else if (persistTarget && !descriptorWarning) {
+      // A configured pack slot with no reachable descriptor at all (most
+      // commonly: a url-based pack that has never been synced, so there is
+      // no pinned SHA to read a cache entry from) must not be silently
+      // treated as "nothing to adopt here" — unlike check-edit's per-slot
+      // fail-open (appropriate for a live, cheap, repeated edit-time gate),
+      // a one-time adoption decision staying silent would let a user believe
+      // a slot was fully considered when it never was.
+      report.warnings.push({
+        packSlot: slotName,
+        message: `no synced pack descriptor available for pack slot "${slotName}" — skipping descriptor-driven ownership mapping (run "scaffold templates sync" first)`,
+      });
     }
 
     // Empty `bootstrapAnchors: []` is treated as authoritative ("no
@@ -257,7 +307,7 @@ export function runBootstrapMarkers(options: RunBootstrapMarkersOptions): Bootst
     const { descriptor, warning } = slot.packPath
       ? loadBootstrapDescriptorForLocal(path.resolve(repoRoot, slot.packPath), slot.version)
       : loadBootstrapDescriptorForCache(slot.packUrl!, slot.version, slot.pinnedSha, cacheRoot);
-    processSlot(slot.name, slot.version, descriptor, warning);
+    processSlot(slot.name, slot.version, descriptor, warning, config!.packs[slot.name]);
   }
 
   // Override slot (--pack-version only, or --pack + --pack-version): descriptor overrides take precedence if available.
@@ -275,6 +325,14 @@ export function runBootstrapMarkers(options: RunBootstrapMarkersOptions): Bootst
   if (!dryRun) {
     for (const absFile of touchedFiles) {
       writeFileSync(absFile, pendingContent.get(absFile)!, 'utf8');
+    }
+    // Persist any confident descriptor-driven mappings discovered above.
+    // `config` only exists for the configured-slot path, and `configDirty`
+    // only flips true when a mapping was actually persisted into one of its
+    // packs' `adoptedPaths` — an override-only run, or a run that mapped
+    // nothing new, never rewrites .scaffold/config.json.
+    if (config && configDirty) {
+      saveConfig(repoRoot, config);
     }
   }
 

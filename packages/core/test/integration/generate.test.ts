@@ -283,3 +283,78 @@ test('scaffold generate: a path-based pack with a missing version folder throws 
     /not found at .*check the pack directory and version folder/,
   );
 });
+
+// arch-brownfield-adoption.html E5: a pack slot's persisted pathConfig/
+// companyProjectName (config/schema.ts's PackConfig) resolves a real output
+// path without the manifest repeating either — a custom descriptor whose
+// target actually references both placeholders, so the assertion proves the
+// values flow all the way through to the written file location, not just
+// that generate still succeeds with extra config fields present.
+test('scaffold generate: a pack slot\'s persisted pathConfig/companyProjectName resolve the output path without the manifest supplying either', async () => {
+  const packRepo = mkdtempSync(path.join(tmpdir(), 'scaffold-pathconfig-pack-'));
+  execFileSync('git', ['init', '-q'], { cwd: packRepo });
+  execFileSync('git', ['config', 'user.email', 'test@example.com'], { cwd: packRepo });
+  execFileSync('git', ['config', 'user.name', 'Scaffold Test'], { cwd: packRepo });
+  const versionDir = path.join(packRepo, 'v1');
+  mkdirSync(versionDir, { recursive: true });
+  writeFileSync(
+    path.join(versionDir, 'manifest.templates.json'),
+    JSON.stringify({
+      descriptorSchemaVersion: 2,
+      packVersion: 'v1',
+      requires: { scaffoldCli: '>=0.0.0' },
+      targets: [{ output: 'src/{{companyProjectName}}.Api/{{pathConfig.apiControllers}}/{{entity}}Controller.cs', template: 'Controller.cs.hbs', mode: 'create' }],
+      injections: [],
+    }),
+  );
+  writeFileSync(path.join(versionDir, 'Controller.cs.hbs'), 'public class {{entity}}Controller {}\n');
+  execFileSync('git', ['add', '-A'], { cwd: packRepo });
+  execFileSync('git', ['commit', '-q', '-m', 'pathconfig pack'], { cwd: packRepo });
+
+  const targetRepo = buildFixtureTargetRepo();
+  saveConfig(targetRepo, {
+    projectType: 'dotnet',
+    packs: { backend: { url: packRepo, version: 'v1', companyProjectName: 'Acme', pathConfig: { apiControllers: 'Services' } } },
+  });
+  await syncTemplates(targetRepo, defaultCacheRoot(targetRepo));
+  const manifestPath = path.join(targetRepo, 'Order.manifest.json');
+  writeFileSync(manifestPath, JSON.stringify({ manifestSchemaVersion: 1, targetStack: 'backend', entity: 'Order', fields: [{ name: 'id', type: 'guid' }] }));
+
+  const report = await runGenerate({ repoRoot: targetRepo, manifestPath, dryRun: false, force: false });
+  assert.equal(report.created[0].file, 'src/Acme.Api/Services/OrderController.cs');
+  assert.ok(existsSync(path.join(targetRepo, 'src/Acme.Api/Services/OrderController.cs')));
+});
+
+test('scaffold generate: a manifest-supplied companyProjectName still overrides the pack slot\'s persisted default', async () => {
+  const packRepo = mkdtempSync(path.join(tmpdir(), 'scaffold-pathconfig-pack-'));
+  execFileSync('git', ['init', '-q'], { cwd: packRepo });
+  execFileSync('git', ['config', 'user.email', 'test@example.com'], { cwd: packRepo });
+  execFileSync('git', ['config', 'user.name', 'Scaffold Test'], { cwd: packRepo });
+  const versionDir = path.join(packRepo, 'v1');
+  mkdirSync(versionDir, { recursive: true });
+  writeFileSync(
+    path.join(versionDir, 'manifest.templates.json'),
+    JSON.stringify({
+      descriptorSchemaVersion: 2,
+      packVersion: 'v1',
+      requires: { scaffoldCli: '>=0.0.0' },
+      targets: [{ output: '{{companyProjectName}}/{{entity}}Controller.cs', template: 'Controller.cs.hbs', mode: 'create' }],
+      injections: [],
+    }),
+  );
+  writeFileSync(path.join(versionDir, 'Controller.cs.hbs'), 'public class {{entity}}Controller {}\n');
+  execFileSync('git', ['add', '-A'], { cwd: packRepo });
+  execFileSync('git', ['commit', '-q', '-m', 'pathconfig pack'], { cwd: packRepo });
+
+  const targetRepo = buildFixtureTargetRepo();
+  saveConfig(targetRepo, { projectType: 'dotnet', packs: { backend: { url: packRepo, version: 'v1', companyProjectName: 'Persisted' } } });
+  await syncTemplates(targetRepo, defaultCacheRoot(targetRepo));
+  const manifestPath = path.join(targetRepo, 'Order.manifest.json');
+  writeFileSync(
+    manifestPath,
+    JSON.stringify({ manifestSchemaVersion: 1, targetStack: 'backend', entity: 'Order', fields: [{ name: 'id', type: 'guid' }], companyProjectName: 'FromManifest' }),
+  );
+
+  const report = await runGenerate({ repoRoot: targetRepo, manifestPath, dryRun: false, force: false });
+  assert.equal(report.created[0].file, 'FromManifest/OrderController.cs');
+});

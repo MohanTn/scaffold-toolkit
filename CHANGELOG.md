@@ -10,6 +10,7 @@ All notable changes to this project are documented here. The format is based on 
 
 ### Added
 
+- Adds brownfield adoption support to scaffold-toolkit: `scaffold bootstrap-markers` now maps descriptor entries to existing files, persists confident matches to config, and `check-edit` gates adopted files identically to generated ones. Supports directory-layout mismatch via persisted `pathConfig`/`companyProjectName` resolution.
 - Adds `scaffold manifest new` CLI command to build intent manifests from compact specs, introduces Node.js/TypeScript template pack proving stack-agnostic engine, adds GCP cloud variant for .NET, enhances template validation, and documents enforcement layers via hooks.
 - Adds a manifest creation gate that rejects `scaffold generate` if any `overwrite`-mode target doesn't already exist on disk, preventing data loss. Gate runs before rendering and dry-run short-circuit, validating the manifest early. Includes unit tests, integration tests validating Windows path normalization, multiple violations batched into one error, and regression tests for existing modes.
 - Switch scaffold-toolkit from git-URL-based template pack consumption to local-directory packs. `scaffold init --pack` now only accepts local paths (rejecting git URLs with clear errors), writes `path`-based config entries, and all downstream commands (`generate`, `sync`, `list`, `bootstrap-markers`, `validate-pack`) handle the no-clone, no-cache workflow. Git-URL engine remains as fallback for future non-vendored packs but is no longer used by the CLI.

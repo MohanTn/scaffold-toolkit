@@ -113,3 +113,24 @@ test('buildHandlebarsContext passes host-precomputed top-level manifest fields (
   assert.equal(context.route, '/api/invoices', 'options keys still spread for convenience');
   assert.equal((context.options as Record<string, unknown>).route, '/api/invoices');
 });
+
+// arch-brownfield-adoption.html E5: a pack slot's persisted pathConfig/
+// companyProjectName (config/schema.ts's PackConfig) is the lowest-
+// precedence source in the render context — a manifest that still supplies
+// either keeps overriding it exactly as before adoption existed.
+test('buildHandlebarsContext: packDefaults (persisted pathConfig/companyProjectName) apply only when the manifest does not already supply them', async () => {
+  const { buildHandlebarsContext } = await import('../../src/generate/generate.js');
+
+  const withoutManifestOverride = buildHandlebarsContext(
+    { manifestSchemaVersion: 1, targetStack: 'backend', entity: 'Order' },
+    { companyProjectName: 'Acme', pathConfig: { apiControllers: 'Services' } },
+  );
+  assert.equal(withoutManifestOverride.companyProjectName, 'Acme');
+  assert.deepEqual(withoutManifestOverride.pathConfig, { apiControllers: 'Services' });
+
+  const withManifestOverride = buildHandlebarsContext(
+    { manifestSchemaVersion: 1, targetStack: 'backend', entity: 'Order', companyProjectName: 'FromManifest' },
+    { companyProjectName: 'Acme', pathConfig: { apiControllers: 'Services' } },
+  );
+  assert.equal(withManifestOverride.companyProjectName, 'FromManifest', 'manifest-supplied value must still win');
+});

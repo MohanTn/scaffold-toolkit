@@ -55,7 +55,19 @@ interface PlannedInjectionGroup {
   requests: InjectionRequest[];
 }
 
-export function buildHandlebarsContext(manifest: { entity?: string; fields?: unknown; options?: Record<string, unknown> } & Record<string, unknown>): Record<string, unknown> {
+/**
+ * `packDefaults` (a pack slot's persisted `pathConfig`/`companyProjectName`,
+ * see `config/schema.ts`) is spread first, i.e. lowest precedence: a
+ * manifest that still supplies its own `pathConfig`/`companyProjectName`
+ * (the pre-adoption per-manifest convention) keeps overriding it exactly as
+ * before. This is what lets a repo-wide layout resolved once during
+ * `scaffold bootstrap-markers` apply to every subsequent `generate` call on
+ * that pack slot without the manifest needing to repeat it.
+ */
+export function buildHandlebarsContext(
+  manifest: { entity?: string; fields?: unknown; options?: Record<string, unknown> } & Record<string, unknown>,
+  packDefaults: { pathConfig?: Record<string, string>; companyProjectName?: string } = {},
+): Record<string, unknown> {
   const options = manifest.options ?? {};
   // The manifest's top-level fields are spread last so they always win over
   // any same-named key inside the free-form, schema-unvalidated `options`
@@ -70,7 +82,7 @@ export function buildHandlebarsContext(manifest: { entity?: string; fields?: unk
   // enforced after the descriptor loads by `validateManifestInputs`). A
   // calling pack author who wants them required still gets them — this is
   // strictly a relaxation of the *base* type to match the *base* schema.
-  return { ...options, ...manifest, options };
+  return { ...packDefaults, ...options, ...manifest, options };
 }
 
 export async function runGenerate(options: GenerateOptions): Promise<GenerateReport> {
@@ -124,7 +136,7 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRep
   // for non-declaring packs) is enforced here, after the descriptor load.
   validateManifestInputs(descriptor.packVersion, manifest, descriptor.inputs);
 
-  const context = buildHandlebarsContext(manifest);
+  const context = buildHandlebarsContext(manifest, { pathConfig: pack.pathConfig, companyProjectName: pack.companyProjectName });
 
   // --- Resolve and gate creation-mode targets -------------------------------------
   // Resolve all targets once before any rendering or gating. Store the resolved

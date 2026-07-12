@@ -5,9 +5,10 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { runBootstrapMarkers } from '../../src/bootstrapMarkers/bootstrapMarkers.js';
-import { saveConfig } from '../../src/config/loader.js';
+import { saveConfig, loadConfig } from '../../src/config/loader.js';
 import { syncTemplates, defaultCacheRoot } from '../../src/templates/sync.js';
 import { runGenerate } from '../../src/generate/generate.js';
+import { checkEdit } from '../../src/checkEdit/checkEdit.js';
 import {
   buildFixtureTargetRepo,
   buildGitFixtureTargetRepo,
@@ -278,4 +279,154 @@ test('bootstrap-markers: a configured slot backed by a path-based pack has its d
   assert.ok(custom, 'expected CUSTOM_SLOT to be placed via the configured path-based pack descriptor');
   assert.equal(custom!.file, 'Program.cs');
   assert.equal(custom!.packSlot, 'backend');
+});
+
+// The tests below exercise arch-brownfield-adoption.html's approved
+// acceptance examples (E1, E3, E4, E6) end to end through the real
+// runBootstrapMarkers entry point, not just descriptorMapper.ts in
+// isolation.
+
+function pathBasedAdoptionPackDir(): string {
+  const packDir = mkdtempSync(path.join(tmpdir(), 'scaffold-adoption-pack-'));
+  const versionDir = path.join(packDir, 'v1');
+  mkdirSync(versionDir, { recursive: true });
+  writeFileSync(
+    path.join(versionDir, 'manifest.templates.json'),
+    JSON.stringify({
+      descriptorSchemaVersion: 2,
+      packVersion: 'v1',
+      requires: { scaffoldCli: '>=0.0.0' },
+      targets: [{ output: 'src/{{pathConfig.dir}}/{{entity}}Controller.cs', template: 'Controller.cs.hbs', mode: 'create' }],
+      injections: [{ file: 'Program.cs', marker: 'DI', template: 'di.hbs', position: 'before-end', hashTrailerPrefix: '// scaffold-hash:' }],
+      bootstrapAnchors: [{ candidateFilenames: ['Program.cs'], anchor: { kind: 'after-line', pattern: '\\.CreateBuilder\\s*\\(' }, markers: ['DI'] }],
+    }),
+  );
+  return packDir;
+}
+
+test('bootstrap-markers (E1): a target file whose path already matches the descriptor is mapped (ownership only, no content mutated) and check-edit gates it like a generated file', () => {
+  const repo = buildFixtureTargetRepo(false); // brownfield Program.cs, no markers
+  mkdirSync(path.join(repo, 'src', 'Controllers'), { recursive: true });
+  const controllerPath = path.join(repo, 'src', 'Controllers', 'OrderController.cs');
+  const handwrittenController = 'namespace Fixture;\n\npublic class OrderController\n{\n    public void Get() {}\n}\n';
+  writeFileSync(controllerPath, handwrittenController);
+
+  const packDir = pathBasedAdoptionPackDir();
+  saveConfig(repo, { projectType: 'dotnet', packs: { backend: { path: packDir, version: 'v1' } } });
+
+  const report = runBootstrapMarkers({ repoRoot: repo, dryRun: false });
+
+  // Injection-kind: mapped AND marker-placed (existing anchor machinery, untouched).
+  const injectionMapped = report.mapped.find((m) => m.kind === 'injection');
+  assert.ok(injectionMapped);
+  assert.equal(injectionMapped!.file, 'Program.cs');
+  assert.ok(findMarker(report.placed, 'DI'));
+
+  // Target-kind: mapped (ownership registered) but never marker-placed — a
+  // deliberate scope decision (see descriptorMapper.ts's header comment):
+  // adoption never speculatively inserts AI_IMPLEMENTATION blocks into
+  // hand-written business logic it didn't generate.
+  const targetMapped = report.mapped.find((m) => m.kind === 'target');
+  assert.ok(targetMapped);
+  assert.equal(targetMapped!.file, 'src/Controllers/OrderController.cs');
+  assert.equal(targetMapped!.entity, 'Order');
+  assert.equal(readFileSync(controllerPath, 'utf8'), handwrittenController, 'the hand-written file must be byte-identical — mapping never mutates content');
+
+  // Persisted into .scaffold/config.json.
+  const config = loadConfig(repo);
+  const adoptedPaths = config.packs.backend.adoptedPaths;
+  assert.equal(adoptedPaths?.['injection:Program.cs'], 'Program.cs');
+  assert.equal(adoptedPaths?.['target:src/{{pathConfig.dir}}/{{entity}}Controller.cs::Order'], 'src/Controllers/OrderController.cs');
+
+  // check-edit now gates the adopted target file exactly like a generated one.
+  const writeResult = checkEdit({ repoRoot: repo, file: 'src/Controllers/OrderController.cs', tool: 'write' });
+  assert.equal(writeResult.allow, false);
+  assert.equal(writeResult.reason, 'write-blocked');
+  assert.equal(writeResult.packOwned, true);
+  assert.equal(writeResult.packSlot, 'backend');
+
+  // No AI_IMPLEMENTATION interior exists yet (never inserted), so every edit is blocked too — refuse, not guess.
+  const editResult = checkEdit({ repoRoot: repo, file: 'src/Controllers/OrderController.cs', tool: 'edit', oldString: 'public void Get() {}' });
+  assert.equal(editResult.allow, false);
+  assert.equal(editResult.reason, 'edit-blocked-outside-interior');
+});
+
+test('bootstrap-markers (E3): an entity matched by two files is left unmapped under mappingNeedsManual, while an unambiguous entity in the same run still maps', () => {
+  const repo = buildFixtureTargetRepo(false);
+  mkdirSync(path.join(repo, 'src', 'Controllers'), { recursive: true });
+  mkdirSync(path.join(repo, 'src', 'Legacy'), { recursive: true });
+  writeFileSync(path.join(repo, 'src', 'Controllers', 'OrderController.cs'), 'x');
+  writeFileSync(path.join(repo, 'src', 'Controllers', 'CustomerController.cs'), 'x');
+  writeFileSync(path.join(repo, 'src', 'Legacy', 'CustomerController.cs'), 'x'); // duplicate CustomerController — ambiguous
+
+  const packDir = pathBasedAdoptionPackDir();
+  saveConfig(repo, { projectType: 'dotnet', packs: { backend: { path: packDir, version: 'v1' } } });
+
+  const report = runBootstrapMarkers({ repoRoot: repo, dryRun: false });
+
+  const orderMapped = report.mapped.find((m) => m.kind === 'target' && m.entity === 'Order');
+  assert.ok(orderMapped, 'the unambiguous entity must still map in the same run');
+
+  const customerNeedsManual = report.mappingNeedsManual.find((m) => m.kind === 'target' && m.entity === 'Customer');
+  assert.ok(customerNeedsManual, 'the ambiguous entity must be reported, not guessed');
+  assert.match(customerNeedsManual!.reason, /expected exactly one/);
+
+  const config = loadConfig(repo);
+  assert.equal(config.packs.backend.adoptedPaths?.['target:src/{{pathConfig.dir}}/{{entity}}Controller.cs::Order'], 'src/Controllers/OrderController.cs');
+  assert.equal(config.packs.backend.adoptedPaths?.['target:src/{{pathConfig.dir}}/{{entity}}Controller.cs::Customer'], undefined, 'an ambiguous entity must never be persisted');
+});
+
+test('bootstrap-markers (E4): a dirty target file is excluded from mapping and never persisted, matching bootstrap-markers\' existing git-safety net', () => {
+  const repo = buildGitFixtureTargetRepo(); // committed brownfield Program.cs
+  mkdirSync(path.join(repo, 'src', 'Controllers'), { recursive: true });
+  const controllerPath = path.join(repo, 'src', 'Controllers', 'OrderController.cs');
+  writeFileSync(controllerPath, 'x');
+  execFileSync('git', ['add', '-A'], { cwd: repo, stdio: 'pipe' });
+  execFileSync('git', ['commit', '-q', '-m', 'add controller'], { cwd: repo, stdio: 'pipe' });
+  // Dirty edit, never committed.
+  writeFileSync(controllerPath, 'x // dirty edit');
+
+  const packDir = pathBasedAdoptionPackDir();
+  saveConfig(repo, { projectType: 'dotnet', packs: { backend: { path: packDir, version: 'v1' } } });
+
+  const report = runBootstrapMarkers({ repoRoot: repo, dryRun: false });
+
+  assert.equal(report.mapped.find((m) => m.kind === 'target'), undefined, 'a dirty candidate must never be confidently mapped');
+  const config = loadConfig(repo);
+  assert.equal(
+    Object.keys(config.packs.backend.adoptedPaths ?? {}).some((k) => k.startsWith('target:')),
+    false,
+    'the dirty target must never be persisted',
+  );
+  // The clean, committed Program.cs injection is a *different* file — unaffected by the target's dirtiness — so it still maps and gets its marker placed.
+  assert.equal(config.packs.backend.adoptedPaths?.['injection:Program.cs'], 'Program.cs');
+  assert.ok(findMarker(report.placed, 'DI'));
+});
+
+test('bootstrap-markers (E6): a configured pack slot that has never been synced surfaces an explicit warning rather than silently skipping ownership mapping', () => {
+  const repo = buildFixtureTargetRepo(false);
+  // url-based, no pinnedSha — never synced, mirrors checkEdit's "fails open" fixture but for the mapping phase, which must not stay silent.
+  saveConfig(repo, { projectType: 'dotnet', packs: { backend: { url: 'https://example.com/never-synced-pack.git', version: UNCATALOGED_PACK_VERSION } } });
+
+  const report = runBootstrapMarkers({ repoRoot: repo, dryRun: false });
+
+  assert.equal(report.mapped.length, 0);
+  const warning = report.warnings.find((w) => w.packSlot === 'backend');
+  assert.ok(warning, 'an unsynced configured pack slot must surface an explicit warning, not silence');
+  assert.match(warning!.message, /no synced pack descriptor available/);
+});
+
+test('bootstrap-markers: --dry-run computes mappings and reports them but never writes .scaffold/config.json', () => {
+  const repo = buildFixtureTargetRepo(false);
+  mkdirSync(path.join(repo, 'src', 'Controllers'), { recursive: true });
+  writeFileSync(path.join(repo, 'src', 'Controllers', 'OrderController.cs'), 'x');
+
+  const packDir = pathBasedAdoptionPackDir();
+  saveConfig(repo, { projectType: 'dotnet', packs: { backend: { path: packDir, version: 'v1' } } });
+
+  const report = runBootstrapMarkers({ repoRoot: repo, dryRun: true });
+  assert.ok(report.mapped.find((m) => m.kind === 'target' && m.entity === 'Order'));
+
+  const config = loadConfig(repo);
+  assert.equal(config.packs.backend.adoptedPaths, undefined, 'dry-run must never persist a mapping to disk');
 });
