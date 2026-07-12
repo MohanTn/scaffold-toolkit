@@ -1,0 +1,740 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Architecture — Scaffold CLI &amp; Pack Integration with Claude Code Hooks &amp; Skills</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      :root {
+        --accent: #2563eb;
+        --bg: #f8fafc;
+        --card-bg: #ffffff;
+        --text: #1e293b;
+        --text-muted: #64748b;
+        --border: #e2e8f0;
+        --status-draft: #64748b;
+        --status-review: #f59e0b;
+        --status-approved: #16a34a;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        line-height: 1.6;
+        color: var(--text);
+        background: var(--bg);
+        min-height: 100vh;
+      }
+
+      nav#toc {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 240px;
+        height: 100vh;
+        background: var(--card-bg);
+        border-right: 1px solid var(--border);
+        overflow-y: auto;
+        z-index: 100;
+        padding: 2rem 1rem;
+      }
+
+      nav#toc .brand {
+        font-weight: bold;
+        font-size: 1.1rem;
+        color: var(--accent);
+        margin-bottom: 2rem;
+        display: block;
+      }
+
+      nav#toc a {
+        display: block;
+        padding: 0.5rem 0.75rem;
+        margin: 0.5rem 0;
+        color: var(--text);
+        text-decoration: none;
+        border-radius: 6px;
+        font-size: 0.95rem;
+        transition: all 0.2s;
+      }
+
+      nav#toc a:hover {
+        background: var(--bg);
+        color: var(--accent);
+      }
+
+      nav#toc a.active {
+        background: var(--accent);
+        color: white;
+        font-weight: 500;
+      }
+
+      main {
+        margin-left: 240px;
+        padding: 3rem 2rem;
+        margin-right: auto;
+      }
+
+      header {
+        margin-bottom: 3rem;
+      }
+
+      header h1 {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+        color: var(--text);
+      }
+
+      header .subtitle {
+        color: var(--text-muted);
+        font-size: 0.95rem;
+      }
+
+      .status-banner {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        padding: 1rem 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        font-size: 0.9rem;
+        font-weight: 500;
+      }
+
+      .status-banner.draft {
+        background: rgba(100, 116, 139, 0.1);
+        color: var(--status-draft);
+        border-left: 4px solid var(--status-draft);
+      }
+
+      .status-banner.review {
+        background: rgba(245, 158, 11, 0.1);
+        color: var(--status-review);
+        border-left: 4px solid var(--status-review);
+      }
+
+      .status-banner.approved {
+        background: rgba(22, 163, 74, 0.1);
+        color: var(--status-approved);
+        border-left: 4px solid var(--status-approved);
+      }
+
+      section {
+        margin-bottom: 3rem;
+        scroll-margin-top: 2rem;
+      }
+
+      section h2 {
+        font-size: 1.4rem;
+        margin-bottom: 1.5rem;
+        padding-left: 1rem;
+        border-left: 4px solid var(--accent);
+        color: var(--text);
+      }
+
+      .card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      }
+
+      .card h3 {
+        font-size: 1.1rem;
+        margin-bottom: 1rem;
+        color: var(--text);
+      }
+
+      .card h4 {
+        font-size: 1rem;
+        margin-top: 1.5rem;
+        margin-bottom: 0.75rem;
+        color: var(--accent);
+      }
+
+      .card p {
+        margin-bottom: 1rem;
+        color: var(--text);
+      }
+
+      .card ul,
+      .card ol {
+        margin-left: 1.5rem;
+        margin-bottom: 1rem;
+      }
+
+      .card li {
+        margin-bottom: 0.5rem;
+        color: var(--text);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1rem;
+      }
+
+      table thead {
+        background: var(--bg);
+        border-bottom: 2px solid var(--border);
+      }
+
+      table th {
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        color: var(--text);
+        font-size: 0.9rem;
+        white-space: nowrap;
+      }
+
+      table td {
+        padding: 1rem;
+        border-bottom: 1px solid var(--border);
+        color: var(--text);
+        font-size: 0.95rem;
+        white-space: nowrap;
+      }
+
+      table tbody tr:nth-child(even) {
+        background: rgba(100, 116, 139, 0.02);
+      }
+
+      .table-wrap {
+        overflow-x: auto;
+        margin-bottom: 1rem;
+      }
+
+      .mermaid-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 400px;
+        position: relative;
+      }
+
+      .mermaid {
+        display: flex;
+        justify-content: center;
+      }
+
+      .diagram-toggle-btn {
+        position: absolute;
+        top: 0.75rem;
+        right: 0.75rem;
+        width: 2rem;
+        height: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--text-muted);
+        font-size: 1rem;
+        line-height: 1;
+        cursor: pointer;
+        z-index: 2;
+        transition: all 0.2s;
+      }
+
+      .diagram-toggle-btn:hover {
+        color: var(--accent);
+        border-color: var(--accent);
+      }
+
+      .diagram-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.6);
+        z-index: 999;
+      }
+
+      .diagram-backdrop.active {
+        display: block;
+      }
+
+      body.diagram-lock {
+        overflow: hidden;
+      }
+
+      .mermaid-card.diagram-maximized {
+        position: fixed;
+        inset: 2rem;
+        z-index: 1000;
+        overflow: auto;
+        box-shadow: 0 25px 70px rgba(0, 0, 0, 0.35);
+      }
+
+      .mermaid-card.diagram-maximized .mermaid {
+        width: 100%;
+        height: 100%;
+      }
+
+      .mermaid-card.diagram-maximized .mermaid svg {
+        width: 100% !important;
+        height: 100% !important;
+        max-width: 100% !important;
+        max-height: 100% !important;
+      }
+
+      pre,
+      code {
+        white-space: pre-wrap;
+        word-break: break-all;
+        max-width: 100%;
+        font-family: "Courier New", Courier, monospace;
+      }
+
+      pre {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 1rem;
+        overflow-x: auto;
+        margin-bottom: 1rem;
+        font-size: 0.85rem;
+        line-height: 1.4;
+      }
+
+      code {
+        background: rgba(100, 116, 139, 0.1);
+        padding: 0.2rem 0.4rem;
+        border-radius: 4px;
+        color: #e11d48;
+        font-size: 0.9rem;
+      }
+
+      pre code {
+        background: none;
+        padding: 0;
+        color: var(--text);
+      }
+
+      details {
+        margin-bottom: 1.5rem;
+      }
+
+      details summary {
+        cursor: pointer;
+        font-weight: 600;
+        color: var(--accent);
+        padding: 0.75rem;
+        user-select: none;
+        transition: all 0.2s;
+      }
+
+      details summary:hover {
+        background: var(--bg);
+        border-radius: 6px;
+      }
+
+      details[open] summary {
+        margin-bottom: 1rem;
+      }
+
+      details pre {
+        margin-top: 1rem;
+      }
+
+      .approval-gate {
+        background: rgba(22, 163, 74, 0.1);
+        border-left: 4px solid var(--status-approved);
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        color: var(--status-approved);
+        font-weight: 500;
+        margin-top: 2rem;
+      }
+
+      .ai-overview-card {
+        border-left: 4px solid var(--accent);
+        background: rgba(37, 99, 235, 0.04);
+      }
+
+      .oq-toolbar {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 1rem;
+      }
+
+      .copy-qa-btn {
+        background: var(--accent);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .copy-qa-btn:hover {
+        opacity: 0.9;
+      }
+
+      .copy-qa-btn.copied {
+        background: var(--status-approved);
+      }
+
+      textarea.oq-answer {
+        width: 100%;
+        min-width: 220px;
+        min-height: 3rem;
+        padding: 0.5rem;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-family: inherit;
+        font-size: 0.9rem;
+        color: var(--text);
+        resize: vertical;
+      }
+
+      section,
+      .card {
+        overflow-wrap: break-word;
+        word-break: break-word;
+      }
+
+      @media (max-width: 900px) {
+        nav#toc {
+          position: static;
+          width: 100%;
+          height: auto;
+          border-right: none;
+          border-bottom: 1px solid var(--border);
+          padding: 1rem;
+          margin-bottom: 1rem;
+        }
+
+        nav#toc .brand {
+          display: inline-block;
+          margin-right: 2rem;
+        }
+
+        nav#toc a {
+          display: inline-block;
+          margin: 0 0.5rem;
+          padding: 0.4rem 0.6rem;
+          font-size: 0.85rem;
+        }
+
+        main {
+          margin-left: 0;
+          padding: 2rem 1rem;
+        }
+
+        header h1 {
+          font-size: 1.5rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <nav id="toc">
+      <span class="brand">🏛️ Architecture</span>
+      <a href="#s-overview">★ AI Overview</a>
+      <a href="#s0">0 · Document Control</a>
+      <a href="#s1">1 · Overview</a>
+      <a href="#s2">2 · Use Cases &amp; Scope</a>
+      <a href="#s3">3 · C4 Context &amp; Containers</a>
+      <a href="#s4">4 · Domain &amp; Data Model</a>
+      <a href="#s5">5 · API Design</a>
+      <a href="#s6">6 · UI/UX</a>
+      <a href="#s7">7 · Behaviour &amp; Process</a>
+      <a href="#s8">8 · Deployment</a>
+      <a href="#s9">9 · Monitoring &amp; Alerts</a>
+      <a href="#s10">10 · Open Questions &amp; Risks</a>
+    </nav>
+
+    <main>
+      <header>
+        <h1>🏛️ Architecture — Scaffold CLI &amp; Pack Integration with Claude Code Hooks &amp; Skills</h1>
+        <p class="subtitle">Deterministic, LLM-agnostic boilerplate scaffolding via CLI-driven template packs with Claude Code hook enforcement. · Node.js 20.12+ · TypeScript · ESM · Commander.js · Handlebars · Ajv</p>
+      </header>
+
+      <section id="s-overview">
+        <h2>🤖 AI Overview — What Will Be Implemented</h2>
+        <div class="card ai-overview-card">
+          <p><strong>Scaffold-toolkit</strong> is a deterministic, LLM-agnostic CLI that renders boilerplate from template packs (DTOs, endpoints, services, route registration, frontend API clients) via intent manifests. A monorepo houses the core CLI (<code>@mohantn/scaffold-core</code>), domain-specific template packs in-repo (e.g., <code>packages/templates-dotnet</code>), and adapters for host LLM systems (Claude Code, GitHub Copilot). Claude Code integration ships four hooks—<code>PreToolUse</code>, <code>UserPromptSubmit</code>, <code>PostToolUse</code>, <code>Stop</code>—that enforce deterministic generation: the hard gate (<code>PreToolUse</code>) blocks direct writes to pack-owned files, forcing all boilerplate through <code>scaffold generate</code>; complementary safety nets (<code>PostToolUse</code>, <code>Stop</code>) catch unfilled <code>AI_IMPLEMENTATION</code> blocks at turn end. The pack system isolates template versions (e.g., <code>v8-controller</code>, <code>v8-controller-gcp</code>) as sibling folders, each with its own descriptor, test fixtures, and build-check script; new versions and cloud-provider extensions are additive, never colliding with existing registrations. Config (.scaffold/config.json) seeds packs by local path, project type, and pinned SHAs; <code>scaffold init</code> sets up the config, <code>templates sync</code> resolves packs to SHAs, and <code>generate</code> renders and injects against an intent manifest (JSON/TOON) that bridges the gap between natural-language user intent and deterministic boilerplate.</p>
+        </div>
+      </section>
+
+      <section id="s0">
+        <h2>0 · Document Control</h2>
+        <div class="status-banner draft">
+          <strong>Status:</strong> DRAFT ·
+          <strong>Version:</strong> v1 ·
+          <strong>Last Updated:</strong> 2026-07-12 ·
+          <strong>Author:</strong> Claude Haiku 4.5
+        </div>
+
+        <div class="card">
+          <h3>Revision Log</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Version</th>
+                  <th>Date</th>
+                  <th>Summary of Changes</th>
+                  <th>Driven By</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>v1</td><td>2026-07-12</td><td>Initial architecture draft covering CLI structure, pack system, hook enforcement, config management, and Claude Code integration.</td><td>First generation</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="approval-gate">
+          <strong>Approval Gate:</strong> This document must reach APPROVED
+          status before implementation begins.
+        </div>
+      </section>
+
+      <section id="s1">
+        <h2>1 · Overview — Feature, Audience &amp; Dependencies</h2>
+        <div class='card'><h3>Feature Summary</h3><p>Scaffold-toolkit is a deterministic, LLM-agnostic CLI that generates boilerplate code (DTOs, endpoints, validators, database layers) from template packs driven by intent manifests. It eliminates latency and drift by splitting code generation into deterministic (file rendering, marker injection, hashing in CLI) and probabilistic (translating intent, implementing logic in LLM) halves. A monorepo houses the core CLI, domain-specific template packs (.NET, Node.js), and host adapters (Claude Code, GitHub Copilot) that enforce deterministic generation via hooks.</p></div><div class='card'><h3>Actors &amp; Responsibilities</h3><table><thead><tr><th>Actor</th><th>Role</th><th>Responsibility</th><th>Interaction</th></tr></thead><tbody><tr><td>Developer</td><td>End-user</td><td>Writes intent manifests, fills AI_IMPLEMENTATION blocks, runs CLI commands</td><td>CLI invocation, manifest authorship</td></tr><tr><td>Coding Agent (LLM)</td><td>Host system</td><td>Translates user intent to manifest, implements join logic, respects hook enforcement</td><td>Skill invocation, hook callbacks</td></tr><tr><td>Pack Author</td><td>Template maintainer</td><td>Maintains template versions, test fixtures, build-check scripts, descriptor schema</td><td>Creates/updates packs in packages/templates-*</td></tr><tr><td>Claude Code Runtime</td><td>Hook executor</td><td>Runs pre-tool-use, post-tool-use, user-prompt-submit, stop hooks in sandboxed environment</td><td>Hook command invocation, result parsing</td></tr><tr><td>CI Pipeline</td><td>Validation gate</td><td>Runs template pack build-checks, linting, tests before publishing to npm</td><td>.github/workflows/ci.yml invocation</td></tr></tbody></table></div><div class='card'><h3>Dependencies</h3><table><thead><tr><th>System</th><th>Purpose</th><th>Version</th><th>Protocol</th></tr></thead><tbody><tr><td>Node.js</td><td>Runtime for CLI and tools</td><td>&gt;= 20.12</td><td>Direct execution</td></tr><tr><td>Commander.js</td><td>CLI argument parsing and routing</td><td>npm dep</td><td>Node API</td></tr><tr><td>Handlebars</td><td>Template file rendering (Hbs syntax)</td><td>npm dep</td><td>Node API</td></tr><tr><td>Ajv</td><td>JSON Schema validation for manifests</td><td>npm dep</td><td>Node API</td></tr><tr><td>TypeScript</td><td>Source language, transpiled to ESM</td><td>^5.5.0</td><td>Build-time only</td></tr><tr><td>Template Packs (in-repo)</td><td>Hbs templates, descriptors, test fixtures</td><td>packages/templates-*</td><td>File I/O from CLI</td></tr><tr><td>Claude Code Hooks</td><td>Host-side enforcement of deterministic generation</td><td>hooks/ in adapter</td><td>Command execution</td></tr></tbody></table></div><div class='card'><h3>At-a-Glance</h3><table><thead><tr><th>Attribute</th><th>Value</th></tr></thead><tbody><tr><td><strong>Owner</strong></td><td>MohanTn</td></tr><tr><td><strong>Repos Touched</strong></td><td>scaffold-toolkit (monorepo) — packages/core, adapter-claude-code, adapter-copilot-cli, templates-*</td></tr><tr><td><strong>Primary Data Store</strong></td><td>.scaffold/config.json (per-repo), .scaffold/changesets.json (audit trail)</td></tr><tr><td><strong>Auth Method</strong></td><td>None (file-local; packs are local paths or git-synced)</td></tr><tr><td><strong>Environments</strong></td><td>Developer machine (CLI invocation), CI (build-check job), npm registry (pack distribution)</td></tr><tr><td><strong>Output Formats</strong></td><td>Generated files (Handlebars render), TOON/JSON reports, changeset audit trail</td></tr></tbody></table></div>
+      </section>
+
+      <section id="s2">
+        <h2>2 · Use Cases &amp; Scope</h2>
+        <div class='card'><h3>Functional Requirements</h3><table><thead><tr><th>ID</th><th>Requirement</th><th>Acceptance Criteria</th></tr></thead><tbody><tr><td>FR1</td><td>Parse and validate intent manifests against pack schema</td><td>scaffold generate fails with clear error if manifest has missing/invalid fields; validation uses pack's ajv schema</td></tr><tr><td>FR2</td><td>Render Handlebars templates with entity, fields, options, and pack-specific context</td><td>All Hbs files in pack version produce files on disk with correct variable substitution; no unresolved {{mustaches}}</td></tr><tr><td>FR3</td><td>Inject marker-based boilerplate into existing files without overwriting manual edits</td><td>SCAFFOLD_START/END blocks inject correctly; hash trail detects manual edits outside markers; --force flag allows explicit overwrites</td></tr><tr><td>FR4</td><td>Generate idempotent changesets with hash-based audit trail</td><td>Running same manifest twice produces identical file writes (same SHA256); changeset includes pre/post hashes for rollback</td></tr><tr><td>FR5</td><td>Mark AI_IMPLEMENTATION blocks as empty/filled for LLM to complete</td><td>Report marks each block with empty: true/false; CLI does not fill these blocks (LLM's job)</td></tr><tr><td>FR6</td><td>Support multiple template versions for same stack (e.g., v8-controller, v8-controller-gcp)</td><td>Config can reference v8-controller@v8-controller or v8-controller@v8-controller-gcp without collision; descriptors use non-colliding injection marker names</td></tr><tr><td>FR7</td><td>Enforce pack-owned files via Claude Code PreToolUse hook</td><td>Write/Edit to file in pack-owned marker is blocked; error message explains file ownership and suggests running scaffold generate</td></tr><tr><td>FR8</td><td>Support undo of prior generate run by changeset ID</td><td>scaffold undo &lt;id&gt; reverts files to pre-generate state; changeset audit trail confirms reversal</td></tr><tr><td>FR9</td><td>Report pack versions and validate test fixtures via build-check script</td><td>scaffold validate-pack runs manifests through real build (dotnet build, npm run build) to catch compilation errors</td></tr><tr><td>FR10</td><td>Check whether a proposed file edit is permitted under pack rules</td><td>scaffold check-edit --file X --tool write/edit returns allow: true/false; used by PreToolUse hook to gate writes</td></tr></tbody></table></div><div class='card'><h3>Non-Functional Requirements</h3><table><thead><tr><th>Attribute</th><th>Requirement</th><th>Target/SLO</th></tr></thead><tbody><tr><td>Performance</td><td>scaffold generate on a 50-file template should complete in under 2 seconds</td><td>&lt; 2s wall-clock time for typical (.NET 50-file) pack</td></tr><tr><td>Determinism</td><td>Same manifest + pack version must always produce identical file writes (byte-for-byte reproducibility)</td><td>All RNG, timestamps, hashing use deterministic seeds; Handlebars render order is stable</td></tr><tr><td>Idempotency</td><td>Running scaffold generate twice with same manifest must not fail or modify files</td><td>Hash trail confirms no changes; second run reports zero files written</td></tr><tr><td>Usability</td><td>Error messages must clearly identify the root cause (manifest validation, pack version not found, file locked, etc.)</td><td>Every error path includes pack name, file path, and suggested fix</td></tr><tr><td>Safety</td><td>No generated code should corrupt or overwrite user edits outside AI_IMPLEMENTATION blocks</td><td>SCAFFOLD markers protect manual edits; --force flag required to override</td></tr><tr><td>Versioning</td><td>Multiple template versions must coexist without collision</td><td>Injection marker names are scoped to version (e.g., SCAFFOLD_V8_CONTROLLER_END, SCAFFOLD_V8_CONTROLLER_GCP_END)</td></tr></tbody></table></div>
+      </section>
+
+      <section id="s3">
+        <h2>3 · C4 — Context &amp; Containers</h2>
+        <div class='card'><h3>C4 Context: Landscape</h3><p>Scaffold sits at the intersection of three actors: <strong>Developer</strong> (end-user, fills manifest intent and AI_IMPLEMENTATION blocks), <strong>Coding Agent (LLM)</strong> (translates natural-language request into manifest, implements join logic), and <strong>Template Pack</strong> (defines boilerplate templates, descriptors, test fixtures). npm Registry publishes @mohantn/scaffold-core and @mohantn/scaffold-adapter-claude-code. Claude Code Runtime executes hooks to enforce deterministic generation (PreToolUse gates direct writes, PostToolUse/Stop nudge at turn end).</p></div><div class='card'><h3>C4 Container: Internal Architecture</h3><p><strong>CLI (Commander):</strong> Exposes commands (init, generate, undo, status, bootstrap-markers, validate-pack, check-edit). <strong>Config Loader:</strong> Reads/writes .scaffold/config.json (project type, packs, pinnedSha). <strong>Template Sync:</strong> Git clone, SHA pin, descriptor parsing, version catalog. <strong>Manifest Schema:</strong> Ajv validation, entity/fields/options, per-pack schemas. <strong>Handlebars Render:</strong> Entity, fields, options, custom helpers, file write to disk (dry-run mode). <strong>Marker Injection:</strong> SCAFFOLD_START/END, AI_IMPLEMENTATION blocks, hash trail, idempotency, creationGate checks. <strong>Changeset Audit:</strong> SHA256 hashing, pre/post state, undo/rollback logic, .scaffold/changesets.json. <strong>Claude Code Hooks:</strong> PreToolUse (blocks direct writes), UserPromptSubmit (injects context), PostToolUse (nudges on generate), Stop (verifies filled blocks).</p></div><div class='card'><h3>Data Flow: Manifest to Output</h3><p>User's request (natural language) → Coding Agent (LLM) → Build Intent Manifest (JSON/TOON with targetStack, entity, fields[], options) → CLI: scaffold generate --manifest &lt;file&gt; → Load Config (.scaffold/config.json) → Load Pack Descriptor → Ajv Validate Manifest Against Pack Schema → For each .hbs template in pack/version/: Render with (entity, fields[], options, pack context), Write to disk (or dry-run preview) → For each SCAFFOLD_START/END marker in target files: Inject rendered boilerplate or AI_IMPLEMENTATION block, Hash pre/post state for audit trail → Write Changeset (SHA256, file list, undo info) → Output Report (TOON/JSON with generated, modified, skipped, empty_implementations) → Coding Agent reads report → Agent fills AI_IMPLEMENTATION blocks using Edit tool → Claude Code PreToolUse hook intercepts Edit → Hook runs: scaffold check-edit --file X --tool edit → If file is inside AI_IMPLEMENTATION block: allow; If file is in pack-owned marker (but outside impl): block → File write proceeds or fails.</p></div>
+      </section>
+
+      <section id="s4">
+        <h2>4 · Domain &amp; Data Model</h2>
+        <div class='card'><h3>Domain Model</h3><p><strong>Manifest:</strong> { manifestSchemaVersion (int), targetStack (string), entity (string), fields (array of {name, type}), options (object) }. <strong>Config:</strong> { projectType (string), packs (map of name → PackConfig) }. <strong>PackConfig:</strong> { path (string), version (string), pinnedSha (string) }. <strong>PackDescriptor:</strong> { schemaVersion (int), name (string), version (string), displayName (string), injectionMarkers (object), aiImplementationBlockNames (object) }. <strong>Changeset:</strong> { id (string), timestamp (string), manifestSha (string), fileHashes (object), generated (array of File), modified (array of File) }. <strong>File:</strong> { path (string), preSha (string), postSha (string), status (string) }.</p></div><div class='card'><h3>Schema Changes &amp; Migrations</h3><p><strong>Status:</strong> No database schema migrations. All state is file-based (.scaffold/config.json, .scaffold/changesets.json, per-repo). <strong>Manifest Schema Versioning:</strong> The manifest schema is versioned via the manifestSchemaVersion field (currently: 1). If the schema changes, new manifests must set the new version; the CLI validates against the pack's actual schema at generate time. Backward compatibility is the pack author's responsibility (e.g., if v8-controller adds a new required field, a new manifest schema version is introduced). <strong>Pack Descriptor Versioning:</strong> Each template pack version (e.g., v8-controller, v8-controller-gcp) has its own descriptor.json defining injectionMarkers, aiImplementationBlockNames, and schema. Non-colliding marker names (e.g., SCAFFOLD_V8_CONTROLLER_END vs. SCAFFOLD_V8_CONTROLLER_GCP_END) ensure multiple versions can coexist in the same repo.</p></div>
+      </section>
+
+      <section id="s5">
+        <h2>5 · API Design (.NET)</h2>
+        <div class='card'><h3>CLI Commands &amp; Endpoints</h3><table><thead><tr><th>Command</th><th>Subcommand</th><th>Args/Options</th><th>Purpose</th></tr></thead><tbody><tr><td>scaffold</td><td>init</td><td>--project-type &lt;type&gt; --pack &lt;spec&gt; [--pack ...]</td><td>Write .scaffold/config.json; spec format: name=path@version</td></tr><tr><td>scaffold</td><td>manifest new</td><td>--stack &lt;name&gt; --entity &lt;name&gt; --field &lt;n:t&gt; [--option &lt;p=v&gt;] [--input &lt;n=v&gt;] [--out &lt;file&gt;]</td><td>Build and validate intent manifest from compact spec</td></tr><tr><td>scaffold</td><td>templates sync</td><td>[--update]</td><td>Clone/fetch packs into cache; pin SHAs in config</td></tr><tr><td>scaffold</td><td>templates list</td><td>(none)</td><td>List available version folders for configured packs</td></tr><tr><td>scaffold</td><td>generate</td><td>--manifest &lt;file&gt; [--dry-run] [--force] [--json]</td><td>Render templates, inject markers, write changeset</td></tr><tr><td>scaffold</td><td>undo</td><td>&lt;changeset-id&gt; [--force]</td><td>Revert files to pre-generate state</td></tr><tr><td>scaffold</td><td>status</td><td>[--json]</td><td>Check if any AI_IMPLEMENTATION blocks are unfilled</td></tr><tr><td>scaffold</td><td>bootstrap-markers</td><td>[--pack-version &lt;v&gt;] [--pack &lt;dir&gt;] [--dry-run] [--json]</td><td>Seed empty SCAFFOLD markers in existing files</td></tr><tr><td>scaffold</td><td>validate-pack</td><td>--pack &lt;dir&gt; --manifest &lt;file&gt; [--pack-version &lt;v&gt;] [--json]</td><td>Smoke-test pack by generating test fixtures; runs actual build (dotnet build, npm run build)</td></tr><tr><td>scaffold</td><td>check-edit</td><td>--file &lt;path&gt; --tool &lt;write|edit&gt; [--old-string &lt;text&gt;] [--old-string-file &lt;path&gt;]</td><td>Gate for PreToolUse hook: check if edit is allowed</td></tr></tbody></table></div><div class='card'><h3>Manifest JSON Schema (Ajv)</h3><p>{ "$schema": "http://json-schema.org/draft-07/schema#", "title": "Intent Manifest (scaffold-core v1)", "type": "object", "required": ["manifestSchemaVersion", "targetStack", "entity", "fields"], "additionalProperties": true, "properties": { "manifestSchemaVersion": { "type": "integer", "const": 1 }, "targetStack": { "type": "string", "description": "Key into .scaffold/config.json packs map (e.g., 'backend', 'frontend')" }, "entity": { "type": "string", "description": "PascalCase entity name (e.g., 'Invoice', 'OrderItem')" }, "fields": { "type": "array", "minItems": 1, "items": { "type": "object", "required": ["name", "type"], "properties": { "name": { "type": "string" }, "type": { "type": "string" } } }, "description": "Entity fields (name, type per pack convention)" }, "options": { "type": "object", "additionalProperties": true, "description": "Pack-side knobs (route, auth, audience, etc.); passed through to Handlebars context" } } }</p></div>
+      </section>
+
+      <section id="s6">
+        <h2>6 · UI/UX (React)</h2>
+        <div class='card'><h3>Developer Workflow</h3><p><strong>1. New Repo:</strong> No .scaffold/ yet. <strong>2. Init:</strong> Run scaffold init with --project-type and --pack specs. <strong>3. Sync Packs:</strong> Run scaffold templates sync to pin SHAs. <strong>4. User Request:</strong> "Add Invoice endpoint". <strong>5. Manifest:</strong> Coding Agent builds intent JSON. <strong>6. Generate:</strong> Run scaffold generate --manifest Invoice.json. <strong>7. Report:</strong> CLI outputs generated files, empty blocks. <strong>8. Fill Impl:</strong> Coding Agent fills AI_IMPLEMENTATION blocks using Edit tool. <strong>9. PreToolUse:</strong> Hook gates file edits, allows inside impl blocks. <strong>10. Status Check:</strong> Stop hook runs scaffold status --json, verifies all blocks filled. Turn ends.</p></div><div class='card'><h3>Component Hierarchy &amp; API Integration</h3><p><strong>App (scaffold CLI):</strong> Commander Router (init, manifest, templates, generate, undo, status, bootstrap-markers, validate-pack, check-edit commands) → Config/Pack/Manifest processing → Handlebars Render + Marker Injection + Changeset Audit → Report Output. <strong>Hook Adapters (Claude Code):</strong> PreToolUse (blocks direct writes), UserPromptSubmit (injects context), PostToolUse (nudges on generate), Stop (verifies filled blocks). <strong>Pack System (external, loaded at runtime):</strong> Descriptor (injectionMarkers, schemas), Templates (Handlebars .hbs files), Test Fixtures (test_data/), Build Check Script (tools/validate-build.mjs).</p></div>
+      </section>
+
+      <section id="s7">
+        <h2>7 · Behaviour — State &amp; Process</h2>
+        <div class='card'><h3>Entity State Lifecycle</h3><p>[*] → Undefined → Configured (scaffold init) → Ready (templates sync) → GenerationPending (User intent, Agent builds manifest) → Generated (scaffold generate) → Implementing (Report lists empty AI_IMPLEMENTATION blocks) → Implementing (Agent fills blocks via Edit, PreToolUse gates) → Filled (All blocks completed) → [*] (Turn ends, Stop hook verifies). Also: Generated → Undone (scaffold undo &lt;changeset-id&gt;) → Ready (Changeset rolled back). Also: Ready → Validated (scaffold validate-pack) → Ready (Smoke-test passes) or Error (Smoke-test fails, pack author fixes).</p></div><div class='card'><h3>Command Execution Flow</h3><p>scaffold generate --manifest Invoice.json: Load args → Load .scaffold/config.json → Parse targetStack from manifest → Lookup pack in config by name (Not found? Exit with error) → Get pinnedSha for pack (pinnedSha not set? Tell user to run templates sync) → Load pack descriptor from cache → Ajv validate manifest against pack schema (Invalid? Exit with validation error) → Load pack's Handlebars templates → For each template file in pack/version/: Render with { entity, fields, options, pack context }, Write to target file (or preview in dry-run), Record hash (pre: null or prior, post: SHA256) → For each SCAFFOLD_*_START/END marker in modified files: Check if marker content differs from prior inject (hash trail). If differs and !--force, exit (user hand-edits detected). Inject marker-wrapped boilerplate or AI_IMPLEMENTATION_START/END block. Record hash (pre: prior, post: new) → If creationGate is overwrite-required: Check if --force flag provided. If !--force, exit with message "use --force to overwrite" → Write .scaffold/changesets.json (audit trail) → Generate report (list generated, modified, empty AI_IMPLEMENTATION blocks, skipped) → Output report (TOON or JSON) → Exit code 0 (success).</p></div><div class='card'><h3>Error Handling &amp; Retry Logic</h3><p><strong>Manifest validation fails:</strong> Clear ajv error message, show which field is invalid, suggest manifest new to rebuild, Exit code 1. <strong>Pack not found in config:</strong> Name the configured packs, suggest scaffold init --pack, Exit code 1. <strong>Pack pinned SHA not set:</strong> Suggest templates sync, Exit code 1. <strong>Template file not found:</strong> Name the missing file, check pack version/descriptor, Exit code 1. <strong>Marker content differs:</strong> Show file + line range, explain user hand-edits detected, suggest --force to override, Exit code 1. <strong>Handlebars render error:</strong> Show template + error context, check manifest field types, Exit code 1. <strong>File locked (Windows):</strong> Suggest close file in IDE, Retry after brief delay (future), Exit code 1. <strong>Disk full:</strong> OS-level error propagated, Exit code 1. <strong>PreToolUse hook blocks Edit:</strong> Hook output: reason + file path, suggest running generate first, Tool call fails (Claude Code rejects).</p></div>
+      </section>
+
+      <section id="s8">
+        <h2>8 · Deployment — Docker, Terraform, GitLab CI/CD</h2>
+        <div class='card'><h3>Deployment Architecture (npm, monorepo)</h3><p><strong>Packages:</strong> scaffold-toolkit (private monorepo) — Root package.json, @mohantn/scaffold-core (packages/core, CLI TypeScript ESM, published to npm), @mohantn/scaffold-adapter-claude-code (packages/adapter-claude-code, Hooks + Skill.md, published to npm), Template Packs (packages/templates-dotnet, packages/templates-node, NOT published, vendored in-repo). <strong>CI/CD Pipeline (.github/workflows/ci.yml):</strong> Step 1: build-test-lint (npm ci, build, lint, test all workspaces). Step 2: templates-dotnet-build-check (validate-build.mjs script, real dotnet build on test fixtures). Step 3: templates-node-build-check (validate-build.mjs script, real npm build on test fixtures). Step 4: publish to npm (only on main merge, requires all prior jobs to pass). <strong>Package Distribution:</strong> @mohantn/scaffold-core: published to npm, audience: end-users, agents via npx. @mohantn/scaffold-adapter-claude-code: published to npm (private: true), audience: Claude Code skill install location, hooks/ directory. Templates (dotnet, node): not published, in-repo only, vendored from external standalone repos.</p></div><div class='card'><h3>Terraform / Infrastructure</h3><p><strong>Status:</strong> No server-side infrastructure. Scaffold is a local CLI tool; no deployments, no cloud resources, no databases. All state is file-based (.scaffold/config.json, changesets.json) stored in target repos.</p></div>
+      </section>
+
+      <section id="s9">
+        <h2>9 · Monitoring &amp; Custom Alerts</h2>
+        <div class='card'><h3>Golden Signals &amp; Observability</h3><table><thead><tr><th>Signal</th><th>Metric</th><th>Source</th><th>Target/SLO</th></tr></thead><tbody><tr><td>Latency</td><td>scaffold generate execution time (wall-clock)</td><td>CLI stderr timing; end-user reported</td><td>&lt; 2s for typical 50-file pack</td></tr><tr><td>Throughput</td><td>Files rendered per second</td><td>Report size / execution time</td><td>&gt; 25 files/sec</td></tr><tr><td>Determinism</td><td>% of runs with identical hash trail (same manifest + pack)</td><td>Changeset audit SHA256 comparison</td><td>100%</td></tr><tr><td>Error Rate</td><td>% of generate invocations that fail (manifest validation, pack not found, etc.)</td><td>Exit code != 0; user-facing</td><td>&lt; 5% (mostly user error)</td></tr><tr><td>Hook Performance</td><td>PreToolUse hook execution time (check-edit)</td><td>Claude Code hook timing</td><td>&lt; 100ms for single file</td></tr><tr><td>Test Coverage</td><td>% of CLI functions + pack authors' test cases covered by validate-pack</td><td>Jest/test runner; CI log</td><td>&gt; 85%</td></tr></tbody></table></div><div class='card'><h3>Logging &amp; Diagnostics</h3><p><strong>Log Level:</strong> INFO (scaffold init, templates sync, etc., stdout user feedback). DEBUG (opt, template rendering, marker injection, stdout --verbose flag TBD). ERROR (validation fails, file I/O error, stderr + exit code 1). WARN (marker content differs, --force used, stderr but proceed). <strong>No centralized logging server;</strong> all output is synchronous stdout/stderr. <strong>Changeset audit trail</strong> (.scaffold/changesets.json) serves as durable history.</p></div><div class='card'><h3>Monitoring Dashboard Widgets</h3><ul><li>CLI invocation count (by command: init, generate, undo, validate-pack, etc.)</li><li>Generate execution time (p50, p95, p99)</li><li>Top pack/version combinations in use (inferred from config files in repos)</li><li>Error frequency by error type (validation, pack not found, file locked, etc.)</li><li>Changeset rollback frequency (undo command usage)</li><li>Hook denial count (PreToolUse blocks direct writes)</li><li>Build-check pass/fail rate by template version (CI metrics)</li><li>AI_IMPLEMENTATION block fill rate (% of turns where agent completes all blocks before turn end)</li></ul></div><div class='card'><h3>Incident Response Flow</h3><p><strong>Template pack broken (render error):</strong> Detected: scaffold generate fails. Owner: Pack author notified via issue. Mitigation: Use prior pack version or --pack-version. <strong>Hook not installed or outdated:</strong> Detected: User tries Write/Edit without check-edit gating. Owner: Skill installer (Claude Code). Mitigation: Re-run hook install step from SKILL.md. <strong>Incompatible manifest/pack versions:</strong> Detected: Ajv schema mismatch. Owner: Agent + pack author (schema drift). Mitigation: Rebuild manifest with manifest new, or update pack descriptor. <strong>AI_IMPLEMENTATION blocks not filled:</strong> Detected: Stop hook runs status check at turn end. Owner: Agent (missed blocks). Mitigation: Hook nudge; agent retries fill. <strong>Unexpected manual edits in markers:</strong> Detected: Hash trail differs. Owner: User (conflicting hand-edits outside impl). Mitigation: --force flag to override, or manual merge. <strong>CI pack build-check flakes:</strong> Detected: templates-dotnet-build-check job fails. Owner: Pack author (template compilation error). Mitigation: Fix template, push, CI re-runs. <strong>Template pack packs get stale:</strong> Detected: No updates for months. Owner: Pack author. Mitigation: Packs are vendored in this repo; updates are pull requests. Standalone repos (scaffold-templates-dotnet) are the original source of truth.</p></div>
+      </section>
+
+      <section id="s10">
+        <h2>10 · Open Questions, Decisions &amp; Risks</h2>
+        <div class="card">
+          <h3>Open Questions</h3>
+          <div class="oq-toolbar">
+            <button type="button" class="copy-qa-btn" data-target="oq-table">
+              📋 Copy Q&amp;A for Claude Code
+            </button>
+          </div>
+          <div class="table-wrap">
+            <table id="oq-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Question</th>
+                  <th>Why it Matters</th>
+                  <th>Proposed Default</th>
+                  <th>Status</th>
+                  <th>Your Answer</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>OQ1</td><td>When a user runs `scaffold init` with multiple `--pack` arguments pointing to different versions of the same template, does the config merge them or keep only the last one?</td><td>This determines how flexible pack configuration is for brownfield repos that might want multiple versions of one template active simultaneously (e.g., v8-controller and v8-controller-gcp).</td><td>Only the last pack argument is kept; if users need multiple versions, they must edit .scaffold/config.json by hand after init, or run init again with all packs.</td><td>Open</td><td><textarea class="oq-answer" rows="2" placeholder="Type your answer…"></textarea></td></tr>
+<tr><td>OQ2</td><td>How does PreToolUse enforcement handle symlinks and relative paths? If a user edits `../../outside/repo/file.cs`, does check-edit see the real path or the symlink?</td><td>Symlinks can bypass pack-ownership detection if resolved differently in the hook vs. the CLI.</td><td>check-edit resolves the file to its real path before checking pack ownership; symlinks are not special-cased.</td><td>Open</td><td><textarea class="oq-answer" rows="2" placeholder="Type your answer…"></textarea></td></tr>
+<tr><td>OQ3</td><td>What happens if a pack&#039;s manifest schema version in its descriptor changes, but .scaffold/config.json still pins an older version? Does scaffold init detect this mismatch?</td><td>Schema mismatch between config and actual pack could lead to silent validation failures or confusing error messages.</td><td>The CLI validates the manifest against the pack&#039;s actual schema at generate time; if the schema version in the manifest doesn&#039;t match, it fails with a clear message naming both versions.</td><td>Open</td><td><textarea class="oq-answer" rows="2" placeholder="Type your answer…"></textarea></td></tr>
+<tr><td>OQ4</td><td>For new cloud-provider variants (e.g., v8-controller-gcp), how are dependencies (NuGet, npm) specified? Is there a shared base that both v8-controller and v8-controller-gcp reference, or does each version bundle its own?</td><td>Determines maintenance burden: shared deps reduce duplication but couple versions; independent deps increase duplication but allow parallel evolution.</td><td>Each version folder is fully self-contained; no shared base. Dependencies specific to v8-controller-gcp are listed only in its descriptor.</td><td>Open</td><td><textarea class="oq-answer" rows="2" placeholder="Type your answer…"></textarea></td></tr>
+<tr><td>OQ5</td><td>Can multiple template packs be configured with the same name (e.g., two entries named &#039;backend&#039; pointing to different paths)?</td><td>Determines whether pack names in config must be globally unique.</td><td>Pack names within a single config must be unique (same as JavaScript object keys); duplicate names silently overwrite.</td><td>Open</td><td><textarea class="oq-answer" rows="2" placeholder="Type your answer…"></textarea></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class='card'><h3>Architecture Decision Record (ADR)</h3><table><thead><tr><th>Decision ID</th><th>Decision</th><th>Options Considered</th><th>Choice + Rationale</th><th>Date</th></tr></thead><tbody><tr><td>ADR-001</td><td>Packs are local-only (no git URL fetching in init)</td><td>A) Local paths only; B) Support git URLs; C) Hybrid (both)</td><td><strong>A (local paths only).</strong> Eliminates latency and cache misses; packs are always available (vendored in packages/templates-* or developer-provided). Keeps init deterministic and offline-capable. Git/URL engine still exists for future non-vendored packs, but init no longer exposes it.</td><td>2026-07-11</td></tr><tr><td>ADR-002</td><td>Deterministic boilerplate via marker-based injection (not replacement)</td><td>A) Marker blocks; B) File replacement; C) Manual merge prompts</td><td><strong>A (markers).</strong> Allows partial file updates without destroying user edits outside markers. Hash trail provides idempotency + rollback. Deterministic (no merge conflicts, no prompt dialogs). Trade-off: requires pack author discipline (marker placement).</td><td>2026-07-05</td></tr><tr><td>ADR-003</td><td>AI_IMPLEMENTATION blocks are LLM-fillable, CLI-read-only</td><td>A) CLI renders boilerplate into impl blocks; B) LLM fills blocks, CLI is read-only; C) Hybrid</td><td><strong>B (LLM fills).</strong> Splits concerns: deterministic (CLI) vs. probabilistic (LLM). CLI marks empty blocks in report; LLM (Agent) fills them via Edit tool, PreToolUse hook gates access. Avoids re-engineering and LLM-model-specific implementations into templates.</td><td>2026-07-03</td></tr><tr><td>ADR-004</td><td>Multiple template versions coexist without collision (v8-controller + v8-controller-gcp)</td><td>A) Single version per stack; B) Multiple versions with non-colliding markers; C) Namespace all markers</td><td><strong>B + C.</strong> Each version is a sibling folder (v8-controller/, v8-controller-gcp/) with its own descriptor. Injection markers include version name (SCAFFOLD_V8_CONTROLLER_END vs. SCAFFOLD_V8_CONTROLLER_GCP_END). Allows cloud-provider customization without branching or duplication.</td><td>2026-07-09</td></tr><tr><td>ADR-005</td><td>Claude Code hooks enforce deterministic generation (PreToolUse blocks direct writes)</td><td>A) No hooks; B) PreToolUse hard gate; C) Soft nudge at turn end</td><td><strong>B (PreToolUse hard gate).</strong> Makes enforcement deterministic instead of prose-based. PreToolUse blocks write/edit to pack-owned files outside impl blocks. Complementary hooks (UserPromptSubmit context, PostToolUse nudge, Stop verify) form a safety net. Trade-off: agent must wire hooks for this to work.</td><td>2026-07-10</td></tr><tr><td>ADR-006</td><td>Config stores pack pinned SHAs (not URLs)</td><td>A) URLs only; B) Pinned SHAs only; C) Both (pin + update)</td><td><strong>C (pin + update).</strong> Default is pinned SHA (reproducible, offline). templates sync --update moves pinned SHA forward to remote HEAD. Balances reproducibility (no surprise updates) with flexibility (controlled updates).</td><td>2026-07-08</td></tr></tbody></table></div><div class='card'><h3>Risks &amp; Mitigation</h3><table><thead><tr><th>Risk</th><th>Likelihood</th><th>Impact</th><th>Mitigation</th></tr></thead><tbody><tr><td>Hook not installed or outdated in target repo → enforcement fails silently</td><td>Medium</td><td>High</td><td>UserPromptSubmit hook injects context reminder every turn. SKILL.md doc emphasizes hook install as load-bearing. Version check in adapter package to warn on mismatch.</td></tr><tr><td>Pack author breaks template Handlebars syntax → compile error on generate</td><td>Medium</td><td>Medium</td><td>validate-pack CI job runs real build (dotnet build, npm run build) on test fixtures. Broken templates fail CI and block publish. Pack author must fix before merge.</td></tr><tr><td>User manually edits inside SCAFFOLD markers → hash trail detects; --force required to override</td><td>Low</td><td>Low</td><td>Report message explains marker detection + suggests merging edits outside markers. Changeset audit trail allows rollback (scaffold undo).</td></tr><tr><td>Agent forgets to fill AI_IMPLEMENTATION block → turn ends with unfilled</td><td>Medium</td><td>Medium</td><td>Stop hook runs scaffold status --json at turn end. Hook nudges agent if unfilled blocks detected. Blocking turn end is not load-bearing (LLM can always ignore), but hook makes it explicit.</td></tr><tr><td>Manifest schema changes, but .scaffold/config.json still pins old version → validation error</td><td>Low</td><td>Low</td><td>Error message names both versions and suggests templates sync. Backward-compat migrations are pack author's responsibility (new schema version if breaking change).</td></tr><tr><td>CI pack build-check flakes (intermittent dotnet/npm build failures) → valid pack blocked</td><td>Low</td><td>Medium</td><td>CI logs help diagnose transient vs. real failures. Retry job manually if flake suspected. Long-term: use more stable build image/toolchain.</td></tr><tr><td>Template packs get stale (no updates for months) → users stuck on old versions</td><td>Low</td><td>Low</td><td>Packs are vendored in this repo; updates are pull requests. Standalone repos (scaffold-templates-dotnet) are the original source of truth; in-repo copies can periodically sync.</td></tr></tbody></table></div>
+      </section>
+    </main>
+
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+      mermaid.initialize({
+        startOnLoad: true,
+        theme: "default",
+        securityLevel: "loose",
+      });
+    </script>
+
+    <script>
+      const toc = document.getElementById("toc");
+      const sections = document.querySelectorAll('section[id^="s"]');
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              const id = entry.target.id;
+              const link = toc.querySelector(`a[href="#${id}"]`);
+              toc
+                .querySelectorAll("a")
+                .forEach((a) => a.classList.remove("active"));
+              if (link) link.classList.add("active");
+            }
+          });
+        },
+        { threshold: 0.3, rootMargin: "-50% 0px -50% 0px" },
+      );
+
+      sections.forEach((section) => observer.observe(section));
+
+      toc.querySelectorAll("a").forEach((link) => {
+        link.addEventListener("click", (e) => {
+          e.preventDefault();
+          const target = document.querySelector(link.getAttribute("href"));
+          if (target) {
+            target.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        });
+      });
+    </script>
+
+    <script>
+      document.querySelectorAll("table").forEach((table) => {
+        if (table.closest(".table-wrap")) return;
+        const wrap = document.createElement("div");
+        wrap.className = "table-wrap";
+        table.parentNode.insertBefore(wrap, table);
+        wrap.appendChild(table);
+      });
+    </script>
+
+    <script>
+      (function () {
+        const backdrop = document.createElement("div");
+        backdrop.className = "diagram-backdrop";
+        document.body.appendChild(backdrop);
+
+        let activeCard = null;
+
+        function minimize(card) {
+          card.classList.remove("diagram-maximized");
+          const btn = card.querySelector(".diagram-toggle-btn");
+          if (btn) {
+            btn.textContent = "⛶";
+            btn.title = "Maximize diagram";
+          }
+          backdrop.classList.remove("active");
+          document.body.classList.remove("diagram-lock");
+          activeCard = null;
+        }
+
+        function maximize(card) {
+          if (activeCard && activeCard !== card) minimize(activeCard);
+          card.classList.add("diagram-maximized");
+          const btn = card.querySelector(".diagram-toggle-btn");
+          if (btn) {
+            btn.textContent = "✕";
+            btn.title = "Minimize diagram";
+          }
+          backdrop.classList.add("active");
+          document.body.classList.add("diagram-lock");
+          activeCard = card;
+        }
+
+        document.querySelectorAll("div.mermaid").forEach((diagram) => {
+          let card = diagram.closest(".mermaid-card");
+          if (!card) {
+            card = document.createElement("div");
+            card.className = "mermaid-card";
+            diagram.parentNode.insertBefore(card, diagram);
+            card.appendChild(diagram);
+          }
+          if (card.querySelector(".diagram-toggle-btn")) return;
+
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "diagram-toggle-btn";
+          btn.textContent = "⛶";
+          btn.title = "Maximize diagram";
+          btn.addEventListener("click", () => {
+            if (card.classList.contains("diagram-maximized")) {
+              minimize(card);
+            } else {
+              maximize(card);
+            }
+          });
+          card.appendChild(btn);
+        });
+
+        backdrop.addEventListener("click", () => {
+          if (activeCard) minimize(activeCard);
+        });
+
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "Escape" && activeCard) minimize(activeCard);
+        });
+      })();
+    </script>
+
+    <script>
+      document.querySelectorAll(".copy-qa-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const table = document.getElementById(btn.dataset.target);
+          if (!table) return;
+          const lines = [];
+          table.querySelectorAll("tbody tr").forEach((row) => {
+            const id = row.children[0]?.textContent.trim() || "";
+            const question = row.children[1]?.textContent.trim() || "";
+            const answer =
+              row.querySelector("textarea")?.value.trim() ||
+              "(no answer provided)";
+            lines.push(`${id}: ${question}\nAnswer: ${answer}`);
+          });
+          navigator.clipboard.writeText(lines.join("\n\n")).then(() => {
+            const original = btn.textContent;
+            btn.textContent = "✓ Copied";
+            btn.classList.add("copied");
+            setTimeout(() => {
+              btn.textContent = original;
+              btn.classList.remove("copied");
+            }, 1500);
+          });
+        });
+      });
+    </script>
+  </body>
+</html>

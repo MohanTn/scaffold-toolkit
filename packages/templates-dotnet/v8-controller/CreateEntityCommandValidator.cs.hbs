@@ -4,7 +4,9 @@ public class Create{{entity}}CommandValidator : AbstractValidator<Create{{entity
 {
     public Create{{entity}}CommandValidator()
     {
+        // SCAFFOLD:AI_IMPLEMENTATION:START
 {{#each fields}}{{#unless (eq (pascal name) "Id")}}        RuleFor(x => x.{{pascal name}}).NotEmpty();
 {{/unless}}{{/each}}
+        // SCAFFOLD:AI_IMPLEMENTATION:END
     }
 }

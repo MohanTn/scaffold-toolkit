@@ -1,0 +1,889 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Architecture — Generic Template Pack: the agent fills placeholders, never authors files</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      :root {
+        --accent: #2563eb;
+        --bg: #f8fafc;
+        --card-bg: #ffffff;
+        --text: #1e293b;
+        --text-muted: #64748b;
+        --border: #e2e8f0;
+        --status-draft: #64748b;
+        --status-review: #f59e0b;
+        --status-approved: #16a34a;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        line-height: 1.6;
+        color: var(--text);
+        background: var(--bg);
+        min-height: 100vh;
+      }
+
+      nav#toc {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 240px;
+        height: 100vh;
+        background: var(--card-bg);
+        border-right: 1px solid var(--border);
+        overflow-y: auto;
+        z-index: 100;
+        padding: 2rem 1rem;
+      }
+
+      nav#toc .brand {
+        font-weight: bold;
+        font-size: 1.1rem;
+        color: var(--accent);
+        margin-bottom: 2rem;
+        display: block;
+      }
+
+      nav#toc a {
+        display: block;
+        padding: 0.5rem 0.75rem;
+        margin: 0.5rem 0;
+        color: var(--text);
+        text-decoration: none;
+        border-radius: 6px;
+        font-size: 0.95rem;
+        transition: all 0.2s;
+      }
+
+      nav#toc a:hover {
+        background: var(--bg);
+        color: var(--accent);
+      }
+
+      nav#toc a.active {
+        background: var(--accent);
+        color: white;
+        font-weight: 500;
+      }
+
+      main {
+        margin-left: 240px;
+        padding: 3rem 2rem;
+        margin-right: auto;
+      }
+
+      header {
+        margin-bottom: 3rem;
+      }
+
+      header h1 {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+        color: var(--text);
+      }
+
+      header .subtitle {
+        color: var(--text-muted);
+        font-size: 0.95rem;
+      }
+
+      .status-banner {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        padding: 1rem 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        font-size: 0.9rem;
+        font-weight: 500;
+      }
+
+      .status-banner.draft {
+        background: rgba(100, 116, 139, 0.1);
+        color: var(--status-draft);
+        border-left: 4px solid var(--status-draft);
+      }
+
+      .status-banner.review {
+        background: rgba(245, 158, 11, 0.1);
+        color: var(--status-review);
+        border-left: 4px solid var(--status-review);
+      }
+
+      .status-banner.approved {
+        background: rgba(22, 163, 74, 0.1);
+        color: var(--status-approved);
+        border-left: 4px solid var(--status-approved);
+      }
+
+      section {
+        margin-bottom: 3rem;
+        scroll-margin-top: 2rem;
+      }
+
+      section h2 {
+        font-size: 1.4rem;
+        margin-bottom: 1.5rem;
+        padding-left: 1rem;
+        border-left: 4px solid var(--accent);
+        color: var(--text);
+      }
+
+      .card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      }
+
+      .card h3 {
+        font-size: 1.1rem;
+        margin-bottom: 1rem;
+        color: var(--text);
+      }
+
+      .card h4 {
+        font-size: 1rem;
+        margin-top: 1.5rem;
+        margin-bottom: 0.75rem;
+        color: var(--accent);
+      }
+
+      .card p {
+        margin-bottom: 1rem;
+        color: var(--text);
+      }
+
+      .card ul,
+      .card ol {
+        margin-left: 1.5rem;
+        margin-bottom: 1rem;
+      }
+
+      .card li {
+        margin-bottom: 0.5rem;
+        color: var(--text);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1rem;
+      }
+
+      table thead {
+        background: var(--bg);
+        border-bottom: 2px solid var(--border);
+      }
+
+      table th {
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        color: var(--text);
+        font-size: 0.9rem;
+        white-space: nowrap;
+      }
+
+      table td {
+        padding: 1rem;
+        border-bottom: 1px solid var(--border);
+        color: var(--text);
+        font-size: 0.95rem;
+        white-space: nowrap;
+      }
+
+      table tbody tr:nth-child(even) {
+        background: rgba(100, 116, 139, 0.02);
+      }
+
+      .table-wrap {
+        overflow-x: auto;
+        margin-bottom: 1rem;
+      }
+
+      .mermaid-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 400px;
+        position: relative;
+      }
+
+      .mermaid {
+        display: flex;
+        justify-content: center;
+      }
+
+      .diagram-toggle-btn {
+        position: absolute;
+        top: 0.75rem;
+        right: 0.75rem;
+        width: 2rem;
+        height: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--text-muted);
+        font-size: 1rem;
+        line-height: 1;
+        cursor: pointer;
+        z-index: 2;
+        transition: all 0.2s;
+      }
+
+      .diagram-toggle-btn:hover {
+        color: var(--accent);
+        border-color: var(--accent);
+      }
+
+      .diagram-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.6);
+        z-index: 999;
+      }
+
+      .diagram-backdrop.active {
+        display: block;
+      }
+
+      body.diagram-lock {
+        overflow: hidden;
+      }
+
+      .mermaid-card.diagram-maximized {
+        position: fixed;
+        inset: 2rem;
+        z-index: 1000;
+        overflow: auto;
+        box-shadow: 0 25px 70px rgba(0, 0, 0, 0.35);
+      }
+
+      .mermaid-card.diagram-maximized .mermaid {
+        width: 100%;
+        height: 100%;
+      }
+
+      .mermaid-card.diagram-maximized .mermaid svg {
+        width: 100% !important;
+        height: 100% !important;
+        max-width: 100% !important;
+        max-height: 100% !important;
+      }
+
+      pre,
+      code {
+        white-space: pre-wrap;
+        word-break: break-all;
+        max-width: 100%;
+        font-family: "Courier New", Courier, monospace;
+      }
+
+      pre {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 1rem;
+        overflow-x: auto;
+        margin-bottom: 1rem;
+        font-size: 0.85rem;
+        line-height: 1.4;
+      }
+
+      code {
+        background: rgba(100, 116, 139, 0.1);
+        padding: 0.2rem 0.4rem;
+        border-radius: 4px;
+        color: #e11d48;
+        font-size: 0.9rem;
+      }
+
+      pre code {
+        background: none;
+        padding: 0;
+        color: var(--text);
+      }
+
+      details {
+        margin-bottom: 1.5rem;
+      }
+
+      details summary {
+        cursor: pointer;
+        font-weight: 600;
+        color: var(--accent);
+        padding: 0.75rem;
+        user-select: none;
+        transition: all 0.2s;
+      }
+
+      details summary:hover {
+        background: var(--bg);
+        border-radius: 6px;
+      }
+
+      details[open] summary {
+        margin-bottom: 1rem;
+      }
+
+      details pre {
+        margin-top: 1rem;
+      }
+
+      .approval-gate {
+        background: rgba(22, 163, 74, 0.1);
+        border-left: 4px solid var(--status-approved);
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        color: var(--status-approved);
+        font-weight: 500;
+        margin-top: 2rem;
+      }
+
+      section,
+      .card {
+        overflow-wrap: break-word;
+        word-break: break-word;
+      }
+
+      @media (max-width: 900px) {
+        nav#toc {
+          position: static;
+          width: 100%;
+          height: auto;
+          border-right: none;
+          border-bottom: 1px solid var(--border);
+          padding: 1rem;
+          margin-bottom: 1rem;
+        }
+
+        nav#toc .brand {
+          display: inline-block;
+          margin-right: 2rem;
+        }
+
+        nav#toc a {
+          display: inline-block;
+          margin: 0 0.5rem;
+          padding: 0.4rem 0.6rem;
+          font-size: 0.85rem;
+        }
+
+        main {
+          margin-left: 0;
+          padding: 2rem 1rem;
+        }
+
+        header h1 {
+          font-size: 1.5rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <nav id="toc">
+      <span class="brand">🏛️ Architecture</span>
+      <a href="#s0">0 · Document Control</a>
+      <a href="#s1">1 · Overview</a>
+      <a href="#s2">2 · Use Cases &amp; Scope</a>
+      <a href="#s3">3 · C4 Context &amp; Containers</a>
+      <a href="#s4">4 · Domain &amp; Data Model</a>
+      <a href="#s5">5 · API Design</a>
+      <a href="#s6">6 · UI/UX</a>
+      <a href="#s7">7 · Behaviour &amp; Process</a>
+      <a href="#s8">8 · Deployment</a>
+      <a href="#s9">9 · Monitoring &amp; Alerts</a>
+      <a href="#s10">10 · Open Questions &amp; Risks</a>
+    </nav>
+
+    <main>
+      <header>
+        <h1>🏛️ Architecture — Generic Template Pack: the agent fills placeholders, never authors files</h1>
+        <p class="subtitle">A stack-agnostic template-pack format on scaffold-core where the host coding agent emits only a compact spec plus the minimal AI_IMPLEMENTATION hole-fills, while the deterministic engine renders every file and links them together. · scaffold-core · Handlebars · ajv · TOON/JSON · Node ≥20.12 · TypeScript ESM</p>
+      </header>
+
+      <section id="s0">
+        <h2>0 · Document Control</h2>
+        <div class="status-banner draft">
+          <strong>Status:</strong> DRAFT ·
+          <strong>Version:</strong> v1 ·
+          <strong>Last Updated:</strong> 2026-07-12 ·
+          <strong>Author:</strong> Claude Opus 4.8
+        </div>
+
+        <div class="card">
+          <h3>Revision Log</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Version</th>
+                  <th>Date</th>
+                  <th>Summary of Changes</th>
+                  <th>Driven By</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>v1</td><td>2026-07-12</td><td>Initial draft — generic stack-agnostic pack format and the zero-file-authoring contract, a reference Node/TypeScript generic-v1 pack, and the residual core generalizations (pack-declared inputs, commentSyntax map, fully pack-supplied helpers).</td><td>First generation</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="approval-gate">
+          <strong>Approval Gate:</strong> This document must reach APPROVED
+          status before implementation begins.
+        </div>
+      </section>
+
+      <section id="s1">
+        <h2>1 · Overview — Feature, Audience &amp; Dependencies</h2>
+        <div class='card'><h3>Feature</h3><p><strong>Generic Template Pack</strong> generalizes the proven <code>v8-controller</code> .NET pack into a stack-neutral authoring format on the existing <code>scaffold-core</code> engine. The engine is already pack-driven across languages (descriptor v2 carries <code>inputs</code>, <code>commentSyntax</code>, <code>bootstrapAnchors</code>); this feature (a) ships a non-.NET reference pack that proves it, and (b) closes the residual assumptions in core that still lean on the .NET pack. The governing contract is <em>zero file authoring by the agent</em>: for any new resource the agent emits a one-line spec and, after <code>scaffold generate</code> writes the whole file tree and wires it together, edits only the <code>SCAFFOLD:AI_IMPLEMENTATION</code> interiors. Everything else is deterministic, so per-resource output tokens collapse to the handful of lines that genuinely need reasoning.</p></div><div class='card'><h3>Actors</h3><table><thead><tr><th>Name / Role</th><th>Responsibility</th><th>System(s) they interact with</th></tr></thead><tbody><tr><td>Host coding agent</td><td>Emits the compact spec (<code>manifest new</code>), runs <code>generate</code>, then fills only AI_IMPLEMENTATION holes</td><td>scaffold-core CLI, target repo, PreToolUse hook</td></tr><tr><td>Pack author (human)</td><td>Authors the descriptor, <code>.hbs</code> templates, and <code>helpers.js</code> once; adds test_data and a build-gate</td><td>Pack directory, scaffold-core validate-pack</td></tr><tr><td>scaffold-core CLI</td><td>Deterministically renders targets, injects link markers, gates edits</td><td>Pack, target repo, .scaffold/config.json</td></tr><tr><td>PreToolUse hook</td><td>Shells to <code>scaffold check-edit</code> before any Write/Edit is allowed</td><td>scaffold-core check-edit, host agent</td></tr><tr><td>CI pipeline</td><td>Runs guardrail + build-gate for the generic pack before publish</td><td>GitHub Actions, npm</td></tr></tbody></table></div><div class='card'><h3>Dependencies</h3><table><thead><tr><th>System</th><th>Purpose</th><th>Version / Location</th><th>Protocol</th></tr></thead><tbody><tr><td>scaffold-core</td><td>Render + inject + edit-gate engine</td><td>packages/core, CLI &gt;=0.2.0 &lt;1.0.0</td><td>Local CLI (argv)</td></tr><tr><td>Handlebars</td><td>Template rendering with pack-local helpers</td><td>packages/core dep</td><td>In-process</td></tr><tr><td>ajv</td><td>Descriptor + intent-manifest schema validation</td><td>descriptor/schema.ts</td><td>In-process</td></tr><tr><td>TOON codec</td><td>Compact report/manifest encoding</td><td>packages/core/src/toon</td><td>In-process</td></tr><tr><td>Target toolchain</td><td>Build-gate for the generic pack output</td><td>node ≥20.12 + tsc (reference pack)</td><td>Child process</td></tr></tbody></table></div><div class='card'><h3>Assumptions</h3><ul><li>Descriptor schema stays at v2; this feature is additive and needs no schema bump — <code>inputs</code>, <code>commentSyntax</code>, and pack-local <code>helpers.js</code> already exist.</li><li>The host runs behind a PreToolUse hook wired to <code>scaffold check-edit</code>; without it, the contract is advisory, not enforced.</li><li>Packs are consumed as local directories (<code>--pack name=path@version</code>); <code>init</code> no longer accepts git URLs.</li><li>One pack = one language/stack; a multi-language single pack is out of scope (see Section 10).</li></ul></div><div class='card'><h3>Out of scope</h3><ul><li>A single pack spanning multiple languages in one descriptor.</li><li>Executing arbitrary code in helpers (pure string transforms only).</li><li>Re-generating or editing existing business logic outside the holes.</li><li>Git-URL / remote pack fetching in <code>init</code>.</li></ul></div><div class='card'><h3>At a glance</h3><table><thead><tr><th>Owner</th><th>Repos touched</th><th>Data store</th><th>Auth method</th><th>Environments</th></tr></thead><tbody><tr><td>scaffold-toolkit maintainers</td><td>packages/core, packages/templates-node (new), .github/workflows/ci.yml</td><td>None — filesystem artifacts only (.scaffold/, source tree)</td><td>N/A (local CLI, no network in init/generate)</td><td>Developer machine + CI</td></tr></tbody></table></div>
+      </section>
+
+      <section id="s2">
+        <h2>2 · Use Cases &amp; Scope</h2>
+        <div class='card'><h3>Use cases</h3><div class='mermaid'>flowchart LR
+  A[Pack Author] -->|authors once| P[Generic Pack\ndescriptor + hbs + helpers]
+  H[Host Coding Agent] -->|emits compact spec| M[scaffold manifest new]
+  M --> G[scaffold generate]
+  P --> G
+  G -->|renders files + injects links| FS[(Target Repo)]
+  H -->|fills AI_IMPLEMENTATION holes only| E[Write / Edit]
+  E --> CE{scaffold check-edit}
+  CE -->|inside a hole| FS
+  CE -->|whole file or wiring| X[blocked -> route via generate]
+  CI[CI Pipeline] -->|guardrail + build-gate| P</div></div><div class='card'><h3>Functional requirements</h3><table><thead><tr><th>ID</th><th>Requirement</th><th>Acceptance criteria</th></tr></thead><tbody><tr><td>FR1</td><td>A pack declares its own input vocabulary via <code>inputs[]</code>; the engine enforces it without the legacy .NET <code>entity</code>+<code>fields</code> contract.</td><td>Generic pack with <code>inputs: [{name, type, required}]</code> validates a manifest that has no <code>entity</code>; an existing dotnet pack (no <code>inputs</code>) still enforces PascalCase entity + non-empty fields.</td></tr><tr><td>FR2</td><td>The generic pack renders arbitrary file types from <code>targets[]</code> deterministically.</td><td>Two consecutive <code>generate</code> runs on the same manifest produce byte-identical files; extensions outside the built-in table render because the pack supplies <code>commentSyntax</code>.</td></tr><tr><td>FR3</td><td>Cross-file linking is expressed as an <code>injections[]</code> append into a registry/index file.</td><td>Scaffolding a second resource appends one link line to the registry marker; re-running is an idempotent no-op guarded by the hash trailer.</td></tr><tr><td>FR4</td><td>Each generated file exposes exactly the minimal <code>AI_IMPLEMENTATION</code> holes; everything else is frozen.</td><td><code>scaffold status</code> lists the holes; the placeholder already compiles; a <code>:required</code> hole stays tracked until its content changes.</td></tr><tr><td>FR5</td><td><code>check-edit</code> blocks any write to a pack-owned file and any edit outside a hole interior.</td><td><code>check-guardrails.mjs</code> against the generic pack: write of a whole target blocked, edit of a link marker blocked, edit inside a hole allowed.</td></tr><tr><td>FR6</td><td>The generic pack ships <code>test_data/</code> and a build-gate that compiles/tests its output in CI, gating publish.</td><td>A new CI job builds the scaffolded sample (tsc + node --test) and sits in the <code>publish</code> job's <code>needs:</code> list.</td></tr><tr><td>FR7</td><td>Marker comment syntax for the generic pack's extensions resolves from the pack's <code>commentSyntax</code> map.</td><td>Injection markers render as valid comments for <code>.ts</code> without any change to core's built-in TABLE.</td></tr></tbody></table></div><div class='card'><h3>Non-functional requirements</h3><table><thead><tr><th>Attribute</th><th>Measurable target</th></tr></thead><tbody><tr><td>Token efficiency</td><td>≥90% of per-resource output tokens are deterministic (rendered), agent emits only spec + hole bodies.</td></tr><tr><td>Determinism</td><td>Re-render of an unchanged manifest is byte-identical (0 diff).</td></tr><tr><td>Stack decoupling</td><td>Generic pack builds green in CI with only Node + tsc; zero .NET SDK dependency.</td></tr><tr><td>Fail-closed safety</td><td>Ambiguous / not-found / multi-match <code>old_string</code> is blocked, never guessed.</td></tr><tr><td>CI gate latency</td><td>Node build-check completes in &lt;90s so it does not dominate the pipeline.</td></tr></tbody></table></div>
+      </section>
+
+      <section id="s3">
+        <h2>3 · C4 — Context &amp; Containers</h2>
+        <div class='card'><h3>C4 — System context</h3><div class='mermaid'>C4Context
+  title System Context - Generic Template Pack
+  Person(agent, "Host Coding Agent", "LLM host: emits specs and hole-fills")
+  Person(author, "Pack Author", "Authors packs by hand")
+  System(scaffold, "scaffold-core CLI", "Deterministic renderer + injector + edit gate")
+  System_Ext(pack, "Template Pack", "descriptor + hbs + helpers.js")
+  System_Ext(repo, "Target Repo", "Generated source tree + .scaffold")
+  System_Ext(ci, "CI Pipeline", "Guardrail + build-gate + publish")
+  Rel(agent, scaffold, "manifest new / generate / check-edit", "CLI")
+  Rel(author, pack, "authors", "filesystem")
+  Rel(scaffold, pack, "loads descriptor + templates", "read")
+  Rel(scaffold, repo, "writes files, injects markers", "fs")
+  Rel(ci, pack, "validates + publishes", "npm")</div></div><div class='card'><h3>C4 — Containers (inside scaffold-core)</h3><div class='mermaid'>C4Container
+  title Container - scaffold-core engine
+  Container(cli, "cli.ts", "commander", "Command surface")
+  Container(mani, "manifest/build + decode", "TS + ajv", "Compact spec -> intent manifest")
+  Container(desc, "descriptor/load + schema", "ajv", "Loads + validates the pack")
+  Container(gen, "generate/*", "Handlebars", "render + inject + provenance")
+  Container(mark, "markerScan", "TS", "AI + injection marker offsets")
+  Container(chk, "checkEdit", "TS", "Structural edit gate")
+  ContainerDb(cfg, ".scaffold/config.json", "JSON", "Pack slots")
+  Rel(cli, mani, "builds manifest")
+  Rel(cli, gen, "runs generate")
+  Rel(cli, chk, "gates edits")
+  Rel(gen, desc, "loads descriptor")
+  Rel(gen, mark, "scans markers")
+  Rel(chk, mark, "scans hole interiors")
+  Rel(gen, cfg, "reads pack slots")
+  Rel(chk, cfg, "reads pack slots")</div></div>
+      </section>
+
+      <section id="s4">
+        <h2>4 · Domain &amp; Data Model</h2>
+        <div class='card'><h3>Domain model — the artifacts that make a pack generic</h3><div class='mermaid'>classDiagram
+  class TemplateDescriptor {
+    +int descriptorSchemaVersion
+    +string packVersion
+    +Requires requires
+    +DescriptorTarget[] targets
+    +DescriptorInjection[] injections
+    +PackInputDeclaration[] inputs
+    +PackCommentSyntaxMap commentSyntax
+    +RawBootstrapAnchor[] bootstrapAnchors
+  }
+  class DescriptorTarget {
+    +string output
+    +string template
+    +Mode mode
+  }
+  class DescriptorInjection {
+    +string file
+    +string marker
+    +string template
+    +Position position
+    +Strategy strategy
+    +string hashTrailerPrefix
+  }
+  class PackInputDeclaration {
+    +string name
+    +Type type
+    +bool required
+    +string pattern
+    +int minItems
+  }
+  class IntentManifest {
+    +int manifestSchemaVersion
+    +string targetStack
+    +string entity
+    +FieldSpec[] fields
+    +object options
+  }
+  class AiImplementationBlock {
+    +string id
+    +bool required
+    +bool empty
+    +int interiorStartOffset
+    +int interiorEndOffset
+  }
+  TemplateDescriptor o-- DescriptorTarget
+  TemplateDescriptor o-- DescriptorInjection
+  TemplateDescriptor o-- PackInputDeclaration
+  IntentManifest ..> TemplateDescriptor : targetStack selects
+  DescriptorTarget ..> AiImplementationBlock : renders holes</div></div><div class='card'><h3>Artifact relationships</h3><div class='mermaid'>erDiagram
+  CONFIG ||--o{ PACK_SLOT : declares
+  PACK_SLOT ||--|| DESCRIPTOR : resolves
+  DESCRIPTOR ||--o{ TARGET : has
+  DESCRIPTOR ||--o{ INJECTION : has
+  DESCRIPTOR ||--o{ INPUT_DECL : has
+  MANIFEST }o--|| PACK_SLOT : targets
+  TARGET ||--o{ AI_BLOCK : contains
+  INJECTION }o--|| REGISTRY_FILE : appends-into
+  CONFIG {
+    string projectType
+    json packs
+  }
+  DESCRIPTOR {
+    int descriptorSchemaVersion
+    string packVersion
+  }
+  MANIFEST {
+    int manifestSchemaVersion
+    string targetStack
+  }</div></div><div class='card'><h3>Migration impact</h3><p><strong>No schema migration.</strong> Descriptor stays <code>descriptorSchemaVersion: 2</code> and intent manifests stay <code>manifestSchemaVersion: 1</code>. The only core change is generalizing <code>manifest/inputValidation.ts</code> so a pack that declares <code>inputs</code> is validated against <em>its own</em> vocabulary rather than the hard-coded <code>entity</code>+<code>fields</code> legacy path (already the documented behavior of <code>inputs</code>). Existing dotnet manifests and generated trees are unaffected — the legacy branch is retained for descriptors that omit <code>inputs</code>.</p></div>
+      </section>
+
+      <section id="s5">
+        <h2>5 · API Design (.NET)</h2>
+        <div class='card'><h3>CLI surface — the pack's API is the command line</h3><table><thead><tr><th>Command</th><th>Auth</th><th>Input</th><th>Output</th><th>Exit codes</th></tr></thead><tbody><tr><td><code>scaffold init --project-type X --pack name=path@ver</code></td><td>local</td><td>project type, pack slots</td><td>.scaffold/config.json</td><td>0 ok / 1 error</td></tr><tr><td><code>scaffold manifest new --stack S --input k=v --option p=v</code></td><td>local</td><td>compact spec (one line)</td><td>schema-validated intent manifest</td><td>0 / 1 invalid spec</td></tr><tr><td><code>scaffold generate --manifest m.json [--dry-run]</code></td><td>local</td><td>intent manifest</td><td>rendered files + injected links + report</td><td>0 / 1 render/inject error</td></tr><tr><td><code>scaffold status</code></td><td>local</td><td>—</td><td>unfilled AI_IMPLEMENTATION holes</td><td>0 all filled / 1 pending</td></tr><tr><td><code>scaffold check-edit --file F --tool write|edit --old-string s</code></td><td>local</td><td>proposed edit</td><td>allow/block verdict (JSON)</td><td>0 allow / 1 block</td></tr><tr><td><code>scaffold validate-pack --pack dir --manifest m.json</code></td><td>local</td><td>pack + sample manifest</td><td>per-version render+inject smoke report</td><td>0 / 1 invalid pack</td></tr></tbody></table></div><div class='card'><h3>Contract snippet</h3><details><summary>Generic pack descriptor + intent manifest (illustrative)</summary><pre>// packages/templates-node/generic-v1/manifest.templates.json
+{
+  "descriptorSchemaVersion": 2,
+  "packVersion": "generic-v1",
+  "requires": { "scaffoldCli": ">=0.2.0 <1.0.0" },
+  "inputs": [ { "name": "name", "type": "string", "required": true, "pattern": "^[A-Z][A-Za-z0-9]+$" } ],
+  "commentSyntax": { ".ts": { "prefix": "//" } },
+  "targets": [
+    { "output": "src/features/{{name}}/{{name}}.ts",      "template": "Module.ts.hbs",      "mode": "create" },
+    { "output": "src/features/{{name}}/{{name}}.test.ts", "template": "Module.test.ts.hbs", "mode": "create" },
+    { "output": "src/features/index.ts",                 "template": "Registry.ts.hbs",     "mode": "skip-if-exists" }
+  ],
+  "injections": [
+    { "file": "src/features/index.ts", "marker": "REGISTRY", "template": "registry-link.hbs",
+      "position": "before-end", "strategy": "append", "hashTrailerPrefix": "// scaffold-hash:" }
+  ]
+}
+
+// intent manifest emitted by: scaffold manifest new --stack module --input name=Billing
+{ "manifestSchemaVersion": 1, "targetStack": "module", "name": "Billing" }</pre></details></div><div class='card'><h3>End-to-end sequence</h3><div class='mermaid'>sequenceDiagram
+  participant A as Host Agent
+  participant CLI as scaffold-core
+  participant P as Generic Pack
+  participant R as Target Repo
+  participant HK as PreToolUse Hook
+  A->>CLI: manifest new --stack module --input name=Billing
+  CLI-->>A: billing.manifest.json (schema-validated)
+  A->>CLI: generate --manifest billing.manifest.json
+  CLI->>P: load descriptor + templates + helpers
+  CLI->>R: render Billing.ts, Billing.test.ts
+  CLI->>R: inject registry link (append, hash-guarded)
+  CLI-->>A: report (files + AI_IMPLEMENTATION holes)
+  A->>HK: Edit Billing.ts hole body
+  HK->>CLI: check-edit --tool edit --old-string ...
+  CLI-->>HK: allow (inside interior)
+  HK-->>R: apply edit
+  A->>HK: Write Billing.ts (whole file)
+  HK->>CLI: check-edit --tool write
+  CLI-->>HK: block (pack-owned)</div></div>
+      </section>
+
+      <section id="s6">
+        <h2>6 · UI/UX (React)</h2>
+        <div class='card'><h3>Developer experience — two journeys</h3><div class='mermaid'>flowchart TD
+  subgraph Author[Pack author - once]
+    A1[Write descriptor targets + injections] --> A2[Write hbs with AI_IMPLEMENTATION holes]
+    A2 --> A3[Write helpers.js pure transforms]
+    A3 --> A4[Add test_data + build-gate]
+    A4 --> A5[validate-pack + check-guardrails green]
+  end
+  subgraph Consume[Host agent - per resource]
+    C1[manifest new: one-line spec] --> C2[generate: whole tree written]
+    C2 --> C3[status: list holes]
+    C3 --> C4[fill only hole bodies]
+    C4 --> C5[check-edit gates each edit]
+  end
+  A5 -.pack published.-> C1</div></div><div class='card'><h3>Pack files mapped to outputs</h3><div class='mermaid'>flowchart TD
+  D[manifest.templates.json] --> T1[Module.ts.hbs]
+  D --> T2[Module.test.ts.hbs]
+  D --> T3[registry-link.hbs]
+  D --> HJ[helpers.js]
+  T1 -->|target create| F1[src/features/Name/Name.ts]
+  T2 -->|target create| F2[src/features/Name/Name.test.ts]
+  T3 -->|injection append| F3[src/features/index.ts]
+  F1 --> H1[hole: run body]
+  F2 --> H2[hole: assertions]</div></div><div class='card'><h3>Generic pack layout</h3><pre>packages/templates-node/generic-v1/
+  manifest.templates.json     # descriptor: targets, injections, inputs, commentSyntax
+  helpers.js                  # pure string helpers (camel, kebab, ...)
+  Module.ts.hbs               # source file target (1 hole: run body)
+  Module.test.ts.hbs          # test target (arrange/act frozen, assertions = hole)
+  Registry.ts.hbs             # index file with a REGISTRY marker (created once)
+  registry-link.hbs           # snippet appended per resource
+  test_data/
+    module-billing.json       # sample manifest
+  tools/
+    validate-build.mjs        # scaffolds -> tsc + node --test</pre></div><div class='card'><h3>What the agent actually writes (a rendered file with one hole)</h3><pre>// src/features/Billing/Billing.ts  (generated; frozen except the hole)
+export class Billing {
+  run(input: BillingInput): BillingResult {
+    // SCAFFOLD:AI_IMPLEMENTATION:START:required
+    throw new Error('not implemented');   // &lt;- the only bytes the agent emits
+    // SCAFFOLD:AI_IMPLEMENTATION:END
+  }
+}</pre></div>
+      </section>
+
+      <section id="s7">
+        <h2>7 · Behaviour — State &amp; Process</h2>
+        <div class='card'><h3>File lifecycle</h3><div class='mermaid'>stateDiagram-v2
+  [*] --> Unscaffolded
+  Unscaffolded --> Scaffolded : generate renders file + placeholder
+  Scaffolded --> Scaffolded : re-generate (idempotent, byte-identical)
+  Scaffolded --> Filled : agent edits AI hole (check-edit allow)
+  Filled --> Filled : re-edit hole (allowed)
+  Scaffolded --> Wired : injection appends registry link
+  Filled --> Wired : injection appends registry link
+  Wired --> [*]
+  Scaffolded --> Blocked : write whole file / edit wiring
+  Blocked --> Scaffolded : route change through generate</div></div><div class='card'><h3>check-edit decision flow (mirrors checkEdit.ts)</h3><div class='mermaid'>flowchart TD
+  S[Write/Edit proposed] --> C1{.scaffold/config.json exists?}
+  C1 -->|no| AllowA[allow: no-config]
+  C1 -->|yes| C2{path inside repo root?}
+  C2 -->|no| AllowB[allow: outside-repo]
+  C2 -->|yes| C3{matches a pack target/injection?}
+  C3 -->|no| AllowC[allow: not-pack-owned]
+  C3 -->|yes| C4{tool == write?}
+  C4 -->|yes| Block1[block: write-blocked -> use generate]
+  C4 -->|no| C5{old_string unique in file?}
+  C5 -->|no| Block2[block: ambiguous old-string]
+  C5 -->|yes| C6{fully inside an AI_IMPLEMENTATION interior?}
+  C6 -->|yes| Allow1[allow: edit-in-interior]
+  C6 -->|no| Block3[block: outside-interior]</div></div>
+      </section>
+
+      <section id="s8">
+        <h2>8 · Deployment — Docker, Terraform, GitLab CI/CD</h2>
+        <div class='card'><h3>Deployment / topology</h3><div class='mermaid'>flowchart LR
+  subgraph Dev[Developer machine]
+    Agent[Host coding agent] --> Hook[PreToolUse hook]
+    Hook --> CLI[scaffold-core CLI]
+    CLI --> Pack[packages/templates-node/generic-v1]
+    CLI --> Repo[(Target repo + .scaffold)]
+  end
+  subgraph CIZone[CI - GitHub Actions]
+    Build[build core] --> Lint[lint] --> Unit[unit tests]
+    Unit --> Guard[check-guardrails: generic-v1]
+    Guard --> BCn[build-check: tsc + node --test]
+    BCn --> Pub[npm publish scaffold-core]
+  end
+  Pack -.shipped in monorepo.-> Pub</div></div><div class='card'><h3>Release &amp; CI wiring (real jobs, not IaC)</h3><details><summary>GitHub Actions job graph (.github/workflows/ci.yml)</summary><pre>jobs:
+  build-test:              # install, build packages/core, lint, unit tests
+  templates-dotnet-build-check:
+    needs: [build-test]    # scaffolds dotnet sample -> dotnet build + dotnet test
+  templates-node-build-check:        # NEW
+    needs: [build-test]    # scaffolds generic-v1 sample -> tsc + node --test
+  guardrails:
+    needs: [build-test]    # check-guardrails.mjs for dotnet AND generic-v1
+  publish:
+    needs:
+      - templates-dotnet-build-check
+      - templates-node-build-check   # NEW gate: generic pack must pass
+      - guardrails
+    if: github.ref == 'refs/heads/main'   # auto-publish on merge to main</pre></details></div><div class='card'><h3>Pipeline gates</h3><div class='mermaid'>flowchart LR
+  A[push / PR] --> B[install + build core]
+  B --> C[lint]
+  C --> D[unit tests]
+  D --> E[check-guardrails: dotnet + generic]
+  E --> F[build-check dotnet]
+  E --> G[build-check node]
+  F --> H{all green?}
+  G --> H
+  H -->|yes and main| I[publish scaffold-core]
+  H -->|no| J[fail: block publish]</div></div>
+      </section>
+
+      <section id="s9">
+        <h2>9 · Monitoring &amp; Custom Alerts</h2>
+        <div class='card'><h3>Quality signals (the pack's observability is its CI gates)</h3><table><thead><tr><th>Signal</th><th>Source</th><th>Target / SLO</th></tr></thead><tbody><tr><td>Deterministic ratio</td><td>benchmark harness (npm run benchmark)</td><td>≥90% of per-resource tokens rendered, not agent-emitted</td></tr><tr><td>Edit-gate integrity</td><td>check-guardrails.mjs (generic-v1)</td><td>100% of asserted verdicts hold</td></tr><tr><td>Build health</td><td>validate-build.mjs (tsc + node --test)</td><td>0 compile/test failures on sample output</td></tr><tr><td>Render determinism</td><td>double-generate diff</td><td>0 bytes changed on re-render</td></tr><tr><td>Marker integrity</td><td>markerScan on generated files</td><td>every hole is exactly one well-formed START/END pair</td></tr></tbody></table></div><div class='card'><h3>Failure alerts</h3><table><thead><tr><th>Alert</th><th>Condition</th><th>Threshold</th><th>Severity</th><th>Channel</th></tr></thead><tbody><tr><td>guardrail-regressed</td><td>check-guardrails assertion fails</td><td>&gt;0 failures</td><td>High</td><td>PR red check</td></tr><tr><td>build-check-broke</td><td>scaffolded sample fails tsc/tests</td><td>&gt;0 failures</td><td>High</td><td>PR red check</td></tr><tr><td>marker-drift</td><td>expected old_string no longer in output</td><td>&gt;0 missing</td><td>Medium</td><td>PR red check</td></tr><tr><td>publish-blocked</td><td>any needs-job red on main</td><td>&gt;0 red</td><td>Critical</td><td>Actions run + npm no-publish</td></tr></tbody></table></div><div class='card'><h3>Gate escalation</h3><div class='mermaid'>sequenceDiagram
+  participant CI as CI job
+  participant PR as PR check
+  participant M as Maintainer
+  CI->>CI: check-guardrails (edit gate)
+  CI->>CI: validate-build (compile + test)
+  CI->>CI: benchmark (tokens / resource)
+  alt a gate fails
+    CI-->>PR: red check + log
+    PR-->>M: block merge
+    M->>M: fix pack / template, re-push
+  else all pass
+    CI-->>PR: green
+    PR-->>M: auto-publish on main
+  end</div></div><div class='card'><h3>Dashboard widgets</h3><ul><li>Tokens per resource: agent-emitted vs rendered (trend).</li><li>Deterministic ratio per pack version.</li><li>Guardrail pass/fail history.</li><li>Build-check duration (dotnet vs node).</li><li>Open AI_IMPLEMENTATION holes per generated project (from <code>scaffold status</code>).</li></ul></div>
+      </section>
+
+      <section id="s10">
+        <h2>10 · Open Questions, Decisions &amp; Risks</h2>
+        <div class='card'><h3>Open questions</h3><table><thead><tr><th>ID</th><th>Question</th><th>Why it matters</th><th>Proposed default</th><th>Status</th></tr></thead><tbody><tr><td>Q1</td><td>Which stack backs the reference generic pack?</td><td>It must be buildable in CI to gate publish; language-neutral text can't compile.</td><td>Node/TypeScript (aligns with the repo's Node-greenfield default; gates with tsc + node --test, no extra SDK).</td><td>Open</td></tr><tr><td>Q2</td><td>What shape is the generic input vocabulary — reuse <code>entity</code>/<code>fields</code> semantics or a new <code>name</code>/<code>slots[]</code>?</td><td>Determines whether <code>manifest new</code> needs a generic <code>--input</code> flag.</td><td>Declare <code>inputs</code> with a plain <code>name</code> string; carry everything else through <code>--option</code>; add <code>--input k=v</code> only if a pack needs a non-option scalar.</td><td>Open</td></tr><tr><td>Q3</td><td>Where does the pack live — new <code>packages/templates-node</code> or a new version folder under <code>templates-dotnet</code>?</td><td>Affects CI job wiring and the pack-per-stack convention.</td><td>New <code>packages/templates-node/generic-v1</code> (kept out of the workspaces array, like templates-dotnet).</td><td>Open</td></tr><tr><td>Q4</td><td>Should the built-in comment-syntax TABLE and anchor catalog in core be trimmed to force packs to declare their own?</td><td>Trimming proves genericity but risks breaking the four hard-coded dotnet versions.</td><td>Keep both as fallbacks; require the generic pack to declare <code>commentSyntax</code> so the pack-driven path is exercised.</td><td>Open</td></tr></tbody></table></div><div class='card'><h3>Decisions (ADR)</h3><table><thead><tr><th>Decision</th><th>Options considered</th><th>Choice + rationale</th><th>Date</th></tr></thead><tbody><tr><td>Schema versioning</td><td>Bump to v3 / stay v2 additive</td><td>Stay v2 — <code>inputs</code>/<code>commentSyntax</code> already exist; no consumer migration.</td><td>2026-07-12</td></tr><tr><td>Enforcement model</td><td>Content/intent detection / purely structural gate</td><td>Structural only (check-edit): matches the recorded decision; no session state, fail-closed.</td><td>2026-07-12</td></tr><tr><td>Build-gate obligation</td><td>Shared gate / per-pack gate</td><td>Per-pack — generic pack ships its own tsc+test gate in the <code>publish</code> needs list, inheriting none from dotnet.</td><td>2026-07-12</td></tr></tbody></table></div><div class='card'><h3>Risks</h3><table><thead><tr><th>Risk</th><th>Likelihood</th><th>Impact</th><th>Mitigation</th></tr></thead><tbody><tr><td>Marker collision between sibling pack versions</td><td>Low</td><td>Medium</td><td>Reserve distinct marker names per version; schema already rejects the AI_IMPLEMENTATION namespace for injection markers.</td><td></td></tr><tr><td>Comment-syntax gap for an exotic extension</td><td>Medium</td><td>Low</td><td>Pack-level <code>commentSyntax</code> map with a hard error (not a silent wrong comment) when unresolved.</td></tr><tr><td>Helper impurity (fs/network/shell)</td><td>Low</td><td>High</td><td>Convention + review: helpers are pure string transforms; document and lint in validate-pack.</td></tr><tr><td>CI time growth from another build-check</td><td>Medium</td><td>Low</td><td>Node gate targets &lt;90s; runs in parallel with the dotnet job.</td></tr><tr><td>Over-freezing blocks a legitimate edit</td><td>Medium</td><td>Medium</td><td>Author holes generously where judgment is expected; <code>--force</code> + re-generate escape hatch; widen a hole in the template, not by relaxing the gate.</td></tr></tbody></table></div>
+      </section>
+    </main>
+
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+      mermaid.initialize({
+        startOnLoad: true,
+        theme: "default",
+        securityLevel: "loose",
+      });
+    </script>
+
+    <script>
+      const toc = document.getElementById("toc");
+      const sections = document.querySelectorAll('section[id^="s"]');
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              const id = entry.target.id;
+              const link = toc.querySelector(`a[href="#${id}"]`);
+              toc
+                .querySelectorAll("a")
+                .forEach((a) => a.classList.remove("active"));
+              if (link) link.classList.add("active");
+            }
+          });
+        },
+        { threshold: 0.3, rootMargin: "-50% 0px -50% 0px" },
+      );
+
+      sections.forEach((section) => observer.observe(section));
+
+      toc.querySelectorAll("a").forEach((link) => {
+        link.addEventListener("click", (e) => {
+          e.preventDefault();
+          const target = document.querySelector(link.getAttribute("href"));
+          if (target) {
+            target.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        });
+      });
+    </script>
+
+    <script>
+      document.querySelectorAll("table").forEach((table) => {
+        if (table.closest(".table-wrap")) return;
+        const wrap = document.createElement("div");
+        wrap.className = "table-wrap";
+        table.parentNode.insertBefore(wrap, table);
+        wrap.appendChild(table);
+      });
+    </script>
+
+    <script>
+      (function () {
+        const backdrop = document.createElement("div");
+        backdrop.className = "diagram-backdrop";
+        document.body.appendChild(backdrop);
+
+        let activeCard = null;
+
+        function minimize(card) {
+          card.classList.remove("diagram-maximized");
+          const btn = card.querySelector(".diagram-toggle-btn");
+          if (btn) {
+            btn.textContent = "⛶";
+            btn.title = "Maximize diagram";
+          }
+          backdrop.classList.remove("active");
+          document.body.classList.remove("diagram-lock");
+          activeCard = null;
+        }
+
+        function maximize(card) {
+          if (activeCard && activeCard !== card) minimize(activeCard);
+          card.classList.add("diagram-maximized");
+          const btn = card.querySelector(".diagram-toggle-btn");
+          if (btn) {
+            btn.textContent = "✕";
+            btn.title = "Minimize diagram";
+          }
+          backdrop.classList.add("active");
+          document.body.classList.add("diagram-lock");
+          activeCard = card;
+        }
+
+        document.querySelectorAll("div.mermaid").forEach((diagram) => {
+          let card = diagram.closest(".mermaid-card");
+          if (!card) {
+            card = document.createElement("div");
+            card.className = "mermaid-card";
+            diagram.parentNode.insertBefore(card, diagram);
+            card.appendChild(diagram);
+          }
+          if (card.querySelector(".diagram-toggle-btn")) return;
+
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "diagram-toggle-btn";
+          btn.textContent = "⛶";
+          btn.title = "Maximize diagram";
+          btn.addEventListener("click", () => {
+            if (card.classList.contains("diagram-maximized")) {
+              minimize(card);
+            } else {
+              maximize(card);
+            }
+          });
+          card.appendChild(btn);
+        });
+
+        backdrop.addEventListener("click", () => {
+          if (activeCard) minimize(activeCard);
+        });
+
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "Escape" && activeCard) minimize(activeCard);
+        });
+      })();
+    </script>
+  </body>
+</html>

@@ -24,7 +24,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, '..', '..', '..');
 const CORE_CLI = join(REPO_ROOT, 'packages', 'core', 'dist', 'cli.js');
 const TEST_DATA_DIR = join(REPO_ROOT, 'packages', 'templates-dotnet', 'test_data');
+const VARIANTS_DIR = join(TEST_DATA_DIR, 'variants');
+const GCP_LAYER_MANIFEST = join(TEST_DATA_DIR, 'layers', 'gcp.json');
 const PACK_SPEC = `backend=${REPO_ROOT}@packages/templates-dotnet/v8-controller`;
+const GCP_PACK_SPEC = `backend-gcp=${REPO_ROOT}@packages/templates-dotnet/v8-controller-gcp`;
 
 function run(command, args, cwd) {
   const result = spawnSync(command, args, { cwd, encoding: 'utf8' });
@@ -74,12 +77,25 @@ function main() {
   const sampleDir = mkdtempSync(join(tmpdir(), 'scaffold-templates-dotnet-buildcheck-'));
 
   function runSteps() {
-    if (!runOrDie('scaffold init', process.execPath, [CORE_CLI, 'init', '--project-type', 'dotnet', '--pack', PACK_SPEC], sampleDir)) return false;
+    if (!runOrDie('scaffold init', process.execPath, [CORE_CLI, 'init', '--project-type', 'dotnet', '--pack', PACK_SPEC, '--pack', GCP_PACK_SPEC], sampleDir)) return false;
     if (!runOrDie('scaffold templates sync', process.execPath, [CORE_CLI, 'templates', 'sync'], sampleDir)) return false;
 
     for (const manifestPath of manifests) {
       const entity = JSON.parse(readFileSync(manifestPath, 'utf8')).entity;
       if (!runOrDie(`scaffold generate (${entity})`, process.execPath, [CORE_CLI, 'generate', '--manifest', manifestPath], sampleDir)) return false;
+    }
+
+    // The GCP layer generates on top of the base stack (suggestion 7: an
+    // architectural addition is a sibling version folder, not an LLM rewrite).
+    // Its outputs are deployment surface, not C#, so the assertion is
+    // existence, and the dotnet build below proves the layered project still
+    // compiles with appsettings.Production.json in place.
+    if (!runOrDie('scaffold generate (gcp layer)', process.execPath, [CORE_CLI, 'generate', '--manifest', GCP_LAYER_MANIFEST], sampleDir)) return false;
+    for (const layered of ['Dockerfile', 'cloudbuild.yaml', 'src/Company.MyProject.Api/appsettings.Production.json']) {
+      if (!existsSync(join(sampleDir, layered))) {
+        console.error(`validate-build.mjs: gcp layer did not produce ${layered}`);
+        return false;
+      }
     }
 
     const sln = readdirSync(sampleDir).find((name) => name.endsWith('.sln'));
@@ -109,7 +125,39 @@ function main() {
     console.error('\nvalidate-build.mjs: FAILED — see the failing step above');
     process.exit(1);
   }
-  console.log(`\nvalidate-build.mjs: OK — ${manifests.length} entities generated, dotnet build and test both succeeded.`);
+
+  // Variant scenarios (suggestion 5: config swaps are manifest-`options`
+  // conditionals). Each variants/*.json gets its own fresh sample project —
+  // in the shared sample above, skip-if-exists csproj/DI targets are rendered
+  // by whichever manifest runs first, so an options branch like
+  // `database.provider: postgres` would otherwise never be compiled.
+  const variantManifests = existsSync(VARIANTS_DIR)
+    ? readdirSync(VARIANTS_DIR).sort().filter((n) => n.endsWith('.json')).map((n) => join(VARIANTS_DIR, n))
+    : [];
+  for (const variantPath of variantManifests) {
+    const variantName = variantPath.split('/').pop();
+    console.log(`\nBuilding variant scenario ${variantName} in its own sample project...`);
+    const variantDir = mkdtempSync(join(tmpdir(), 'scaffold-templates-dotnet-variant-'));
+    let variantOk;
+    try {
+      variantOk =
+        runOrDie(`scaffold init (${variantName})`, process.execPath, [CORE_CLI, 'init', '--project-type', 'dotnet', '--pack', PACK_SPEC], variantDir) &&
+        runOrDie(`scaffold templates sync (${variantName})`, process.execPath, [CORE_CLI, 'templates', 'sync'], variantDir) &&
+        runOrDie(`scaffold generate (${variantName})`, process.execPath, [CORE_CLI, 'generate', '--manifest', variantPath], variantDir);
+      if (variantOk) {
+        const variantSln = readdirSync(variantDir).find((name) => name.endsWith('.sln'));
+        variantOk = variantSln !== undefined && runOrDie(`dotnet build (${variantName})`, 'dotnet', ['build', join(variantDir, variantSln), '--nologo'], variantDir);
+      }
+    } finally {
+      rmSync(variantDir, { recursive: true, force: true });
+    }
+    if (!variantOk) {
+      console.error(`\nvalidate-build.mjs: FAILED — variant scenario ${variantName} did not build`);
+      process.exit(1);
+    }
+  }
+
+  console.log(`\nvalidate-build.mjs: OK — ${manifests.length} entities + gcp layer generated, ${variantManifests.length} variant scenario(s) built, dotnet build and test both succeeded.`);
 }
 
 main();

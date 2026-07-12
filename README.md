@@ -137,7 +137,7 @@ Either way, the same rule applies without exception: **new `test_data` fixtures 
 
 ## Template packs
 
-Pre-built template packs for common frameworks. This monorepo consumes the .NET pack directly from its in-repo copy at `packages/templates-dotnet` (a local-directory pack, `--pack backend=packages/templates-dotnet@<version>`); the standalone repos below are the original, publicly browsable sources these in-repo copies are periodically updated from by hand:
+Pre-built template packs for common frameworks. This monorepo includes `packages/templates-dotnet` (the .NET reference pack, consumed as `--pack backend=packages/templates-dotnet@<version>`) and `packages/templates-node/generic-v1` (a Node.js/TypeScript reference pack proving the engine is stack-agnostic). Standalone repos below are the original, publicly browsable sources:
 
 - **[scaffold-templates-dotnet](https://github.com/MohanTn/scaffold-templates-dotnet)** — .NET/C# (ASP.NET Core, Entity Framework, dependency injection patterns)
 - **[scaffold-templates-react](https://github.com/MohanTn/scaffold-templates-react)** — React/TypeScript (API clients, hooks, component scaffolds)

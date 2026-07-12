@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { createInterface } from 'node:readline/promises';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { Command } from 'commander';
 import { readOwnPackageJson } from './version/readPkg.js';
 import { configPath, saveConfig } from './config/loader.js';
@@ -18,6 +18,7 @@ import { validatePack } from './validatePack/validatePack.js';
 import { encodeToon } from './toon/codec.js';
 import { checkEdit } from './checkEdit/checkEdit.js';
 import type { CheckEditTool } from './checkEdit/checkEdit.js';
+import { buildIntentManifest } from './manifest/build.js';
 
 const pkg = readOwnPackageJson(import.meta.url);
 
@@ -96,6 +97,33 @@ program
       console.log(`scaffold: wrote ${configPath(repoRoot)} (projectType: ${projectType}, packs: ${Object.keys(packs).join(', ') || 'none'})`);
     } catch (error) {
       console.error('scaffold init failed:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+const manifest = program.command('manifest').description('Author intent manifests');
+
+manifest
+  .command('new')
+  .description('Build a schema-validated intent manifest from a compact spec, without hand-writing the JSON')
+  .requiredOption('--stack <targetStack>', 'targetStack the manifest is for, matching a pack name in .scaffold/config.json')
+  .option('--entity <name>', 'PascalCase entity name, for packs that take one')
+  .option('--field <name:type>', 'entity field as name:type, e.g. Amount:decimal (repeatable)', collect, [] as string[])
+  .option('--option <path=value>', 'manifest option as dot-path=value, e.g. database.provider=sqlite (repeatable)', collect, [] as string[])
+  .option('--input <name=value>', 'manifest input as name=value, e.g. name=MyModule (repeatable)', collect, [] as string[])
+  .option('--out <file>', 'write the manifest to this file instead of stdout')
+  .action((opts: { stack: string; entity?: string; field: string[]; option: string[]; input: string[]; out?: string }) => {
+    try {
+      const built = buildIntentManifest({ targetStack: opts.stack, entity: opts.entity, fields: opts.field, options: opts.option, inputs: opts.input });
+      const json = `${JSON.stringify(built, null, 2)}\n`;
+      if (opts.out) {
+        writeFileSync(opts.out, json);
+        console.log(`scaffold: wrote ${opts.out}`);
+      } else {
+        process.stdout.write(json);
+      }
+    } catch (error) {
+      console.error('scaffold manifest new failed:', error instanceof Error ? error.message : error);
       process.exit(1);
     }
   });

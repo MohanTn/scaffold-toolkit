@@ -1,0 +1,32 @@
+{
+  "descriptorSchemaVersion": 2,
+  "packVersion": "v8-controller-gcp",
+  "_comment": "Additive GCP deployment layer over v8-controller: configured as its own pack slot (e.g. backend-gcp) alongside the base pack, generated after the base stack exists. Ships only deployment surface (Dockerfile, Cloud Build pipeline, production appsettings) — no C# and no injections, so its marker namespace cannot collide with the base version's.",
+  "requires": {
+    "scaffoldCli": ">=0.2.0 <1.0.0"
+  },
+  "inputs": [
+    { "name": "options", "type": "object", "required": true }
+  ],
+  "targets": [
+    {
+      "_comment": "Cloud Run container image (multi-stage dotnet 8 build)",
+      "output": "Dockerfile",
+      "template": "Dockerfile.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "Cloud Build pipeline: build, push to Artifact Registry, deploy to Cloud Run",
+      "output": "cloudbuild.yaml",
+      "template": "cloudbuild.yaml.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "Production appsettings for GCP (Cloud Run port binding, structured logging)",
+      "output": "src/{{companyProjectName}}.Api/appsettings.Production.json",
+      "template": "AppsettingsProduction.json.hbs",
+      "mode": "skip-if-exists"
+    }
+  ],
+  "injections": []
+}

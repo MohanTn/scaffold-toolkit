@@ -1,0 +1,15 @@
+export interface {{name}}Input {
+  value?: unknown;
+}
+
+export interface {{name}}Result {
+  success: boolean;
+}
+
+export class {{name}} {
+  run(input: {{name}}Input): {{name}}Result {
+    /// SCAFFOLD:AI_IMPLEMENTATION:START:required
+    throw new Error('not implemented');
+    /// SCAFFOLD:AI_IMPLEMENTATION:END
+  }
+}

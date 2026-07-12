@@ -1,0 +1,10 @@
+{
+  "manifestSchemaVersion": 1,
+  "targetStack": "backend-gcp",
+  "options": {
+    "gcp": {
+      "projectId": "acme-billing-prod",
+      "region": "us-central1"
+    }
+  }
+}

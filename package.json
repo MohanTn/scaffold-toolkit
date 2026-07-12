@@ -22,6 +22,9 @@
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "validate:templates-dotnet": "node packages/templates-dotnet/tools/validate-build.mjs",
+    "check:guardrails:templates-dotnet": "node packages/templates-dotnet/tools/check-guardrails.mjs",
+    "validate:templates-node": "node packages/templates-node/tools/validate-build.mjs",
+    "check:guardrails:templates-node": "node packages/templates-node/tools/check-guardrails.mjs",
     "benchmark": "node tools/benchmark/run-benchmark.mjs"
   },
   "devDependencies": {

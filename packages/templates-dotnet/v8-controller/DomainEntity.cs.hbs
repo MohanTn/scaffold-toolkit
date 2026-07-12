@@ -5,4 +5,8 @@ public class {{entity}}
 {{#each fields}}
     public {{type}} {{pascal name}} { get; set; }
 {{/each}}
+
+    // SCAFFOLD:AI_IMPLEMENTATION:START
+    // Domain behavior for {{entity}} (invariants, factory methods, state transitions) goes here.
+    // SCAFFOLD:AI_IMPLEMENTATION:END
 }
