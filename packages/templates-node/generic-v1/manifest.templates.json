@@ -1,0 +1,63 @@
+{
+  "descriptorSchemaVersion": 2,
+  "packVersion": "generic-v1",
+  "requires": {
+    "scaffoldCli": ">=0.2.0 <1.0.0"
+  },
+  "inputs": [
+    {
+      "name": "name",
+      "type": "string",
+      "required": true,
+      "pattern": "^[A-Z][A-Za-z0-9]+$"
+    }
+  ],
+  "commentSyntax": {
+    ".ts": {
+      "prefix": "///"
+    }
+  },
+  "targets": [
+    {
+      "_comment": "Package.json for a minimal Node.js TypeScript project",
+      "output": "package.json",
+      "template": "package.json.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "TypeScript configuration for ESM with strict mode",
+      "output": "tsconfig.json",
+      "template": "tsconfig.json.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "Registry index file with injectable module exports",
+      "output": "src/features/index.ts",
+      "template": "Registry.ts.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "Per-module: implementation file",
+      "output": "src/features/{{name}}/{{name}}.ts",
+      "template": "Module.ts.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-module: test file",
+      "output": "src/features/{{name}}/{{name}}.test.ts",
+      "template": "Module.test.ts.hbs",
+      "mode": "create"
+    }
+  ],
+  "injections": [
+    {
+      "_comment": "Per-module export registration in the registry",
+      "file": "src/features/index.ts",
+      "marker": "REGISTRY",
+      "template": "registry-link.hbs",
+      "position": "before-end",
+      "strategy": "append",
+      "hashTrailerPrefix": "/// scaffold-hash:"
+    }
+  ]
+}

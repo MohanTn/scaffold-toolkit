@@ -319,6 +319,18 @@
       "mode": "create"
     },
     {
+      "_comment": "Per-entity: Create validator unit test",
+      "output": "tests/{{companyProjectName}}.Application.UnitTests/{{pathConfig.testsApplicationFeatures}}/{{plural entity}}/Create{{entity}}CommandValidatorTests.cs",
+      "template": "CreateEntityCommandValidatorTests.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: Update validator unit test",
+      "output": "tests/{{companyProjectName}}.Application.UnitTests/{{pathConfig.testsApplicationFeatures}}/{{plural entity}}/Update{{entity}}CommandValidatorTests.cs",
+      "template": "UpdateEntityCommandValidatorTests.cs.hbs",
+      "mode": "create"
+    },
+    {
       "_comment": "Per-entity: Delete handler unit test",
       "output": "tests/{{companyProjectName}}.Application.UnitTests/{{pathConfig.testsApplicationFeatures}}/{{plural entity}}/Delete{{entity}}CommandHandlerTests.cs",
       "template": "DeleteEntityCommandHandlerTests.cs.hbs",

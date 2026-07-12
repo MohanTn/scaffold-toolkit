@@ -4,8 +4,10 @@ public class Update{{entity}}CommandValidator : AbstractValidator<Update{{entity
 {
     public Update{{entity}}CommandValidator()
     {
+        // SCAFFOLD:AI_IMPLEMENTATION:START
         RuleFor(x => x.Id).NotEmpty();
 {{#each fields}}{{#unless (eq (pascal name) "Id")}}        RuleFor(x => x.{{pascal name}}).NotEmpty();
 {{/unless}}{{/each}}
+        // SCAFFOLD:AI_IMPLEMENTATION:END
     }
 }

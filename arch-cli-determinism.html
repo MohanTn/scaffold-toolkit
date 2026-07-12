@@ -1,0 +1,1775 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shared Understanding — Deterministic Scaffold CLI for AI Providers</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      :root {
+        --accent: #2563eb;
+        --bg: #f8fafc;
+        --card-bg: #ffffff;
+        --text: #1e293b;
+        --text-muted: #64748b;
+        --border: #e2e8f0;
+        --status-draft: #64748b;
+        --status-review: #f59e0b;
+        --status-approved: #16a34a;
+        --wrong: #e11d48;
+        --warn: #b45309;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        line-height: 1.6;
+        color: var(--text);
+        background: var(--bg);
+        min-height: 100vh;
+      }
+
+      nav#toc {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 240px;
+        height: 100vh;
+        background: var(--card-bg);
+        border-right: 1px solid var(--border);
+        overflow-y: auto;
+        z-index: 100;
+        padding: 2rem 1rem;
+      }
+
+      nav#toc .brand {
+        font-weight: bold;
+        font-size: 1.1rem;
+        color: var(--accent);
+        margin-bottom: 2rem;
+        display: block;
+      }
+
+      nav#toc a {
+        display: block;
+        padding: 0.5rem 0.75rem;
+        margin: 0.5rem 0;
+        color: var(--text);
+        text-decoration: none;
+        border-radius: 6px;
+        font-size: 0.95rem;
+        transition: all 0.2s;
+      }
+
+      nav#toc a:hover {
+        background: var(--bg);
+        color: var(--accent);
+      }
+
+      nav#toc a.active {
+        background: var(--accent);
+        color: white;
+        font-weight: 500;
+      }
+
+      main {
+        margin-left: 240px;
+        padding: 3rem 2rem;
+        margin-right: auto;
+      }
+
+      header {
+        margin-bottom: 3rem;
+      }
+
+      header h1 {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+        color: var(--text);
+      }
+
+      header .subtitle {
+        color: var(--text-muted);
+        font-size: 0.95rem;
+      }
+
+      .status-banner {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        padding: 1rem 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        font-size: 0.9rem;
+        font-weight: 500;
+      }
+
+      .status-banner.draft {
+        background: rgba(100, 116, 139, 0.1);
+        color: var(--status-draft);
+        border-left: 4px solid var(--status-draft);
+      }
+
+      .status-banner.review {
+        background: rgba(245, 158, 11, 0.1);
+        color: var(--status-review);
+        border-left: 4px solid var(--status-review);
+      }
+
+      .status-banner.approved {
+        background: rgba(22, 163, 74, 0.1);
+        color: var(--status-approved);
+        border-left: 4px solid var(--status-approved);
+      }
+
+      section {
+        margin-bottom: 3rem;
+        scroll-margin-top: 2rem;
+      }
+
+      section h2 {
+        font-size: 1.4rem;
+        margin-bottom: 1.5rem;
+        padding-left: 1rem;
+        border-left: 4px solid var(--accent);
+        color: var(--text);
+      }
+
+      .card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      }
+
+      .card h3 {
+        font-size: 1.1rem;
+        margin-bottom: 1rem;
+        color: var(--text);
+      }
+
+      .card h4 {
+        font-size: 1rem;
+        margin-top: 1.5rem;
+        margin-bottom: 0.75rem;
+        color: var(--accent);
+      }
+
+      .card h4:first-child {
+        margin-top: 0;
+      }
+
+      .card p {
+        margin-bottom: 1rem;
+        color: var(--text);
+      }
+
+      .card ul,
+      .card ol {
+        margin-left: 1.5rem;
+        margin-bottom: 1rem;
+      }
+
+      .card li {
+        margin-bottom: 0.5rem;
+        color: var(--text);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1rem;
+      }
+
+      table thead {
+        background: var(--bg);
+        border-bottom: 2px solid var(--border);
+      }
+
+      table th {
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        color: var(--text);
+        font-size: 0.9rem;
+        white-space: nowrap;
+      }
+
+      table td {
+        padding: 1rem;
+        border-bottom: 1px solid var(--border);
+        color: var(--text);
+        font-size: 0.95rem;
+        white-space: nowrap;
+      }
+
+      table tbody tr:nth-child(even) {
+        background: rgba(100, 116, 139, 0.02);
+      }
+
+      .table-wrap {
+        overflow-x: auto;
+        margin-bottom: 1rem;
+      }
+
+      /* Interactive tables hold sentences, not identifiers: let them wrap. */
+      #u-table td,
+      #oq-table td {
+        white-space: normal;
+        vertical-align: top;
+      }
+
+      #u-table .u-statement {
+        min-width: 320px;
+      }
+
+      #u-table .u-verdict {
+        min-width: 210px;
+      }
+
+      #oq-table td:nth-child(2) {
+        min-width: 260px;
+      }
+
+      .badge {
+        display: inline-block;
+        padding: 0.15rem 0.6rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+
+      .badge.src-user {
+        background: rgba(37, 99, 235, 0.12);
+        color: var(--accent);
+      }
+      .badge.src-code {
+        background: rgba(22, 163, 74, 0.12);
+        color: var(--status-approved);
+      }
+      .badge.src-inferred {
+        background: rgba(245, 158, 11, 0.15);
+        color: var(--warn);
+      }
+      .badge.src-assumed {
+        background: rgba(225, 29, 72, 0.12);
+        color: #be123c;
+      }
+      .badge.conf-high {
+        background: rgba(22, 163, 74, 0.12);
+        color: var(--status-approved);
+      }
+      .badge.conf-medium {
+        background: rgba(245, 158, 11, 0.15);
+        color: var(--warn);
+      }
+      .badge.conf-low {
+        background: rgba(225, 29, 72, 0.12);
+        color: #be123c;
+      }
+      .badge.kind-example {
+        background: rgba(22, 163, 74, 0.12);
+        color: var(--status-approved);
+      }
+      .badge.kind-counter {
+        background: rgba(225, 29, 72, 0.12);
+        color: #be123c;
+      }
+      .badge.tension-badge {
+        background: rgba(245, 158, 11, 0.15);
+        color: var(--warn);
+      }
+
+      .u-evidence {
+        margin-top: 0.35rem;
+        font-size: 0.8rem;
+        color: var(--text-muted);
+      }
+
+      .u-impact {
+        margin-top: 0.25rem;
+        font-size: 0.8rem;
+        color: var(--warn);
+      }
+
+      .priority-flag {
+        margin-top: 0.4rem;
+        display: inline-block;
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: #be123c;
+        background: rgba(225, 29, 72, 0.09);
+        border: 1px solid rgba(225, 29, 72, 0.25);
+        border-radius: 999px;
+        padding: 0.1rem 0.55rem;
+      }
+
+      .fork-hint {
+        margin-top: 0.4rem;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--accent);
+      }
+
+      .u-hint {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+      }
+
+      /* Verdict buttons (claims + examples) */
+      .verdict-group {
+        display: flex;
+        gap: 0.35rem;
+        margin-bottom: 0.4rem;
+      }
+
+      .verdict-btn {
+        width: 2rem;
+        height: 2rem;
+        border: 1px solid var(--border);
+        background: var(--card-bg);
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.95rem;
+        line-height: 1;
+        color: var(--text-muted);
+        transition: all 0.15s;
+      }
+
+      .verdict-btn:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+
+      .verdict-btn.v-yes.selected {
+        background: var(--status-approved);
+        border-color: var(--status-approved);
+        color: white;
+      }
+      .verdict-btn.v-partly.selected {
+        background: var(--status-review);
+        border-color: var(--status-review);
+        color: white;
+      }
+      .verdict-btn.v-no.selected {
+        background: var(--wrong);
+        border-color: var(--wrong);
+        color: white;
+      }
+
+      /* Row state colouring (agreed / flagged) for claims */
+      #u-table tbody tr[data-state="agreed"] {
+        background: rgba(22, 163, 74, 0.07);
+      }
+      #u-table tbody tr[data-state="flagged"] {
+        background: rgba(225, 29, 72, 0.07);
+      }
+      #u-table tbody tr[data-priority="high"] td:first-child {
+        box-shadow: inset 3px 0 0 #be123c;
+      }
+
+      /* Fork radio options */
+      .fork-opt,
+      .tension-opt {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.45rem;
+        font-size: 0.88rem;
+        padding: 0.3rem 0.4rem;
+        border-radius: 6px;
+        cursor: pointer;
+        margin-bottom: 0.2rem;
+      }
+      .fork-opt:hover,
+      .tension-opt:hover {
+        background: var(--bg);
+      }
+      .fork-opt input,
+      .tension-opt input {
+        margin-top: 0.28rem;
+      }
+      .fork-neither span {
+        color: var(--text-muted);
+      }
+
+      /* Structured correction options */
+      .u-correction {
+        margin-top: 0.25rem;
+      }
+      .correction-options {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        align-items: center;
+        margin-bottom: 0.5rem;
+      }
+      .correction-label {
+        font-size: 0.78rem;
+        color: var(--text-muted);
+        margin-right: 0.15rem;
+      }
+      .correction-opt {
+        border: 1px solid var(--border);
+        background: var(--card-bg);
+        border-radius: 6px;
+        padding: 0.25rem 0.6rem;
+        font-size: 0.82rem;
+        cursor: pointer;
+        color: var(--text);
+        transition: all 0.15s;
+      }
+      .correction-opt:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .correction-opt.selected {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: white;
+      }
+
+      /* Add-a-claim */
+      .add-claim-row {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 0.5rem;
+      }
+      .ghost-btn {
+        background: var(--card-bg);
+        border: 1px dashed var(--accent);
+        color: var(--accent);
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .ghost-btn:hover {
+        background: rgba(37, 99, 235, 0.06);
+      }
+      #u-table tbody tr.added-row {
+        background: rgba(37, 99, 235, 0.05);
+      }
+      textarea.added-text {
+        width: 100%;
+        min-width: 260px;
+        min-height: 2.5rem;
+        padding: 0.5rem;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-family: inherit;
+        font-size: 0.9rem;
+        color: var(--text);
+        resize: vertical;
+      }
+      .remove-added {
+        background: none;
+        border: none;
+        color: var(--wrong);
+        cursor: pointer;
+        font-size: 0.8rem;
+      }
+      .remove-added:hover {
+        text-decoration: underline;
+      }
+
+      /* Recall / success statement */
+      .recall-card {
+        border-left: 4px solid var(--status-review);
+        background: rgba(245, 158, 11, 0.05);
+      }
+      .recall-card h3 {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      textarea#recall-box {
+        width: 100%;
+        min-height: 4rem;
+        padding: 0.6rem;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-family: inherit;
+        font-size: 0.95rem;
+        color: var(--text);
+        resize: vertical;
+      }
+
+      /* Tensions */
+      .tension-card {
+        border-left: 4px solid var(--status-review);
+      }
+      .tension-head {
+        font-weight: 600;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .tension-cols {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin-bottom: 1rem;
+      }
+      .tension-col {
+        padding: 0.85rem 1rem;
+        border-radius: 8px;
+        background: var(--bg);
+      }
+      .tension-col.want {
+        border-top: 3px solid var(--accent);
+      }
+      .tension-col.code {
+        border-top: 3px solid var(--wrong);
+      }
+      .tension-col h4 {
+        margin: 0 0 0.4rem 0;
+      }
+      .tension-col p {
+        margin: 0;
+        font-size: 0.92rem;
+      }
+      .tension-rec {
+        font-size: 0.9rem;
+        background: rgba(37, 99, 235, 0.05);
+        border-radius: 8px;
+        padding: 0.6rem 0.85rem;
+        margin-bottom: 1rem;
+      }
+      .tension-resolve {
+        border-top: 1px solid var(--border);
+        padding-top: 0.85rem;
+      }
+      .resolve-label {
+        display: block;
+        font-weight: 600;
+        font-size: 0.88rem;
+        margin-bottom: 0.5rem;
+      }
+      .tension-card[data-choice] {
+        border-left-color: var(--status-approved);
+      }
+
+      /* Acceptance examples */
+      .example-card {
+        border-left: 4px solid var(--status-approved);
+      }
+      .example-card.ex-counter {
+        border-left-color: var(--wrong);
+      }
+      .ex-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 0.85rem;
+      }
+      .ex-verdict {
+        margin-bottom: 0;
+      }
+      .ex-gwt > div {
+        padding: 0.35rem 0;
+        font-size: 0.93rem;
+        border-bottom: 1px dashed var(--border);
+      }
+      .ex-gwt > div:last-child {
+        border-bottom: none;
+      }
+      .gwt-k {
+        display: inline-block;
+        width: 3.6rem;
+        font-weight: 700;
+        color: var(--text-muted);
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+      .ex-refs {
+        margin-top: 0.5rem;
+        font-size: 0.78rem;
+        color: var(--text-muted);
+      }
+      .example-card[data-verdict="yes"] {
+        background: rgba(22, 163, 74, 0.06);
+      }
+      .example-card[data-verdict="no"] {
+        background: rgba(225, 29, 72, 0.06);
+      }
+
+      .mermaid-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 400px;
+        position: relative;
+      }
+
+      .mermaid {
+        display: flex;
+        justify-content: center;
+      }
+
+      .diagram-toggle-btn {
+        position: absolute;
+        top: 0.75rem;
+        right: 0.75rem;
+        width: 2rem;
+        height: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--text-muted);
+        font-size: 1rem;
+        line-height: 1;
+        cursor: pointer;
+        z-index: 2;
+        transition: all 0.2s;
+      }
+
+      .diagram-toggle-btn:hover {
+        color: var(--accent);
+        border-color: var(--accent);
+      }
+
+      .diagram-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.6);
+        z-index: 999;
+      }
+
+      .diagram-backdrop.active {
+        display: block;
+      }
+
+      body.diagram-lock {
+        overflow: hidden;
+      }
+
+      .mermaid-card.diagram-maximized {
+        position: fixed;
+        inset: 2rem;
+        z-index: 1000;
+        overflow: auto;
+        box-shadow: 0 25px 70px rgba(0, 0, 0, 0.35);
+      }
+
+      .mermaid-card.diagram-maximized .mermaid {
+        width: 100%;
+        height: 100%;
+      }
+
+      .mermaid-card.diagram-maximized .mermaid svg {
+        width: 100% !important;
+        height: 100% !important;
+        max-width: 100% !important;
+        max-height: 100% !important;
+      }
+
+      pre,
+      code {
+        white-space: pre-wrap;
+        word-break: break-all;
+        max-width: 100%;
+        font-family: "Courier New", Courier, monospace;
+      }
+
+      pre {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 1rem;
+        overflow-x: auto;
+        margin-bottom: 1rem;
+        font-size: 0.85rem;
+        line-height: 1.4;
+      }
+
+      code {
+        background: rgba(100, 116, 139, 0.1);
+        padding: 0.2rem 0.4rem;
+        border-radius: 4px;
+        color: #e11d48;
+        font-size: 0.9rem;
+      }
+
+      pre code {
+        background: none;
+        padding: 0;
+        color: var(--text);
+      }
+
+      details {
+        margin-bottom: 1.5rem;
+      }
+
+      details summary {
+        cursor: pointer;
+        font-weight: 600;
+        color: var(--accent);
+        padding: 0.75rem;
+        user-select: none;
+        transition: all 0.2s;
+      }
+
+      details summary:hover {
+        background: var(--bg);
+        border-radius: 6px;
+      }
+
+      details[open] summary {
+        margin-bottom: 1rem;
+      }
+
+      details pre {
+        margin-top: 1rem;
+      }
+
+      .approval-gate {
+        background: rgba(22, 163, 74, 0.1);
+        border-left: 4px solid var(--status-approved);
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        color: var(--status-approved);
+        font-weight: 500;
+        margin-top: 2rem;
+      }
+
+      .ai-overview-card {
+        border-left: 4px solid var(--accent);
+        background: rgba(37, 99, 235, 0.04);
+      }
+
+      .copy-qa-btn {
+        background: var(--accent);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .copy-qa-btn:hover {
+        opacity: 0.9;
+      }
+      .copy-qa-btn.copied {
+        background: var(--status-approved);
+      }
+
+      textarea.oq-answer,
+      textarea.u-note,
+      textarea.t-note,
+      textarea.ex-note {
+        width: 100%;
+        min-width: 200px;
+        min-height: 3rem;
+        padding: 0.5rem;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-family: inherit;
+        font-size: 0.9rem;
+        color: var(--text);
+        resize: vertical;
+      }
+      textarea.u-note,
+      textarea.t-note,
+      textarea.ex-note {
+        min-width: 180px;
+        margin-top: 0.35rem;
+      }
+
+      #sync-widget {
+        position: fixed;
+        right: 1.25rem;
+        bottom: 1.25rem;
+        z-index: 500;
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+        padding: 0.9rem 1rem;
+        width: 250px;
+        font-size: 0.85rem;
+      }
+      #sync-widget .sync-title {
+        font-weight: 600;
+        margin-bottom: 0.35rem;
+      }
+      #sync-widget .sync-counts {
+        color: var(--text-muted);
+        margin-bottom: 0.5rem;
+      }
+      #sync-widget .sync-bar {
+        height: 6px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        overflow: hidden;
+        margin-bottom: 0.5rem;
+      }
+      #sync-bar-fill {
+        height: 100%;
+        width: 0;
+        background: var(--status-approved);
+        transition: width 0.2s;
+      }
+      .sync-gate {
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-bottom: 0.6rem;
+        color: var(--text-muted);
+      }
+      .sync-gate.warn {
+        color: #be123c;
+      }
+      .sync-gate.ok {
+        color: var(--status-approved);
+      }
+      #copy-review-btn {
+        width: 100%;
+      }
+
+      section,
+      .card {
+        overflow-wrap: break-word;
+        word-break: break-word;
+      }
+
+      @media (max-width: 900px) {
+        nav#toc {
+          position: static;
+          width: 100%;
+          height: auto;
+          border-right: none;
+          border-bottom: 1px solid var(--border);
+          padding: 1rem;
+          margin-bottom: 1rem;
+        }
+        nav#toc .brand {
+          display: inline-block;
+          margin-right: 2rem;
+        }
+        nav#toc a {
+          display: inline-block;
+          margin: 0 0.5rem;
+          padding: 0.4rem 0.6rem;
+          font-size: 0.85rem;
+        }
+        main {
+          margin-left: 0;
+          padding: 2rem 1rem;
+        }
+        header h1 {
+          font-size: 1.5rem;
+        }
+        .tension-cols {
+          grid-template-columns: 1fr;
+        }
+        #sync-widget {
+          right: 0.75rem;
+          bottom: 0.75rem;
+          width: 210px;
+          padding: 0.7rem 0.8rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <nav id="toc">
+      <span class="brand">🧠 Understanding</span>
+      <a href="#s-overview">★ At a Glance</a>
+      <a href="#s0">0 · Document Control</a>
+      <a href="#s1">1 · The Concept</a>
+      <a href="#s2">2 · The Code Today</a>
+      <a href="#s3">3 · The Change</a>
+      <a href="#s4">4 · Acceptance Examples</a>
+      <a href="#s5">5 · Understanding Checklist</a>
+      <a href="#s6">6 · Tensions</a>
+      <a href="#s7">7 · Scope</a>
+      <a href="#s8">8 · Open Questions</a>
+      <a href="#s9">9 · Risks</a>
+      <a href="#s10">10 · Implementation Sketch</a>
+    </nav>
+
+    <main>
+      <header>
+        <h1>🧠 Shared Understanding — Deterministic Scaffold CLI for AI Providers</h1>
+        <p class="subtitle">Using hooks to force deterministic behavior across Claude Code and GitHub Copilot, preventing AI from bypassing scaffold generate. · TypeScript · CLI · Hook-based enforcement · Node.js ≥20.12</p>
+      </header>
+
+      <section id="s-overview">
+        <h2>🤖 At a Glance — Do We Agree on the Goal?</h2>
+        <div class="card ai-overview-card">
+          <h3>My understanding of what you want</h3>
+          <p><strong>Your goal:</strong> Make sure the CLI and hooks <em>enforce</em> deterministic behavior—not trust the AI to follow skill instructions. When Claude Code or Copilot is configured with hooks, they must always use <code>scaffold generate</code> for pack-owned files; they cannot bypass it and hand-write boilerplate, no matter what the prompt says.</p><p><strong>How it works:</strong> Three independent enforcement layers (PreToolUse, PostToolUse, Stop/agentStop) intercept at different points. PreToolUse is the hard gate: it fires <em>before</em> a Write/Edit tool runs and blocks attempts to create/edit pack-owned files outside <code>scaffold generate</code>. Stop fires at turn-end and blocks if any AI_IMPLEMENTATION blocks are still unfilled. Together, they make determinism <em>structural</em>, not behavioral—the AI can't choose to ignore them.</p><p><strong>The scope:</strong> Determinism applies to a single <code>scaffold generate</code> invocation: given the same manifest and repo state, every provider (Claude Code, Copilot) produces identical exit codes, file outputs, and reports. The hooks ensure this is the only path used. Pi Agent is out of scope for now; Claude + Copilot are the target.</p>
+        </div>
+        <div class="card recall-card">
+          <h3>✍️ Your turn — success in your own words</h3>
+          <p class="u-hint">
+            Before trusting my summary, write what a correct result looks like
+            to you, in a sentence or two. If your words and mine diverge, that
+            gap is the most important thing on this page. Your text is included
+            in the copied review so I can reconcile the two.
+          </p>
+          <textarea
+            id="recall-box"
+            placeholder="In my words, this is done when…"
+          ></textarea>
+        </div>
+      </section>
+
+      <section id="s0">
+        <h2>0 · Document Control</h2>
+        <div class="status-banner approved">
+          <strong>Status:</strong> APPROVED — READY FOR IMPLEMENTATION ·
+          <strong>Version:</strong> v2 ·
+          <strong>Last Updated:</strong> 2026-07-12 ·
+          <strong>Author:</strong> claude-haiku-4-5-20251001
+        </div>
+
+        <div class="card">
+          <h3>Revision Log</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Version</th>
+                  <th>Date</th>
+                  <th>Summary of Changes</th>
+                  <th>Driven By</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>v1</td><td>2026-07-12</td><td>First generation: mapped core CLI determinism guarantees, identified provider-specific hook mechanisms and tensions, proposed acceptance examples for each layer.</td><td>Initial exploration of CLI architecture and adapter implementations</td></tr>
+<tr><td>v2</td><td>2026-07-12</td><td>User review applied: reconciled overview with success statement (focus on hook-forced enforcement vs. AI discipline); verified Pi hook payload and marked U8 as correct; confirmed Pi out-of-scope; clarified environment uniformity (U11); marked all acceptance examples approved.</td><td>User review from co-authored session</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="approval-gate">
+          <strong>Approval Gate:</strong> Implementation begins only after every
+          high-stakes claim in Section 5 is verdicted, every tension is resolved,
+          the acceptance examples you approve are agreed as binding, and you flip
+          this document to APPROVED. Matching mental models is the deliverable
+          here; code comes later.
+        </div>
+      </section>
+
+      <section id="s1">
+        <h2>1 · The Concept, In My Own Words</h2>
+        <div class='card'><h3>The Concept, In My Own Words</h3><p>Your goal is to make sure the hooks <em>force</em> determinism—not trust the AI to follow instructions. When Claude Code or Copilot is configured with scaffold hooks, they cannot bypass <code>scaffold generate</code> and hand-write boilerplate, no matter what the prompt says. The hooks intercept before writes happen and say: "Is this a pack-owned file? If yes, use generate or I'll block you."</p><p>Why this matters: AI sometimes ignores skill instructions and does what seems right to it (write the file directly). Hooks make it structurally impossible. That's the difference between "please use generate" (hope) and "you cannot bypass generate" (guaranteed).</p><p>Scope: a single invocation of <code>scaffold generate</code>. Given the same manifest and repo state, every provider produces identical outputs. Multi-turn coherence, agent latency, prompt variation—those are out-of-scope.</p></div>
+      </section>
+
+      <section id="s2">
+        <h2>2 · What the Code Does Today</h2>
+        <div class='card'><h3>What the Code Does Today</h3><p>The scaffold CLI has three parts: a <strong>pure orchestrator</strong> (scaffold generate), <strong>structural gates</strong> (scaffold check-edit, scaffold status), and <strong>hook wiring</strong> (adapter-specific).</p><p><strong>The core orchestration:</strong></p><p>When you run <code>scaffold generate --manifest &lt;file&gt;</code>:</p><ol><li>Load the manifest (.json or .toon)</li><li>Load the pack descriptor (schema, targets, injections)</li><li>Render templates using Handlebars + manifest data</li><li>For each target file: create new or inject into existing</li><li>For each injection point: scan existing file for the marker, inject boilerplate between SCAFFOLD markers</li><li>Write changes to disk (or just report with <code>--dry-run</code>)</li><li>Record file hashes and pending AI_IMPLEMENTATION blocks</li><li>Print a TOON report listing what happened</li></ol><p>This is <em>deterministic</em>: same manifest + same repo state = identical outputs. Crucially, <code>--dry-run</code> uses the <em>same code path</em> as the real run — only the final disk writes are gated on <code>!dryRun</code>. This guarantees the dry-run report matches reality if nothing changes in between.</p><p><strong>Structural gates:</strong></p><p><code>scaffold check-edit --file &lt;path&gt; --tool &lt;write|edit&gt;</code> is the universal gate both adapters invoke before permitting file changes. It asks: "Is this file pack-owned? If so, is this edit allowed?" The answer is purely structural: depends only on .scaffold/config.json + pack descriptor + file content.</p><p><code>scaffold status</code> scans all AI_IMPLEMENTATION blocks and reports which ones are still unfilled.</p><p><strong>How hooks enforce determinism:</strong></p><p><strong>Claude Code:</strong> Pre-Tool-Use hook runs <code>scaffold check-edit</code> before Write/Edit tool calls execute, blocking pack-owned writes immediately. Stop hook runs <code>scaffold status</code> at turn-end, blocking if any blocks are unfilled.</p><p><strong>Copilot CLI:</strong> Same two hooks (registered in <code>.github/hooks/scaffold-toolkit.json</code>), plus a precheck in the <code>gh scaffold generate</code> wrapper that refuses to start a new generate if prior blocks are unfilled. Payload format for Copilot's hook is verified: { timestamp, cwd, toolName, toolArgs }.</p><p>Both adapters use the <em>same</em> check-edit and status logic — they just invoke it through different hook mechanisms. This is the foundation of determinism.</p></div>
+      </section>
+
+      <section id="s3">
+        <h2>3 · The Change — Before → After</h2>
+        <div class='card'><h3>Before → After</h3><table><tr><th>Before</th><th>After (v2 — Hook-Enforced)</th></tr><tr><td><strong>Enforcement:</strong> CLI is pure and deterministic, but relies on AI to use hooks. AI might ignore skills and write boilerplate directly.</td><td><strong>Enforcement:</strong> Hooks are mandatory and fire before writes happen. PreToolUse blocks pack-owned writes structurally; Stop blocks turn-end if blocks are unfilled. Not optional, not trusting AI.</td></tr><tr><td><strong>Copilot payload:</strong> Hook assumes field shape (unverified).</td><td><strong>Copilot payload:</strong> Format verified: { timestamp, cwd, toolName, toolArgs }. Gate is reliable.</td></tr><tr><td><strong>Scope:</strong> Unclear whether "deterministic" means CLI only or agent behavior too.</td><td><strong>Scope:</strong> Explicit and narrow: single scaffold generate invocation. CLI outputs match across providers. Agent behavior out-of-scope.</td></tr><tr><td><strong>Pi support:</strong> Unknown if feasible (hook protocol unknown).</td><td><strong>Pi support:</strong> Deferred to future work. Pi has hooks (verified), but outside v2 scope. Claude + Copilot are the target.</td></tr><tr><td><strong>Testing:</strong> No cross-provider fixture tests; divergence caught by luck.</td><td><strong>Testing:</strong> Fixture-driven tests verify all providers produce identical reports, exit codes, and file changes on same manifest + repo state.</td></tr></table></div>
+      </section>
+
+      <section id="s4">
+        <h2>4 · Acceptance Examples — Sign Off the Behaviour</h2>
+        <p class="u-hint">
+          Each example is a concrete input → outcome I believe you want (or, for a
+          counter-example, one that must NOT happen). Mark ✓ if that's the behaviour
+          you expect, ✗ if the outcome is wrong. The ones you ✓ become the binding
+          acceptance criteria the implementation is graded against — this is where
+          understanding turns into something testable.
+        </p>
+        <div class="card example-card ex-example" data-id="E1" data-example="Given A dotnet repo initialized with scaffold, a manifest.toon describing an entity, and an unfilled AI_IMPLEMENTATION_START/END block; When Claude Code (or any provider using the hook) attempts to directly write to a pack-owned file (not via scaffold generate); Then The PreToolUse hook runs scaffold check-edit, detects pack ownership, blocks the write with reason &#039;write-blocked&#039;, and returns exit 1 to the host. The file is never touched."><div class="ex-head"><span class="badge kind-example">E1 · must happen</span><div class="verdict-group ex-verdict"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Right — this is the behaviour I want">✓</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong outcome">✗</button></div></div><div class="ex-gwt"><div><span class="gwt-k">Given</span> A dotnet repo initialized with scaffold, a manifest.toon describing an entity, and an unfilled AI_IMPLEMENTATION_START/END block</div><div><span class="gwt-k">When</span> Claude Code (or any provider using the hook) attempts to directly write to a pack-owned file (not via scaffold generate)</div><div><span class="gwt-k">Then</span> The PreToolUse hook runs scaffold check-edit, detects pack ownership, blocks the write with reason &#039;write-blocked&#039;, and returns exit 1 to the host. The file is never touched.</div></div><div class="ex-refs">Pins claims: U3, U5, U10</div><textarea class="ex-note" name="exnote-E1" rows="2" placeholder="What should the outcome be instead?" hidden></textarea></div>
+<div class="card example-card ex-example" data-id="E2" data-example="Given Same scenario, but the user legitimately edits a line inside the AI_IMPLEMENTATION block interior; When Claude Code&#039;s Edit tool call specifies --old-string matching that line exactly (not ambiguous, only one occurrence); Then The PreToolUse hook runs scaffold check-edit, confirms the old_string&#039;s byte range sits inside the block interior, and returns &#039;edit-allowed-in-interior&#039; with exit 0. The edit proceeds."><div class="ex-head"><span class="badge kind-example">E2 · must happen</span><div class="verdict-group ex-verdict"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Right — this is the behaviour I want">✓</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong outcome">✗</button></div></div><div class="ex-gwt"><div><span class="gwt-k">Given</span> Same scenario, but the user legitimately edits a line inside the AI_IMPLEMENTATION block interior</div><div><span class="gwt-k">When</span> Claude Code&#039;s Edit tool call specifies --old-string matching that line exactly (not ambiguous, only one occurrence)</div><div><span class="gwt-k">Then</span> The PreToolUse hook runs scaffold check-edit, confirms the old_string&#039;s byte range sits inside the block interior, and returns &#039;edit-allowed-in-interior&#039; with exit 0. The edit proceeds.</div></div><div class="ex-refs">Pins claims: U5, U10</div><textarea class="ex-note" name="exnote-E2" rows="2" placeholder="What should the outcome be instead?" hidden></textarea></div>
+<div class="card example-card ex-example" data-id="E3" data-example="Given A manifest and target files with two unfilled AI_IMPLEMENTATION blocks; When scaffold generate is invoked, markers are injected, the report lists both as &#039;empty: true&#039;, and the scaffold status command is run before the turn ends; Then scaffold status --json returns { resolvedAll: false, unresolved: [...] } with exit 1. The Stop hook sees this and blocks the turn with reason &#039;unresolved AI_IMPLEMENTATION blocks&#039;."><div class="ex-head"><span class="badge kind-example">E3 · must happen</span><div class="verdict-group ex-verdict"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Right — this is the behaviour I want">✓</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong outcome">✗</button></div></div><div class="ex-gwt"><div><span class="gwt-k">Given</span> A manifest and target files with two unfilled AI_IMPLEMENTATION blocks</div><div><span class="gwt-k">When</span> scaffold generate is invoked, markers are injected, the report lists both as &#039;empty: true&#039;, and the scaffold status command is run before the turn ends</div><div><span class="gwt-k">Then</span> scaffold status --json returns { resolvedAll: false, unresolved: [...] } with exit 1. The Stop hook sees this and blocks the turn with reason &#039;unresolved AI_IMPLEMENTATION blocks&#039;.</div></div><div class="ex-refs">Pins claims: U3, U12</div><textarea class="ex-note" name="exnote-E3" rows="2" placeholder="What should the outcome be instead?" hidden></textarea></div>
+<div class="card example-card ex-example" data-id="E4" data-example="Given Same manifest run twice in identical repo state (no working-tree changes, same .scaffold/config.json, same pack descriptor cache); When scaffold generate --dry-run is run the first time, then scaffold generate (real) is run the second time; Then The dry-run report matches the real-run report byte-for-byte (same file list, same injection offsets, same hashes). Files written by the real run match the dry-run prediction."><div class="ex-head"><span class="badge kind-example">E4 · must happen</span><div class="verdict-group ex-verdict"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Right — this is the behaviour I want">✓</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong outcome">✗</button></div></div><div class="ex-gwt"><div><span class="gwt-k">Given</span> Same manifest run twice in identical repo state (no working-tree changes, same .scaffold/config.json, same pack descriptor cache)</div><div><span class="gwt-k">When</span> scaffold generate --dry-run is run the first time, then scaffold generate (real) is run the second time</div><div><span class="gwt-k">Then</span> The dry-run report matches the real-run report byte-for-byte (same file list, same injection offsets, same hashes). Files written by the real run match the dry-run prediction.</div></div><div class="ex-refs">Pins claims: U2, U1, U12</div><textarea class="ex-note" name="exnote-E4" rows="2" placeholder="What should the outcome be instead?" hidden></textarea></div>
+<div class="card example-card ex-example" data-id="E5" data-example="Given A dotnet pack descriptor with a pattern targeting app/Models/Entity.cs (pack-owned) and a repo-local file app/Services/Business.cs (not pack-owned); When Claude Code attempts to edit Business.cs (outside any AI_IMPLEMENTATION block); Then scaffold check-edit allows it (returns &#039;not-pack-owned&#039; with exit 0). Copilot running the same check reaches the same decision."><div class="ex-head"><span class="badge kind-example">E5 · must happen</span><div class="verdict-group ex-verdict"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Right — this is the behaviour I want">✓</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong outcome">✗</button></div></div><div class="ex-gwt"><div><span class="gwt-k">Given</span> A dotnet pack descriptor with a pattern targeting app/Models/Entity.cs (pack-owned) and a repo-local file app/Services/Business.cs (not pack-owned)</div><div><span class="gwt-k">When</span> Claude Code attempts to edit Business.cs (outside any AI_IMPLEMENTATION block)</div><div><span class="gwt-k">Then</span> scaffold check-edit allows it (returns &#039;not-pack-owned&#039; with exit 0). Copilot running the same check reaches the same decision.</div></div><div class="ex-refs">Pins claims: U1, U10, U12</div><textarea class="ex-note" name="exnote-E5" rows="2" placeholder="What should the outcome be instead?" hidden></textarea></div>
+<div class="card example-card ex-counter" data-id="E6" data-example="Given A Copilot session where the preToolUse hook is deployed and configured, and the hook correctly parses the verified payload format; When The hook runs scaffold check-edit before a write attempt; Then The gate functions identically to Claude Code&#039;s: blocks pack-owned writes, permits interior edits. Payload parsing is reliable because the format is verified."><div class="ex-head"><span class="badge kind-counter">E6 · must NOT happen</span><div class="verdict-group ex-verdict"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Right — this is the behaviour I want">✓</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong outcome">✗</button></div></div><div class="ex-gwt"><div><span class="gwt-k">Given</span> A Copilot session where the preToolUse hook is deployed and configured, and the hook correctly parses the verified payload format</div><div><span class="gwt-k">When</span> The hook runs scaffold check-edit before a write attempt</div><div><span class="gwt-k">Then</span> The gate functions identically to Claude Code&#039;s: blocks pack-owned writes, permits interior edits. Payload parsing is reliable because the format is verified.</div></div><div class="ex-refs">Pins claims: U8</div><textarea class="ex-note" name="exnote-E6" rows="2" placeholder="What should the outcome be instead?" hidden></textarea></div>
+<div class="card example-card ex-counter" data-id="E7" data-example="Given Two providers (Claude Code, Copilot) with uniform execution context (same PATH, Node ≥20.12, same working directory); When Each adapter runs scaffold check-edit via hook in its respective environment; Then Both hooks succeed and reach identical decisions. Environment uniformity is assumed; setup docs enforce it."><div class="ex-head"><span class="badge kind-counter">E7 · must NOT happen</span><div class="verdict-group ex-verdict"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Right — this is the behaviour I want">✓</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong outcome">✗</button></div></div><div class="ex-gwt"><div><span class="gwt-k">Given</span> Two providers (Claude Code, Copilot) with uniform execution context (same PATH, Node ≥20.12, same working directory)</div><div><span class="gwt-k">When</span> Each adapter runs scaffold check-edit via hook in its respective environment</div><div><span class="gwt-k">Then</span> Both hooks succeed and reach identical decisions. Environment uniformity is assumed; setup docs enforce it.</div></div><div class="ex-refs">Pins claims: U11</div><textarea class="ex-note" name="exnote-E7" rows="2" placeholder="What should the outcome be instead?" hidden></textarea></div>
+<div class="card example-card ex-example" data-id="E8" data-example="Given A fixture repo with both Claude Code and Copilot CLI installed, same .scaffold/config.json, same manifest; When scaffold generate is run manually (not via either provider&#039;s hooks) with the same manifest, twice; Then Both runs produce identical exit code, file changes, and report. This is the baseline; provider-specific hook behavior is layered on top."><div class="ex-head"><span class="badge kind-example">E8 · must happen</span><div class="verdict-group ex-verdict"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Right — this is the behaviour I want">✓</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong outcome">✗</button></div></div><div class="ex-gwt"><div><span class="gwt-k">Given</span> A fixture repo with both Claude Code and Copilot CLI installed, same .scaffold/config.json, same manifest</div><div><span class="gwt-k">When</span> scaffold generate is run manually (not via either provider&#039;s hooks) with the same manifest, twice</div><div><span class="gwt-k">Then</span> Both runs produce identical exit code, file changes, and report. This is the baseline; provider-specific hook behavior is layered on top.</div></div><div class="ex-refs">Pins claims: U1, U2, U12</div><textarea class="ex-note" name="exnote-E8" rows="2" placeholder="What should the outcome be instead?" hidden></textarea></div>
+      </section>
+
+      <section id="s5">
+        <h2>5 · Understanding Checklist — Confirm, Correct, or Fork Each Claim</h2>
+        <div class="card">
+          <p class="u-hint">
+            Each row is one claim I hold about your concept or your code. Mark it
+            ✓ correct, ≈ partly right, or ✗ wrong (and pick the right answer or
+            leave a note). Some rows are <strong>forks</strong> — I read them more
+            than one way, so choose the intended reading. Rows flagged
+            <strong>high stakes</strong> matter most: confirm those first. If I
+            missed something entirely, add it with the button below the table.
+          </p>
+          <div class="table-wrap">
+            <table id="u-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Area</th>
+                  <th>What I Understand</th>
+                  <th>Source</th>
+                  <th>Confidence</th>
+                  <th>Your Verdict</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr data-id="U1" data-statement="Determinism means: given the same manifest input and target repo state, every AI provider&#039;s adapter produces identical file writes, identical reports, and identical exit codes."><td>U1</td><td>Concept</td><td class="u-statement"><div>Determinism means: given the same manifest input and target repo state, every AI provider&#039;s adapter produces identical file writes, identical reports, and identical exit codes.</div><div class="u-impact">⚠ If wrong: Governs what we measure and how we test cross-provider consistency.</div></td><td><span class="badge src-user">you said</span></td><td><span class="badge conf-high">high</span></td><td class="u-verdict"><div class="verdict-group"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Correct">✓</button><button type="button" class="verdict-btn v-partly" data-verdict="partly" title="Partly right">≈</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong">✗</button></div><div class="u-correction" hidden><textarea class="u-note" name="note-U1" rows="2" placeholder="What's off? Correct me…"></textarea></div></td></tr>
+<tr data-id="U2" data-statement="The core CLI orchestration (scaffold generate) is already deterministic: render → validate → inject → report uses the same code path for dry-run and real-run, idempotent due to hash-trail provenance tracking."><td>U2</td><td>Code</td><td class="u-statement"><div>The core CLI orchestration (scaffold generate) is already deterministic: render → validate → inject → report uses the same code path for dry-run and real-run, idempotent due to hash-trail provenance tracking.</div><div class="u-evidence">📎 packages/core/src/generate/generate.ts:1–8 (&quot;only the final disk-write... steps are gated on !dryRun&quot;)</div><div class="u-impact">⚠ If wrong: Dry-run output is guaranteed to match real-run for the same working tree state.</div></td><td><span class="badge src-code">in code</span></td><td><span class="badge conf-high">high</span></td><td class="u-verdict"><div class="verdict-group"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Correct">✓</button><button type="button" class="verdict-btn v-partly" data-verdict="partly" title="Partly right">≈</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong">✗</button></div><div class="u-correction" hidden><textarea class="u-note" name="note-U2" rows="2" placeholder="What's off? Correct me…"></textarea></div></td></tr>
+<tr data-id="U3" data-statement="Structural enforcement is split into three independent layers: PreToolUse (hard gate on pack-owned writes before tool runs), PostToolUse (soft nudge after tool runs), and Stop/agentStop (hard gate on unfilled blocks before turn ends)."><td>U3</td><td>Code</td><td class="u-statement"><div>Structural enforcement is split into three independent layers: PreToolUse (hard gate on pack-owned writes before tool runs), PostToolUse (soft nudge after tool runs), and Stop/agentStop (hard gate on unfilled blocks before turn ends).</div><div class="u-evidence">📎 packages/adapter-claude-code/SKILL.md:20–24 (three hook types), packages/adapter-copilot-cli/README.md:58–65 (three independent enforcement layers)</div><div class="u-impact">⚠ If wrong: A missing or misconfigured hook weakens the determinism guarantee; all three must function.</div></td><td><span class="badge src-code">in code</span></td><td><span class="badge conf-high">high</span></td><td class="u-verdict"><div class="verdict-group"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Correct">✓</button><button type="button" class="verdict-btn v-partly" data-verdict="partly" title="Partly right">≈</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong">✗</button></div><div class="u-correction" hidden><textarea class="u-note" name="note-U3" rows="2" placeholder="What's off? Correct me…"></textarea></div></td></tr>
+<tr data-id="U4" data-statement="Claude Code and Copilot register hooks via different mechanisms: Claude uses .claude/settings.json entries, Copilot uses .github/hooks/scaffold-toolkit.json."><td>U4</td><td>Code</td><td class="u-statement"><div>Claude Code and Copilot register hooks via different mechanisms: Claude uses .claude/settings.json entries, Copilot uses .github/hooks/scaffold-toolkit.json.</div><div class="u-evidence">📎 packages/adapter-claude-code/SKILL.md:44–87 (JSON structure with PreToolUse/UserPromptSubmit/PostToolUse/Stop), packages/adapter-copilot-cli/README.md:39 (.github/hooks/scaffold-toolkit.json)</div><div class="u-impact">⚠ If wrong: Each provider requires separate adapter and hook registration; hooks are provider-specific, not shared.</div></td><td><span class="badge src-code">in code</span></td><td><span class="badge conf-high">high</span></td><td class="u-verdict"><div class="verdict-group"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Correct">✓</button><button type="button" class="verdict-btn v-partly" data-verdict="partly" title="Partly right">≈</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong">✗</button></div><div class="u-correction" hidden><textarea class="u-note" name="note-U4" rows="2" placeholder="What's off? Correct me…"></textarea></div></td></tr>
+<tr data-id="U5" data-statement="Both adapters gate on scaffold check-edit before permitting file writes/edits to pack-owned files; the gate checks repo config + pack descriptor patterns + AI_IMPLEMENTATION block interiors."><td>U5</td><td>Code</td><td class="u-statement"><div>Both adapters gate on scaffold check-edit before permitting file writes/edits to pack-owned files; the gate checks repo config + pack descriptor patterns + AI_IMPLEMENTATION block interiors.</div><div class="u-evidence">📎 packages/core/src/checkEdit/checkEdit.ts (algorithm: allow if no config, outside repo, or not pack-owned; block writes to pack-owned; allow edits only in AI_IMPLEMENTATION interior)</div><div class="u-impact">⚠ If wrong: The check-edit gate is the only structural enforcement that applies uniformly across all adapters; both must invoke it.</div></td><td><span class="badge src-code">in code</span></td><td><span class="badge conf-high">high</span></td><td class="u-verdict"><div class="verdict-group"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Correct">✓</button><button type="button" class="verdict-btn v-partly" data-verdict="partly" title="Partly right">≈</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong">✗</button></div><div class="u-correction" hidden><textarea class="u-note" name="note-U5" rows="2" placeholder="What's off? Correct me…"></textarea></div></td></tr>
+<tr data-id="U6" data-statement="Determinism scope: a single scaffold generate invocation. Given the same manifest input and target repo state, every provider&#039;s adapter produces identical file outputs, report structure, and exit codes for that one invocation."><td>U6</td><td>Concept</td><td class="u-statement"><div>Determinism scope: a single scaffold generate invocation. Given the same manifest input and target repo state, every provider&#039;s adapter produces identical file outputs, report structure, and exit codes for that one invocation.</div><div class="u-impact">⚠ If wrong: Excludes multi-turn coherence, agent latency, prompt variation—those are out-of-scope. Focus is CLI layer only.</div></td><td><span class="badge src-user">you said</span></td><td><span class="badge conf-high">high</span></td><td class="u-verdict"><div class="verdict-group"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Correct">✓</button><button type="button" class="verdict-btn v-partly" data-verdict="partly" title="Partly right">≈</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong">✗</button></div><div class="u-correction" hidden><textarea class="u-note" name="note-U6" rows="2" placeholder="What's off? Correct me…"></textarea></div></td></tr>
+<tr data-id="U7" data-statement="Determinism depends on stable inputs: .scaffold/config.json, synced pack descriptors (deterministic cache path + SHA tracking), and working-tree file content (what the generate reads from disk before injecting)." data-priority="high"><td>U7</td><td>Scope</td><td class="u-statement"><div>Determinism depends on stable inputs: .scaffold/config.json, synced pack descriptors (deterministic cache path + SHA tracking), and working-tree file content (what the generate reads from disk before injecting).</div><div class="u-impact">⚠ If wrong: Any cache inconsistency or stale descriptor breaks the guarantee.</div><div class="priority-flag">⚠ high stakes · confirm first</div></td><td><span class="badge src-inferred">inferred</span></td><td><span class="badge conf-medium">medium</span></td><td class="u-verdict"><div class="verdict-group"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Correct">✓</button><button type="button" class="verdict-btn v-partly" data-verdict="partly" title="Partly right">≈</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong">✗</button></div><div class="u-correction" hidden><textarea class="u-note" name="note-U7" rows="2" placeholder="What's off? Correct me…"></textarea></div></td></tr>
+<tr data-id="U8" data-statement="Copilot CLI&#039;s PreToolUse hook receives a verified payload format: { timestamp, cwd, toolName, toolArgs } where toolArgs is a JSON string. This matches the real Copilot payload, not a guess."><td>U8</td><td>Code</td><td class="u-statement"><div>Copilot CLI&#039;s PreToolUse hook receives a verified payload format: { timestamp, cwd, toolName, toolArgs } where toolArgs is a JSON string. This matches the real Copilot payload, not a guess.</div><div class="u-evidence">📎 User confirmed payload format from Copilot CLI documentation/live session: toolName (string), toolArgs (JSON string)</div><div class="u-impact">⚠ If wrong: The preToolUse gate can reliably parse the payload and extract the file path from toolArgs.</div></td><td><span class="badge src-user">you said</span></td><td><span class="badge conf-high">high</span></td><td class="u-verdict"><div class="verdict-group"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Correct">✓</button><button type="button" class="verdict-btn v-partly" data-verdict="partly" title="Partly right">≈</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong">✗</button></div><div class="u-correction" hidden><textarea class="u-note" name="note-U8" rows="2" placeholder="What's off? Correct me…"></textarea></div></td></tr>
+<tr data-id="U9" data-statement="Pi Agent has hook support: SessionStart/SessionEnd (lifecycle), PreToolUse/PostToolUse/PostToolUseFailure (tool execution), UserPromptSubmit/Stop (interaction), PreCompact/PostCompact (optimization). PreToolUse can block tool execution (same as Claude/Copilot)."><td>U9</td><td>Code</td><td class="u-statement"><div>Pi Agent has hook support: SessionStart/SessionEnd (lifecycle), PreToolUse/PostToolUse/PostToolUseFailure (tool execution), UserPromptSubmit/Stop (interaction), PreCompact/PostCompact (optimization). PreToolUse can block tool execution (same as Claude/Copilot).</div><div class="u-evidence">📎 User provided Pi Agent hook lifecycle documentation: PreToolUse blocks, PostToolUse nudges, Stop gates turn-end, matching Claude/Copilot pattern</div><div class="u-impact">⚠ If wrong: Pi adapter is feasible using the same three-layer enforcement model. However, Pi is out-of-scope for the immediate release (v2).</div></td><td><span class="badge src-user">you said</span></td><td><span class="badge conf-high">high</span></td><td class="u-verdict"><div class="verdict-group"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Correct">✓</button><button type="button" class="verdict-btn v-partly" data-verdict="partly" title="Partly right">≈</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong">✗</button></div><div class="u-correction" hidden><textarea class="u-note" name="note-U9" rows="2" placeholder="What's off? Correct me…"></textarea></div></td></tr>
+<tr data-id="U10" data-statement="Each adapter must invoke scaffold check-edit with the same logic: block pack-owned writes, permit edits only inside AI_IMPLEMENTATION interiors; adapters differ only in *how* they invoke it (hook mechanism) and *what exits they use*."><td>U10</td><td>Scope</td><td class="u-statement"><div>Each adapter must invoke scaffold check-edit with the same logic: block pack-owned writes, permit edits only inside AI_IMPLEMENTATION interiors; adapters differ only in *how* they invoke it (hook mechanism) and *what exits they use*.</div><div class="u-impact">⚠ If wrong: Divergence here (e.g., one adapter permitting writes the other blocks) breaks cross-provider determinism.</div></td><td><span class="badge src-inferred">inferred</span></td><td><span class="badge conf-high">high</span></td><td class="u-verdict"><div class="verdict-group"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Correct">✓</button><button type="button" class="verdict-btn v-partly" data-verdict="partly" title="Partly right">≈</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong">✗</button></div><div class="u-correction" hidden><textarea class="u-note" name="note-U10" rows="2" placeholder="What's off? Correct me…"></textarea></div></td></tr>
+<tr data-id="U11" data-statement="Execution context is assumed uniform across all providers: each has the scaffold binary on PATH, Node.js ≥20.12, and identical working directory context when hooks fire."><td>U11</td><td>Scope</td><td class="u-statement"><div>Execution context is assumed uniform across all providers: each has the scaffold binary on PATH, Node.js ≥20.12, and identical working directory context when hooks fire.</div><div class="u-impact">⚠ If wrong: Simplifies testing; no need to account for environment divergence. Setup docs must enforce this.</div></td><td><span class="badge src-user">you said</span></td><td><span class="badge conf-high">high</span></td><td class="u-verdict"><div class="verdict-group"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Correct">✓</button><button type="button" class="verdict-btn v-partly" data-verdict="partly" title="Partly right">≈</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong">✗</button></div><div class="u-correction" hidden><textarea class="u-note" name="note-U11" rows="2" placeholder="What's off? Correct me…"></textarea></div></td></tr>
+<tr data-id="U12" data-statement="Determinism is testable via fixture-driven acceptance tests: given a manifest + repo state, verify every provider&#039;s adapter produces identical reports, exit codes, and file changes."><td>U12</td><td>Scope</td><td class="u-statement"><div>Determinism is testable via fixture-driven acceptance tests: given a manifest + repo state, verify every provider&#039;s adapter produces identical reports, exit codes, and file changes.</div><div class="u-impact">⚠ If wrong: Defines the acceptance bar and catches provider divergence early.</div></td><td><span class="badge src-inferred">inferred</span></td><td><span class="badge conf-high">high</span></td><td class="u-verdict"><div class="verdict-group"><button type="button" class="verdict-btn v-yes" data-verdict="yes" title="Correct">✓</button><button type="button" class="verdict-btn v-partly" data-verdict="partly" title="Partly right">≈</button><button type="button" class="verdict-btn v-no" data-verdict="no" title="Wrong">✗</button></div><div class="u-correction" hidden><textarea class="u-note" name="note-U12" rows="2" placeholder="What's off? Correct me…"></textarea></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="add-claim-row">
+            <button type="button" id="add-claim-btn" class="ghost-btn">
+              ＋ Add a claim I missed
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section id="s6">
+        <h2>6 · Tensions — What You Want vs. What the Code Allows</h2>
+        <p class="u-hint">
+          Reading the code, I found places where your intent and the current
+          reality pull against each other. Rather than silently pick for you, I'm
+          surfacing them: choose how each should resolve. An unresolved tension is
+          a likely source of a surprise later.
+        </p>
+        <div class="card tension-card" data-id="T1" data-summary="The CLI works identically across all providers without any manual setup or per-provider tweaks. — vs — Each adapter ships with provider-specific hook registration (Claude reads .claude/settings.json, Copilot reads .github/hooks/) that requires a one-time install step."><div class="tension-head"><span class="badge tension-badge">T1</span> Tension I found</div><div class="tension-cols"><div class="tension-col want"><h4>You want</h4><p>The CLI works identically across all providers without any manual setup or per-provider tweaks.</p></div><div class="tension-col code"><h4>But the code…</h4><p>Each adapter ships with provider-specific hook registration (Claude reads .claude/settings.json, Copilot reads .github/hooks/) that requires a one-time install step.</p><div class="u-evidence">📎 packages/adapter-claude-code/SKILL.md:33–40 (merge into .claude/settings.json), packages/adapter-copilot-cli/README.md:39 (.github/hooks/scaffold-toolkit.json write)</div></div></div><div class="tension-rec"><strong>My recommendation:</strong> Accept one-time setup per repo. Clear documentation per provider is enough; auto-install is nice-to-have, not blocking.</div><div class="tension-resolve"><span class="resolve-label">Your call:</span><label class="tension-opt"><input type="radio" name="tension-T1" value="0"><span>Accept the one-time setup cost; it&#039;s per-repo, not per-turn. Document it clearly for each provider.</span></label><label class="tension-opt"><input type="radio" name="tension-T1" value="1"><span>Auto-detect the provider&#039;s hook mechanism at generate-time and wire hooks on demand (higher complexity, runtime detection).</span></label><label class="tension-opt"><input type="radio" name="tension-T1" value="other"><span>other →</span></label><textarea class="t-note" name="tnote-T1" rows="2" placeholder="How we should resolve it…" hidden></textarea></div></div>
+<div class="card tension-card" data-id="T2" data-summary="Copilot&#039;s preToolUse hook enforces the same structural gate as Claude Code&#039;s. — vs — The hook&#039;s payload parsing was initially unverified, but is now confirmed to match the real Copilot CLI format."><div class="tension-head"><span class="badge tension-badge">T2</span> Tension I found</div><div class="tension-cols"><div class="tension-col want"><h4>You want</h4><p>Copilot&#039;s preToolUse hook enforces the same structural gate as Claude Code&#039;s.</p></div><div class="tension-col code"><h4>But the code…</h4><p>The hook&#039;s payload parsing was initially unverified, but is now confirmed to match the real Copilot CLI format.</p><div class="u-evidence">📎 User confirmed payload: { timestamp, cwd, toolName, toolArgs }</div></div></div><div class="tension-rec"><strong>My recommendation:</strong> Deploy with confidence. The payload format is verified; the gate is sound.</div><div class="tension-resolve"><span class="resolve-label">Your call:</span><label class="tension-opt"><input type="radio" name="tension-T2" value="0"><span>Deploy the hook with confidence, now that the payload is verified.</span></label><label class="tension-opt"><input type="radio" name="tension-T2" value="1"><span>Run one additional live test to double-check (overkill, low value).</span></label><label class="tension-opt"><input type="radio" name="tension-T2" value="other"><span>other →</span></label><textarea class="t-note" name="tnote-T2" rows="2" placeholder="How we should resolve it…" hidden></textarea></div></div>
+<div class="card tension-card" data-id="T3" data-summary="Determinism means the CLI itself produces identical output; but the agent *using* the CLI might differ (latency, model choice, multi-turn drift). — vs — Determinism is scoped to the CLI layer only: a single scaffold generate invocation. Agent behavior (coherence, prompt variation) is out-of-scope."><div class="tension-head"><span class="badge tension-badge">T3</span> Tension I found</div><div class="tension-cols"><div class="tension-col want"><h4>You want</h4><p>Determinism means the CLI itself produces identical output; but the agent *using* the CLI might differ (latency, model choice, multi-turn drift).</p></div><div class="tension-col code"><h4>But the code…</h4><p>Determinism is scoped to the CLI layer only: a single scaffold generate invocation. Agent behavior (coherence, prompt variation) is out-of-scope.</p></div></div><div class="tension-rec"><strong>My recommendation:</strong> Narrow scope: CLI outputs only. This is credible, testable, and doesn&#039;t require agent-level control.</div><div class="tension-resolve"><span class="resolve-label">Your call:</span><label class="tension-opt"><input type="radio" name="tension-T3" value="0"><span>Define determinism narrowly: CLI outputs only. Agent behavior is out-of-scope.</span></label><label class="tension-opt"><input type="radio" name="tension-T3" value="1"><span>Extend determinism to agent behavior: enforce same model, same prompts. Requires prompt templating per provider.</span></label><label class="tension-opt"><input type="radio" name="tension-T3" value="other"><span>other →</span></label><textarea class="t-note" name="tnote-T3" rows="2" placeholder="How we should resolve it…" hidden></textarea></div></div>
+<div class="card tension-card" data-id="T4" data-summary="Pi Agent support with the same determinism guarantees as Claude Code and Copilot. — vs — Pi does have hooks (verified), but is out-of-scope for this release. Claude + Copilot are the target."><div class="tension-head"><span class="badge tension-badge">T4</span> Tension I found</div><div class="tension-cols"><div class="tension-col want"><h4>You want</h4><p>Pi Agent support with the same determinism guarantees as Claude Code and Copilot.</p></div><div class="tension-col code"><h4>But the code…</h4><p>Pi does have hooks (verified), but is out-of-scope for this release. Claude + Copilot are the target.</p></div></div><div class="tension-rec"><strong>My recommendation:</strong> Defer Pi to future work. Focus on shipping Claude + Copilot with high confidence. Pi can follow once the two-provider pattern is proven.</div><div class="tension-resolve"><span class="resolve-label">Your call:</span><label class="tension-opt"><input type="radio" name="tension-T4" value="0"><span>Build Pi adapter now, in parallel with the other two.</span></label><label class="tension-opt"><input type="radio" name="tension-T4" value="1"><span>Ship Claude + Copilot determinism first; document Pi as a future enhancement.</span></label><label class="tension-opt"><input type="radio" name="tension-T4" value="other"><span>other →</span></label><textarea class="t-note" name="tnote-T4" rows="2" placeholder="How we should resolve it…" hidden></textarea></div></div>
+      </section>
+
+      <section id="s7">
+        <h2>7 · Scope Boundaries</h2>
+        <div class='card'><h3>Scope Boundaries</h3><p><strong>In Scope (v2):</strong></p><ul><li>Claude Code and Copilot CLI adapters enforce determinism via hooks</li><li>CLI exit codes, file outputs, and report structure are identical across Claude and Copilot for the same manifest + repo state</li><li>Dry-run behavior matches real-run behavior for identical working-tree state</li><li>Structural gates (check-edit, status) are invoked uniformly via hooks (PreToolUse, Stop/agentStop)</li><li>Hash-trail idempotency: scaffolding the same entity twice doesn't corrupt files</li><li>Hooks are mandatory: they fire before writes and block rule violations</li></ul><p><strong>Out of Scope (v2):</strong></p><ul><li><strong>Agent behavior:</strong> Whether Claude Code and Copilot produce the same prompts, latency, or multi-turn coherence</li><li><strong>Pi Agent:</strong> Deferred to future release. Pi has hooks (verified), but not in the v2 delivery scope</li><li><strong>Manual CLI invocation:</strong> If someone runs <code>scaffold generate</code> by hand outside hooks, we don't enforce the rules. Hooks are optional; determinism is guaranteed, but enforcement isn't</li><li><strong>Environment divergence:</strong> Assume uniform context (same PATH, Node ≥20.12, working directory). Setup docs enforce this</li><li><strong>Pack content mutations:</strong> If a pack changes between invocations, output changes. Assume pack cache is stable</li><li><strong>Auto-install hooks:</strong> One-time explicit setup per repo. Auto-detection deferred to future</li></ul></div>
+      </section>
+
+      <section id="s8">
+        <h2>8 · Open Questions</h2>
+        <div class="card">
+          <p class="u-hint">Answers typed here are included in the copied review.</p>
+          <div class="table-wrap">
+            <table id="oq-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Question</th>
+                  <th>Why it Matters</th>
+                  <th>Proposed Default</th>
+                  <th>Status</th>
+                  <th>Your Answer</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr data-id="OQ2"><td>OQ2</td><td>When should the Copilot preToolUse hook verification test run? Who runs it, and how is the result captured?</td><td>Confirms the payload format assumption. Now that the format is user-verified, this is a lower priority but still worth documenting.</td><td>Manual test: developer with live Copilot CLI session attempts pack-owned write, verifies gate blocks it. Results documented in test suite or README.</td><td>Resolved-in-v2</td><td><textarea class="oq-answer" name="answer-OQ2" rows="2" placeholder="Type your answer…"></textarea></td></tr>
+<tr data-id="OQ3"><td>OQ3</td><td>Should each provider&#039;s adapter auto-install its hooks on first use?</td><td>Determines user friction: automatic setup is polished but riskier; explicit setup is clearer.</td><td>Explicit one-time setup per repo, clearly documented per provider. Auto-install deferred to future work.</td><td>Resolved-in-v2</td><td><textarea class="oq-answer" name="answer-OQ3" rows="2" placeholder="Type your answer…"></textarea></td></tr>
+<tr data-id="OQ4"><td>OQ4</td><td>How should determinism be tested in CI?</td><td>CI testing catches provider divergence automatically.</td><td>Fixture-driven tests: scaffold generate on known repos, compare outputs cross-provider. Hook-driven tests (hook sequencing) are secondary.</td><td>Resolved-in-v2</td><td><textarea class="oq-answer" name="answer-OQ4" rows="2" placeholder="Type your answer…"></textarea></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="s9">
+        <h2>9 · Risks &amp; Sharp Edges</h2>
+        <div class='card'><h3>Risks & Sharp Edges</h3><table><tr><th>Risk</th><th>Likelihood</th><th>Impact</th><th>Mitigation</th></tr><tr><td>Copilot hook payload parsing fails (format mismatch)</td><td>Low (format now verified)</td><td>High (gate is bypassed)</td><td>Format is user-verified; gate is reliable. Low risk post-v2.</td></tr><tr><td>Scaffold binary not on PATH in one provider's environment</td><td>Low (assumed uniform)</td><td>Medium (hooks fail silently)</td><td>Setup docs must enforce PATH. CI verifies scaffold is available before running tests.</td></tr><tr><td>Pack descriptor cache becomes stale (synced SHA no longer matches remote)</td><td>Low (cache has versioning)</td><td>High (generate produces stale output)</td><td><code>scaffold templates sync</code> is explicit. <code>scaffold validate-pack</code> catches descriptor issues in CI. CI syncs before generate.</td></tr><tr><td>File system race condition: hook checks file state, user edits between check and tool invocation</td><td>Low (rare timing)</td><td>Medium (check result stale)</td><td>No perfect fix. Mitigated by: hook runs immediately before tool, tool is synchronous. Documented as best-effort.</td></tr><tr><td>Hook registration incomplete or wrong (missing hook, mistyped command)</td><td>Medium (manual setup step)</td><td>High (enforcement layer is missing or broken)</td><td>Clear setup docs per provider. Validation script can verify hook presence (future enhancement).</td></tr></table></div>
+      </section>
+
+      <section id="s10">
+        <h2>10 · Implementation Sketch (Non-Binding)</h2>
+        <div class='card'><h3>Implementation Sketch (Non-Binding)</h3><p>Roadmap for shipping v2: Claude + Copilot determinism, hooks-enforced, Pi deferred.</p><ol><li><strong>Verify Copilot hook payload parsing.</strong> Confirmed: { timestamp, cwd, toolName, toolArgs }. No changes needed; gate is sound.</li><li><strong>Document "Determinism" clearly.</strong> Add to CLAUDE.md or new section: define scope as single scaffold generate invocation; note the hook-enforced layers; list what's out-of-scope (agent behavior, Pi, auto-install).</li><li><strong>Build fixture-driven test suite.</strong> Create test fixtures with known manifests + repo states. For Claude and Copilot: run generate, capture report + files. Compare across providers (should be identical). Include dry-run tests.</li><li><strong>Verify hook wiring per provider.</strong> Claude Code: confirm all four hooks (PreToolUse, UserPromptSubmit, PostToolUse, Stop) are correctly registered. Copilot: confirm preToolUse, postToolUse, agentStop, plus generate precheck.</li><li><strong>Update CI pipeline.</strong> Add fixture-driven acceptance tests. Verify scaffold is on PATH. Run tests against both real adapters (not mocked).</li><li><strong>Document setup per provider.</strong> Explicit one-time steps: Claude (merge .claude/settings.json), Copilot (gh scaffold install-hooks). Link to both adapter README + CLAUDE.md.</li><li><strong>Road to Pi (future).</strong> Once two-provider pattern is proven, build Pi adapter using the three-layer enforcement model. Pi has hooks (SessionStart/SessionEnd, PreToolUse/PostToolUse, UserPromptSubmit/Stop, PreCompact/PostCompact), matching Claude/Copilot pattern.</li></ol></div>
+      </section>
+    </main>
+
+    <div
+      id="sync-widget"
+      data-doc="Deterministic Scaffold CLI for AI Providers"
+      data-version="v2"
+      data-status="APPROVED — READY FOR IMPLEMENTATION"
+    >
+      <div class="sync-title">Understanding sync</div>
+      <div class="sync-counts">
+        <span id="sync-confirmed">0</span> agreed ·
+        <span id="sync-flagged">0</span> to fix ·
+        <span id="sync-pending">0</span> pending
+      </div>
+      <div class="sync-bar"><div id="sync-bar-fill"></div></div>
+      <div id="sync-gate" class="sync-gate">Review the claims above</div>
+      <button type="button" id="copy-review-btn" class="copy-qa-btn">
+        📋 Copy review for the AI
+      </button>
+    </div>
+
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+      mermaid.initialize({
+        startOnLoad: true,
+        theme: "default",
+        securityLevel: "loose",
+      });
+    </script>
+
+    <script>
+      const toc = document.getElementById("toc");
+      const sections = document.querySelectorAll('section[id^="s"]');
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              const id = entry.target.id;
+              const link = toc.querySelector(`a[href="#${id}"]`);
+              toc
+                .querySelectorAll("a")
+                .forEach((a) => a.classList.remove("active"));
+              if (link) link.classList.add("active");
+            }
+          });
+        },
+        { threshold: 0.3, rootMargin: "-50% 0px -50% 0px" },
+      );
+
+      sections.forEach((section) => observer.observe(section));
+
+      toc.querySelectorAll("a").forEach((link) => {
+        link.addEventListener("click", (e) => {
+          e.preventDefault();
+          const target = document.querySelector(link.getAttribute("href"));
+          if (target) {
+            target.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        });
+      });
+    </script>
+
+    <script>
+      document.querySelectorAll("table").forEach((table) => {
+        if (table.closest(".table-wrap")) return;
+        const wrap = document.createElement("div");
+        wrap.className = "table-wrap";
+        table.parentNode.insertBefore(wrap, table);
+        wrap.appendChild(table);
+      });
+    </script>
+
+    <script>
+      (function () {
+        const backdrop = document.createElement("div");
+        backdrop.className = "diagram-backdrop";
+        document.body.appendChild(backdrop);
+
+        let activeCard = null;
+
+        function minimize(card) {
+          card.classList.remove("diagram-maximized");
+          const btn = card.querySelector(".diagram-toggle-btn");
+          if (btn) {
+            btn.textContent = "⛶";
+            btn.title = "Maximize diagram";
+          }
+          backdrop.classList.remove("active");
+          document.body.classList.remove("diagram-lock");
+          activeCard = null;
+        }
+
+        function maximize(card) {
+          if (activeCard && activeCard !== card) minimize(activeCard);
+          card.classList.add("diagram-maximized");
+          const btn = card.querySelector(".diagram-toggle-btn");
+          if (btn) {
+            btn.textContent = "✕";
+            btn.title = "Minimize diagram";
+          }
+          backdrop.classList.add("active");
+          document.body.classList.add("diagram-lock");
+          activeCard = card;
+        }
+
+        document.querySelectorAll("div.mermaid").forEach((diagram) => {
+          let card = diagram.closest(".mermaid-card");
+          if (!card) {
+            card = document.createElement("div");
+            card.className = "mermaid-card";
+            diagram.parentNode.insertBefore(card, diagram);
+            card.appendChild(diagram);
+          }
+          if (card.querySelector(".diagram-toggle-btn")) return;
+
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "diagram-toggle-btn";
+          btn.textContent = "⛶";
+          btn.title = "Maximize diagram";
+          btn.addEventListener("click", () => {
+            if (card.classList.contains("diagram-maximized")) {
+              minimize(card);
+            } else {
+              maximize(card);
+            }
+          });
+          card.appendChild(btn);
+        });
+
+        backdrop.addEventListener("click", () => {
+          if (activeCard) minimize(activeCard);
+        });
+
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "Escape" && activeCard) minimize(activeCard);
+        });
+      })();
+    </script>
+
+    <script>
+      // Co-authoring engine: verdicts, forks, structured corrections, added
+      // claims, tension resolutions, example sign-off, recall, live sync, and
+      // the review export. All state persists per browser keyed by doc+version.
+      (function () {
+        const widget = document.getElementById("sync-widget");
+        if (!widget) return;
+
+        const docName = widget.dataset.doc || "";
+        const docVersion = widget.dataset.version || "";
+        const docStatus = widget.dataset.status || "";
+        const storeKey = "arch-review:" + docName + ":" + docVersion;
+
+        const state = load();
+        state.recall = state.recall || "";
+        state.claims = state.claims || {};
+        state.added = Array.isArray(state.added) ? state.added : [];
+        state.tensions = state.tensions || {};
+        state.examples = state.examples || {};
+        state.answers = state.answers || {};
+
+        function load() {
+          try {
+            return JSON.parse(localStorage.getItem(storeKey)) || {};
+          } catch (e) {
+            return {};
+          }
+        }
+        function save() {
+          try {
+            localStorage.setItem(storeKey, JSON.stringify(state));
+          } catch (e) {
+            /* private mode: review still works, just not persisted */
+          }
+        }
+        const txt = (el) => (el ? el.value.trim() : "");
+        const setText = (sel, val) => {
+          const el = document.querySelector(sel);
+          if (el) el.textContent = val;
+        };
+
+        // ---------- Recall / success statement ----------
+        const recall = document.getElementById("recall-box");
+        if (recall) {
+          recall.value = state.recall;
+          recall.addEventListener("input", () => {
+            state.recall = recall.value;
+            save();
+          });
+        }
+
+        // ---------- Understanding rows ----------
+        const uTableBody = document.querySelector("#u-table tbody");
+        const claimRows = () =>
+          Array.from(document.querySelectorAll("#u-table tbody tr[data-id]"));
+
+        function rowState(row) {
+          if (row.dataset.fork === "true") {
+            const c = row.dataset.forkChoice;
+            if (c && c !== "neither") return "agreed";
+            if (c === "neither") return "flagged";
+            return "pending";
+          }
+          const v = row.dataset.verdict;
+          if (v === "yes") return "agreed";
+          if (v === "no" || v === "partly") return "flagged";
+          return "pending";
+        }
+        function paintRow(row) {
+          row.dataset.state = rowState(row);
+        }
+
+        function applyVerdict(row, verdict) {
+          if (verdict) row.dataset.verdict = verdict;
+          else row.removeAttribute("data-verdict");
+          row.querySelectorAll(".verdict-btn").forEach((b) => {
+            b.classList.toggle("selected", b.dataset.verdict === verdict);
+          });
+          const correction = row.querySelector(".u-correction");
+          if (correction)
+            correction.hidden = !(verdict === "no" || verdict === "partly");
+          paintRow(row);
+        }
+
+        function wireClaim(row) {
+          const id = row.dataset.id;
+          const note = row.querySelector(".u-note");
+
+          if (row.dataset.fork === "true") {
+            row.querySelectorAll('input[type="radio"]').forEach((radio) => {
+              radio.addEventListener("change", () => {
+                row.dataset.forkChoice = radio.value;
+                if (note) note.hidden = radio.value !== "neither";
+                state.claims[id] = { fork: radio.value, note: txt(note) };
+                paintRow(row);
+                save();
+                refresh();
+              });
+            });
+            if (note)
+              note.addEventListener("input", () => {
+                state.claims[id] = {
+                  fork: row.dataset.forkChoice || "",
+                  note: note.value,
+                };
+                save();
+              });
+            const s = state.claims[id];
+            if (s && s.fork) {
+              row.querySelectorAll('input[type="radio"]').forEach((r) => {
+                if (r.value === s.fork) r.checked = true;
+              });
+              row.dataset.forkChoice = s.fork;
+              if (note) {
+                note.hidden = s.fork !== "neither";
+                note.value = s.note || "";
+              }
+            }
+            paintRow(row);
+            return;
+          }
+
+          row.querySelectorAll(".verdict-btn").forEach((btn) => {
+            btn.addEventListener("click", () => {
+              const next =
+                row.dataset.verdict === btn.dataset.verdict
+                  ? ""
+                  : btn.dataset.verdict;
+              applyVerdict(row, next);
+              const cur = state.claims[id] || {};
+              state.claims[id] = {
+                verdict: next,
+                note: txt(note),
+                correction: cur.correction || "",
+              };
+              save();
+              refresh();
+            });
+          });
+          row.querySelectorAll(".correction-opt").forEach((opt) => {
+            opt.addEventListener("click", () => {
+              const cur = state.claims[id] || {};
+              const nextVal =
+                cur.correction === opt.dataset.value ? "" : opt.dataset.value;
+              row.querySelectorAll(".correction-opt").forEach((o) =>
+                o.classList.toggle("selected", o.dataset.value === nextVal),
+              );
+              state.claims[id] = {
+                verdict: row.dataset.verdict || "",
+                note: txt(note),
+                correction: nextVal,
+              };
+              save();
+            });
+          });
+          if (note)
+            note.addEventListener("input", () => {
+              const cur = state.claims[id] || {};
+              state.claims[id] = {
+                verdict: row.dataset.verdict || "",
+                note: note.value,
+                correction: cur.correction || "",
+              };
+              save();
+            });
+
+          const s = state.claims[id];
+          if (s) {
+            if (note) note.value = s.note || "";
+            if (s.correction)
+              row.querySelectorAll(".correction-opt").forEach((o) =>
+                o.classList.toggle("selected", o.dataset.value === s.correction),
+              );
+            applyVerdict(row, s.verdict || "");
+          }
+        }
+
+        // ---------- Added claims (human authors what the AI missed) ----------
+        function renderAdded(item) {
+          const tr = document.createElement("tr");
+          tr.className = "added-row";
+          tr.dataset.addedId = item.id;
+          tr.innerHTML =
+            `<td>${item.id}</td><td>you</td>` +
+            `<td class="u-statement"><textarea class="added-text" name="added-${item.id}" placeholder="The thing I missed…"></textarea></td>` +
+            `<td><span class="badge src-user">you said</span></td>` +
+            `<td><span class="badge conf-high">high</span></td>` +
+            `<td><button type="button" class="remove-added">✕ remove</button></td>`;
+          uTableBody.appendChild(tr);
+          const ta = tr.querySelector(".added-text");
+          ta.value = item.text || "";
+          ta.addEventListener("input", () => {
+            item.text = ta.value;
+            save();
+          });
+          tr.querySelector(".remove-added").addEventListener("click", () => {
+            state.added = state.added.filter((x) => x.id !== item.id);
+            tr.remove();
+            save();
+            refresh();
+          });
+        }
+        const addBtn = document.getElementById("add-claim-btn");
+        if (addBtn) {
+          state.added.forEach(renderAdded);
+          addBtn.addEventListener("click", () => {
+            let n = state.added.length + 1;
+            let id = "A" + n;
+            while (state.added.some((x) => x.id === id)) id = "A" + ++n;
+            const item = { id: id, text: "" };
+            state.added.push(item);
+            renderAdded(item);
+            save();
+          });
+        }
+
+        // ---------- Tensions ----------
+        const tensionCards = Array.from(
+          document.querySelectorAll(".tension-card[data-id]"),
+        );
+        tensionCards.forEach((card) => {
+          const id = card.dataset.id;
+          const note = card.querySelector(".t-note");
+          card.querySelectorAll('input[type="radio"]').forEach((radio) => {
+            radio.addEventListener("change", () => {
+              card.dataset.choice = radio.value;
+              if (note) note.hidden = radio.value !== "other";
+              state.tensions[id] = { choice: radio.value, note: txt(note) };
+              save();
+              refresh();
+            });
+          });
+          if (note)
+            note.addEventListener("input", () => {
+              state.tensions[id] = {
+                choice: card.dataset.choice || "",
+                note: note.value,
+              };
+              save();
+            });
+          const s = state.tensions[id];
+          if (s && s.choice) {
+            card.querySelectorAll('input[type="radio"]').forEach((r) => {
+              if (r.value === s.choice) r.checked = true;
+            });
+            card.dataset.choice = s.choice;
+            if (note) {
+              note.hidden = s.choice !== "other";
+              note.value = s.note || "";
+            }
+          }
+        });
+
+        // ---------- Acceptance examples ----------
+        const exCards = Array.from(
+          document.querySelectorAll(".example-card[data-id]"),
+        );
+        exCards.forEach((card) => {
+          const id = card.dataset.id;
+          const note = card.querySelector(".ex-note");
+          card.querySelectorAll(".verdict-btn").forEach((btn) => {
+            btn.addEventListener("click", () => {
+              const next =
+                card.dataset.verdict === btn.dataset.verdict
+                  ? ""
+                  : btn.dataset.verdict;
+              if (next) card.dataset.verdict = next;
+              else card.removeAttribute("data-verdict");
+              card.querySelectorAll(".verdict-btn").forEach((b) =>
+                b.classList.toggle("selected", b.dataset.verdict === next),
+              );
+              if (note) note.hidden = next !== "no";
+              state.examples[id] = { verdict: next, note: txt(note) };
+              save();
+              refresh();
+            });
+          });
+          if (note)
+            note.addEventListener("input", () => {
+              state.examples[id] = {
+                verdict: card.dataset.verdict || "",
+                note: note.value,
+              };
+              save();
+            });
+          const s = state.examples[id];
+          if (s) {
+            if (s.verdict) card.dataset.verdict = s.verdict;
+            card.querySelectorAll(".verdict-btn").forEach((b) =>
+              b.classList.toggle("selected", b.dataset.verdict === s.verdict),
+            );
+            if (note) {
+              note.hidden = s.verdict !== "no";
+              note.value = s.note || "";
+            }
+          }
+        });
+
+        // ---------- Open questions ----------
+        const oqRows = Array.from(
+          document.querySelectorAll("#oq-table tbody tr[data-id]"),
+        );
+        oqRows.forEach((row) => {
+          const id = row.dataset.id;
+          const ta = row.querySelector("textarea");
+          if (!ta) return;
+          if (state.answers[id]) ta.value = state.answers[id];
+          ta.addEventListener("input", () => {
+            state.answers[id] = ta.value;
+            save();
+          });
+        });
+
+        // ---------- Live sync tally + approval gate ----------
+        function refresh() {
+          let agreed = 0;
+          let flagged = 0;
+          let pending = 0;
+          let highPending = 0;
+
+          claimRows().forEach((row) => {
+            paintRow(row);
+            const s = rowState(row);
+            if (s === "agreed") agreed++;
+            else if (s === "flagged") flagged++;
+            else {
+              pending++;
+              if (row.dataset.priority === "high") highPending++;
+            }
+          });
+          tensionCards.forEach((card) => {
+            if (card.dataset.choice) agreed++;
+            else {
+              pending++;
+              highPending++;
+            }
+          });
+          exCards.forEach((card) => {
+            const v = card.dataset.verdict;
+            if (v === "yes") agreed++;
+            else if (v === "no") flagged++;
+            else pending++;
+          });
+
+          const total = agreed + flagged + pending;
+          setText("#sync-confirmed", agreed);
+          setText("#sync-flagged", flagged);
+          setText("#sync-pending", pending);
+          document.getElementById("sync-bar-fill").style.width = total
+            ? (agreed / total) * 100 + "%"
+            : "0%";
+
+          const gate = document.getElementById("sync-gate");
+          if (highPending > 0) {
+            gate.textContent =
+              "⚠ " +
+              highPending +
+              " high-stakes item" +
+              (highPending > 1 ? "s" : "") +
+              " need a decision";
+            gate.className = "sync-gate warn";
+          } else if (pending > 0) {
+            gate.textContent =
+              pending + " item" + (pending > 1 ? "s" : "") + " left to review";
+            gate.className = "sync-gate";
+          } else if (flagged > 0) {
+            gate.textContent =
+              "✓ all reviewed · " + flagged + " to revise next pass";
+            gate.className = "sync-gate";
+          } else {
+            gate.textContent = "✓ fully synced — ready to approve";
+            gate.className = "sync-gate ok";
+          }
+        }
+
+        claimRows().forEach(wireClaim);
+        refresh();
+
+        // ---------- Review export (the manifest carried to the next pass) ----------
+        function labelFor(input) {
+          const label = input && input.closest("label");
+          const span = label && label.querySelector("span");
+          return span ? span.textContent.trim() : "";
+        }
+        function checkedLabel(container, name) {
+          const input = container.querySelector(
+            'input[name="' + name + '"]:checked',
+          );
+          return input ? labelFor(input) : "";
+        }
+
+        function buildReview() {
+          const confirmed = [];
+          const forks = [];
+          const corrections = [];
+          const unreviewed = [];
+
+          claimRows().forEach((row) => {
+            const id = row.dataset.id;
+            const stmt = row.dataset.statement || "";
+            if (row.dataset.fork === "true") {
+              const c = row.dataset.forkChoice;
+              if (!c) {
+                unreviewed.push(id);
+              } else if (c === "neither") {
+                const note = txt(row.querySelector(".u-note"));
+                corrections.push(
+                  `${id} [FORK: none fit] "${stmt}"\n  Right reading: ${note || "(no note)"}`,
+                );
+              } else {
+                forks.push(`${id} → "${checkedLabel(row, "fork-" + id)}"`);
+                confirmed.push(id);
+              }
+              return;
+            }
+            const v = row.dataset.verdict;
+            const cur = state.claims[id] || {};
+            if (v === "yes") {
+              confirmed.push(id);
+            } else if (v === "no" || v === "partly") {
+              const tag = v === "no" ? "WRONG" : "PARTLY";
+              const fix = cur.correction
+                ? `right answer: "${cur.correction}"  (structured)`
+                : `note: ${txt(row.querySelector(".u-note")) || "(no note)"}  (prose)`;
+              corrections.push(`${id} [${tag}] "${stmt}"\n  ${fix}`);
+            } else {
+              unreviewed.push(id);
+            }
+          });
+
+          const added = state.added
+            .filter((a) => (a.text || "").trim())
+            .map((a) => `+${a.id}: ${a.text.trim()}`);
+
+          const tensions = tensionCards.map((card) => {
+            const id = card.dataset.id;
+            const c = card.dataset.choice;
+            if (!c) return `${id}: UNRESOLVED`;
+            if (c === "other")
+              return `${id} → other: ${txt(card.querySelector(".t-note")) || "(no note)"}`;
+            return `${id} → ${checkedLabel(card, "tension-" + id)}`;
+          });
+
+          const exApproved = [];
+          const exRejected = [];
+          const exUnreviewed = [];
+          exCards.forEach((card) => {
+            const id = card.dataset.id;
+            const v = card.dataset.verdict;
+            if (v === "yes") exApproved.push(id);
+            else if (v === "no")
+              exRejected.push(
+                `${id}: ${card.dataset.example}\n  should be: ${txt(card.querySelector(".ex-note")) || "(no note)"}`,
+              );
+            else exUnreviewed.push(id);
+          });
+
+          const answers = oqRows.map((row) => {
+            const q = row.children[1] ? row.children[1].textContent.trim() : "";
+            const a = txt(row.querySelector("textarea"));
+            return `${row.dataset.id}: ${q}\n→ ${a || "(no answer)"}`;
+          });
+
+          return [
+            `ARCH REVIEW — ${docName} ${docVersion} [${docStatus.toUpperCase()}]`,
+            "",
+            "YOUR SUCCESS STATEMENT (your words):",
+            state.recall.trim() || "(not provided)",
+            "(reconcile this against the AI Overview at the top of the doc)",
+            "",
+            `CONFIRMED CLAIMS: ${confirmed.join(", ") || "none"}`,
+            "",
+            forks.length ? "FORK CHOICES:\n" + forks.join("\n") : "FORK CHOICES: none",
+            "",
+            "CORRECTIONS (apply these):",
+            corrections.length ? corrections.join("\n") : "none",
+            "",
+            added.length
+              ? "NEW CLAIMS YOU ADDED:\n" + added.join("\n")
+              : "NEW CLAIMS YOU ADDED: none",
+            "",
+            "TENSIONS:",
+            tensions.length ? tensions.join("\n") : "none",
+            "",
+            "ACCEPTANCE EXAMPLES:",
+            `  APPROVED (binding): ${exApproved.join(", ") || "none"}`,
+            exRejected.length
+              ? "  REJECTED:\n    " + exRejected.join("\n    ")
+              : "  REJECTED: none",
+            `  UNREVIEWED: ${exUnreviewed.join(", ") || "none"}`,
+            "",
+            "OPEN QUESTION ANSWERS:",
+            answers.length ? answers.join("\n") : "none",
+            "",
+            `UNREVIEWED CLAIMS: ${unreviewed.join(", ") || "none"}`,
+            "",
+            "NEXT: reconcile my overview with your success statement; apply the corrections, fork choices, new claims, tension resolutions, and rejected-example fixes to the arch JSON; bump the version and add a revision-log row; regenerate with arch-inject.js. On APPROVED, the CONFIRMED claims + APPROVED examples are the acceptance criteria the implementation must satisfy — carry them into /feature as verification anchors.",
+          ].join("\n");
+        }
+
+        document
+          .getElementById("copy-review-btn")
+          .addEventListener("click", (e) => {
+            const btn = e.currentTarget;
+            navigator.clipboard.writeText(buildReview()).then(() => {
+              const original = btn.textContent;
+              btn.textContent = "✓ Copied";
+              btn.classList.add("copied");
+              setTimeout(() => {
+                btn.textContent = original;
+                btn.classList.remove("copied");
+              }, 1500);
+            });
+          });
+      })();
+    </script>
+  </body>
+</html>
