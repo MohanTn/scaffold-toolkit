@@ -22,6 +22,41 @@ export interface BootstrapMarkersNeedsManualEntry {
 }
 
 /**
+ * A confident descriptor-driven ownership mapping (see
+ * `bootstrapMarkers/descriptorMapper.ts`): `template` resolved to `file` in
+ * the repo and was persisted into `.scaffold/config.json`'s `adoptedPaths`
+ * for this pack slot (unless `dryRun`). Distinct from `placed`/`alreadyPresent`
+ * since mapping a file's ownership and inserting a marker into it are
+ * separate outcomes — a `target`-kind entry is only ever mapped, never
+ * marker-placed (see the module header comment for why).
+ */
+export interface BootstrapMarkersMappedEntry {
+  kind: 'target' | 'injection';
+  template: string;
+  entity?: string;
+  file: string;
+  packSlot: string;
+}
+
+/**
+ * A descriptor-driven mapping attempt (see `descriptorMapper.ts`) that
+ * couldn't be confidently resolved — zero, or more than one, candidate real
+ * file for a descriptor entry (or its only candidate(s) were dirty/
+ * untracked). Reported on its own channel rather than folded into the
+ * marker-placement `needsManual` array, since a mapping-needs-manual entry
+ * has no `marker` (it's about *finding a file*, not placing a marker pair)
+ * and gates the exit code the same way for the same reason: it is
+ * actionable, not merely informational.
+ */
+export interface BootstrapMarkersMappingNeedsManualEntry {
+  kind: 'target' | 'injection';
+  template: string;
+  entity?: string;
+  packSlot: string;
+  reason: string;
+}
+
+/**
  * A configured pack slot whose version has no ANCHOR_CATALOG entry at all
  * (e.g. a frontend pack). Deliberately separate from `needsManual`: there is
  * no per-marker action a user can take to resolve this (the slot has no
@@ -53,6 +88,8 @@ export interface BootstrapMarkersReport {
   needsManual: BootstrapMarkersNeedsManualEntry[];
   unsupportedPacks: BootstrapMarkersUnsupportedPackEntry[];
   warnings: BootstrapMarkersWarningEntry[];
+  mapped: BootstrapMarkersMappedEntry[];
+  mappingNeedsManual: BootstrapMarkersMappingNeedsManualEntry[];
 }
 
 export function renderBootstrapMarkersReport(report: BootstrapMarkersReport, format: 'toon' | 'json'): string {

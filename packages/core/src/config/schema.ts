@@ -18,11 +18,30 @@
  * which pack identity last touched it: {packUrl, packVersion, resolvedSha},
  * not packVersion alone — see generate/provenance.ts for why folder-name-only
  * provenance would be ambiguous.
+ *
+ * `pathConfig`/`companyProjectName` and `adoptedPaths` are the brownfield-
+ * adoption fields (`scaffold bootstrap-markers`, extended): `pathConfig`/
+ * `companyProjectName` persist the same Handlebars-context values a manifest
+ * could otherwise only supply per-call (see templates-dotnet's `pathConfig`
+ * convention), so a repo's real directory layout only needs to be resolved
+ * once, not re-supplied on every `generate`/`check-edit`. `adoptedPaths`
+ * persists, per descriptor `targets[].output`/`injections[].file` template
+ * (keyed by `"<kind>:<template>"`, or `"<kind>:<template>::<entity>"` for a
+ * per-entity template — see `bootstrapMarkers/descriptorMapper.ts`), the
+ * real repo-relative path bootstrap-markers
+ * confidently matched it to — consulted by `checkEdit/collectPackOwnership.ts`
+ * so an adopted file is gated identically to a scaffold-generated one.
  */
 
+interface PackConfigCommon {
+  pathConfig?: Record<string, string>;
+  companyProjectName?: string;
+  adoptedPaths?: Record<string, string>;
+}
+
 export type PackConfig =
-  | { url: string; version: string; pinnedSha?: string; path?: never }
-  | { path: string; version: string; pinnedSha?: never; url?: never };
+  | ({ url: string; version: string; pinnedSha?: string; path?: never } & PackConfigCommon)
+  | ({ path: string; version: string; pinnedSha?: never; url?: never } & PackConfigCommon);
 
 /**
  * Narrows a `PackConfig` to its `path`-based variant. A plain `pack.path`
@@ -46,6 +65,11 @@ export interface ScaffoldConfig {
   provenance?: Record<string, ProvenanceRecord>;
 }
 
+const stringRecordSchema = {
+  type: 'object',
+  additionalProperties: { type: 'string' },
+} as const;
+
 const packConfigSchema = {
   type: 'object',
   additionalProperties: false,
@@ -55,6 +79,9 @@ const packConfigSchema = {
     path: { type: 'string', minLength: 1 },
     version: { type: 'string', minLength: 1 },
     pinnedSha: { type: 'string', minLength: 1 },
+    pathConfig: stringRecordSchema,
+    companyProjectName: { type: 'string', minLength: 1 },
+    adoptedPaths: stringRecordSchema,
   },
 } as const;
 
