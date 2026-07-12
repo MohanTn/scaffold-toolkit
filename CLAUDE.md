@@ -1,5 +1,22 @@
 # scaffold-toolkit — working conventions
 
+## Determinism Guarantee
+
+The scaffold CLI is **deterministic**: given the same manifest input and target repo state, every adapter (Claude Code, GitHub Copilot) produces identical file writes, identical reports, and identical exit codes.
+
+**Scope:** A single `scaffold generate` invocation. The CLI layer is deterministic; agent behavior (prompts, latency, multi-turn coherence) is out-of-scope.
+
+**Enforcement layers:**
+1. **PreToolUse hook (hard gate):** Fires before Write/Edit tool calls. Blocks attempts to create/edit pack-owned files outside `scaffold generate`.
+2. **PostToolUse hook (soft nudge):** Surfaces pending AI_IMPLEMENTATION blocks immediately after a generate call.
+3. **Stop/agentStop hook (hard gate):** Blocks turn-end if any AI_IMPLEMENTATION blocks are unfilled.
+
+Together, these hooks make it structurally impossible for an AI to bypass `scaffold generate` or leave blocks unfilled.
+
+**Dry-run matches real-run:** The same code path is used for both; only final disk writes differ. For identical working-tree state, `--dry-run` output is guaranteed to match the real run.
+
+**Test coverage:** Fixture-driven acceptance tests verify all providers produce identical outputs (Section 3, Implementation Sketch, step 3).
+
 ## Release pipeline
 
 Every merge to `main` auto-publishes to npm. The CI pipeline runs build, lint, and test before publishing.
