@@ -3,3 +3,7 @@ dist/
 *.log
 .DS_Store
 .pipeline-worker/**
+
+# .NET build residue (validate-build sample projects)
+dotnet_folder/
+**/obj/
