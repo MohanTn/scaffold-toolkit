@@ -27,6 +27,18 @@ For detailed setup with Claude Code or GitHub Copilot CLI, see [Setup: wiring a 
 
 **Want to contribute?** See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and contribution guidelines.
 
+## Repository layout
+
+Not everything under `packages/` is an npm workspace — the directory mixes three deliberately different kinds of things:
+
+| Path | Kind | Notes |
+|------|------|-------|
+| `packages/core`, `packages/adapter-copilot-cli` | npm workspaces, **published** | Built, linted, tested by root scripts; auto-published on merge to `main` |
+| `packages/adapter-claude-code` | npm workspace, **private** | Skill + hook scripts consumed from source, never published |
+| `packages/templates-dotnet`, `packages/templates-node` | Vendored template packs, **not workspaces** | Read straight off disk by `scaffold init --pack`; validated by their own `tools/validate-build.mjs` CI jobs, never built or published as packages |
+| `tools/benchmark` | Standalone script package, not a workspace | Run via `npm run benchmark` from the root |
+| `docs/` | Product and design docs | |
+
 ## Packages
 
 | Package | Purpose | Published |
