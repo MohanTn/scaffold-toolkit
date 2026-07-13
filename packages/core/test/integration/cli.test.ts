@@ -145,6 +145,32 @@ test('scaffold status prints a friendly error and exits 1 instead of a raw stack
   assert.doesNotMatch(result.stderr, /at computeStatus/, 'should print a friendly message, not a raw stack trace');
 });
 
+test('scaffold --help lists every command with a short summary plus a typical-flow epilogue', () => {
+  const { stdout, status } = runCli(['--help'], __dirname);
+  assert.equal(status, 0);
+  for (const command of ['init', 'manifest', 'templates', 'generate', 'undo', 'status', 'bootstrap-markers', 'validate-pack', 'check-edit']) {
+    assert.match(stdout, new RegExp(`^\\s+${command}`, 'm'), `command "${command}" missing from scaffold --help`);
+  }
+  // Long descriptions must not leak into the command list — summaries keep it scannable.
+  assert.match(stdout, /adopt a brownfield repo into pack ownership/);
+  assert.doesNotMatch(stdout, /persisted to \.scaffold\/config\.json's adoptedPaths/);
+  assert.match(stdout, /Typical flow:/);
+});
+
+test('scaffold generate --help includes usage examples', () => {
+  const { stdout, status } = runCli(['generate', '--help'], __dirname);
+  assert.equal(status, 0);
+  assert.match(stdout, /Examples:/);
+  assert.match(stdout, /scaffold generate --manifest invoice\.manifest\.json --dry-run/);
+});
+
+test('scaffold with an unknown command exits non-zero and points at --help', () => {
+  const result = runCli(['generat'], __dirname);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /unknown command/);
+  assert.match(result.stderr, /scaffold <command> --help/);
+});
+
 test('scaffold bootstrap-markers --help shows --pack-version', () => {
   const { stdout, status } = runCli(['bootstrap-markers', '--help'], __dirname);
   assert.equal(status, 0);

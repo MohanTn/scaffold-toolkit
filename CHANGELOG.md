@@ -10,6 +10,7 @@ All notable changes to this project are documented here. The format is based on 
 
 ### Added
 
+- Added `.summary()` and `.addHelpText()` to all CLI commands with examples, enabled error help suggestions, and added tests for the improved help system. Users can now run `scaffold <command> --help` to see practical usage examples, and errors suggest looking at help for more info.
 - Adds brownfield adoption support to scaffold-toolkit: `scaffold bootstrap-markers` now maps descriptor entries to existing files, persists confident matches to config, and `check-edit` gates adopted files identically to generated ones. Supports directory-layout mismatch via persisted `pathConfig`/`companyProjectName` resolution.
 - Adds `scaffold manifest new` CLI command to build intent manifests from compact specs, introduces Node.js/TypeScript template pack proving stack-agnostic engine, adds GCP cloud variant for .NET, enhances template validation, and documents enforcement layers via hooks.
 - Adds a manifest creation gate that rejects `scaffold generate` if any `overwrite`-mode target doesn't already exist on disk, preventing data loss. Gate runs before rendering and dry-run short-circuit, validating the manifest early. Includes unit tests, integration tests validating Windows path normalization, multiple violations batched into one error, and regression tests for existing modes.
