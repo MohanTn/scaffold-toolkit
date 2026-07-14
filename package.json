@@ -24,8 +24,7 @@
     "validate:templates-dotnet": "node packages/templates-dotnet/tools/validate-build.mjs",
     "check:guardrails:templates-dotnet": "node packages/templates-dotnet/tools/check-guardrails.mjs",
     "validate:templates-node": "node packages/templates-node/tools/validate-build.mjs",
-    "check:guardrails:templates-node": "node packages/templates-node/tools/check-guardrails.mjs",
-    "benchmark": "node tools/benchmark/run-benchmark.mjs"
+    "check:guardrails:templates-node": "node packages/templates-node/tools/check-guardrails.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",

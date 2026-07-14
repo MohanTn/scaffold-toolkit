@@ -265,6 +265,7 @@ Helpers shipped (identical across all four packs):
 | `{{plural s}}` | Naive English pluralization. |
 | `{{default a b}}` | `a` if non-empty, else `b`. |
 | `{{eq a b}}` | Strict equality. |
+| `{{isNullable t}}` | True when a field type is C#-nullable (ends with `?`); used to skip `.IsRequired()`. |
 
 ## Intent manifest contract
 
@@ -272,6 +273,8 @@ Helpers shipped (identical across all four packs):
 |---|---|
 | `entity` (PascalCase) | Class name, variable prefix, route default. |
 | `fields[]` | Rendered into entity properties, DTO record parameters, EF Core columns. **The `Id` field is required** — manifest authors must always include `{ "name": "Id", "type": "Guid" }`. |
+| `fields[].references` | Optional PascalCase entity name this FK field points at (e.g. `{ "name": "UserId", "type": "Guid", "references": "User" }`). Renders a nullable navigation property on the entity plus the EF `HasOne(...).WithMany().HasForeignKey(...)` mapping. Generate the referenced entity first (see `examples/basic-user.manifest.json` + `examples/related-order.manifest.json`). |
+| `fields[].onDelete` | Optional EF `DeleteBehavior` for a `references` field (`Cascade` default, or `Restrict`, `SetNull`, `NoAction`). |
 | `options.route` | Optional explicit route. |
 | `options.rootNamespace` | Optional explicit root namespace. |
 | `options.gcp.projectId` *(GCP packs)* | GCP project id (also comes from `Gcp:ProjectId` config). |

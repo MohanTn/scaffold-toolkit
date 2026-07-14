@@ -39,6 +39,7 @@ import type { AnchorGroup, PackVersion } from './anchorCatalog.js';
 import { findCandidateFiles } from './repoWalk.js';
 import { isInsideGitWorkTree, isFileCleanAndTracked } from './gitSafety.js';
 import { placeMarkerGroup } from './markerPlacement.js';
+import { resolveMarkerSyntax } from '../generate/commentSyntax.js';
 import { mapDescriptorToRepo, adoptedPathKey } from './descriptorMapper.js';
 import type { BootstrapMarkersReport } from './bootstrapMarkersReport.js';
 import { packCacheDir } from '../templates/cache.js';
@@ -148,7 +149,7 @@ function resolveConfiguredSlots(repoRoot: string): { slots: Slot[]; config: Scaf
 
 export function runBootstrapMarkers(options: RunBootstrapMarkersOptions): BootstrapMarkersReport {
   const { repoRoot, dryRun } = options;
-  const report: BootstrapMarkersReport = { dryRun, placed: [], alreadyPresent: [], needsManual: [], unsupportedPacks: [], warnings: [], mapped: [], mappingNeedsManual: [] };
+  const report: BootstrapMarkersReport = { dryRun, placed: [], alreadyPresent: [], needsManual: [], pendingGenerate: [], unsupportedPacks: [], warnings: [], mapped: [], mappingNeedsManual: [] };
 
   // The configured-slot path consults each pack's descriptor in the cache and
   // uses its declared `bootstrapAnchors` when present, falling back to the
@@ -264,26 +265,72 @@ export function runBootstrapMarkers(options: RunBootstrapMarkersOptions): Bootst
 
     for (const group of groups) {
       const candidates = findCandidateFiles(repoRoot, group.candidateFilenames);
-      if (candidates.length !== 1) {
-        const reason =
-          candidates.length === 0
-            ? `no file named ${group.candidateFilenames.join(' or ')} found in the repo`
-            : `${candidates.length} candidate files found for ${group.candidateFilenames.join(' or ')}: ${candidates.join(', ')} — expected exactly one`;
-        for (const marker of group.markers) report.needsManual.push({ marker, packSlot: slotName, reason });
+
+      let relFile: string;
+      if (candidates.length === 1) {
+        relFile = candidates[0];
+      } else if (candidates.length > 1) {
+        // Multiple candidate files are not automatically fatal: a candidate
+        // that already carries the group's markers (a developer hand-placed
+        // them, or a prior run placed them) is an unambiguous winner and is
+        // classified already-present by placeMarkerGroup below. Failing
+        // that, a single candidate whose content matches the group's anchor
+        // pattern is also unambiguous. Only when neither test isolates
+        // exactly one file does the group fall back to needs-manual.
+        const narrowed = narrowCandidateFiles(repoRoot, candidates, group, slotDescriptor?.packSyntaxMap);
+        if (narrowed === undefined) {
+          const reason = `${candidates.length} candidate files found for ${group.candidateFilenames.join(' or ')}: ${candidates.join(', ')} — none uniquely carries the group's markers or matches its anchor; place the marker pair by hand in the intended file and re-run`;
+          for (const marker of group.markers) report.needsManual.push({ marker, packSlot: slotName, reason });
+          continue;
+        }
+        relFile = narrowed;
+      } else {
+        // Zero candidates. When the pack's own descriptor shows the marker's
+        // injection file is also one of its generate targets, the file (and
+        // its marker pair) will be created by `scaffold generate` itself —
+        // report that on the informational pendingGenerate channel instead
+        // of needsManual, so bootstrap-markers can exit 0 on a repo that is
+        // simply waiting for its first generate.
+        const missingReason = `no file named ${group.candidateFilenames.join(' or ')} found in the repo`;
+        for (const marker of group.markers) {
+          const providingTemplate = generateProvidedTemplate(slotDescriptor?.full, marker);
+          if (providingTemplate !== undefined) {
+            report.pendingGenerate.push({
+              marker,
+              packSlot: slotName,
+              template: providingTemplate,
+              reason: `${missingReason} — "scaffold generate" creates it (target ${providingTemplate}) with this marker already in place`,
+            });
+          } else {
+            report.needsManual.push({ marker, packSlot: slotName, reason: missingReason });
+          }
+        }
         continue;
       }
-
-      const relFile = candidates[0];
       const absFile = path.join(repoRoot, relFile);
-
-      if (insideGitWorkTree && !isFileCleanAndTracked(repoRoot, relFile)) {
-        const reason = `${relFile} is not tracked-and-clean in git — commit or stash it before bootstrapping markers`;
-        for (const marker of group.markers) report.needsManual.push({ marker, file: relFile, packSlot: slotName, reason });
-        continue;
-      }
 
       const currentContent = pendingContent.get(absFile) ?? readFileSync(absFile, 'utf8');
       const { outcomes, content } = placeMarkerGroup(relFile, currentContent, group, slotDescriptor?.packSyntaxMap);
+
+      // Git safety gates *writes*, not reads: a dirty or untracked file only
+      // blocks markers this run would actually place into it. Markers found
+      // already present (e.g. hand-placed moments ago, still uncommitted —
+      // the normal brownfield adoption flow) are recognized as-is, since
+      // recognizing them changes nothing on disk.
+      if (content !== currentContent && insideGitWorkTree && !isFileCleanAndTracked(repoRoot, relFile)) {
+        const reason = `${relFile} is not tracked-and-clean in git — commit or stash it before bootstrapping markers`;
+        for (const outcome of outcomes) {
+          if (outcome.outcome === 'placed') {
+            report.needsManual.push({ marker: outcome.marker, file: relFile, packSlot: slotName, reason });
+          } else if (outcome.outcome === 'already-present') {
+            report.alreadyPresent.push({ marker: outcome.marker, file: relFile, packSlot: slotName });
+          } else {
+            report.needsManual.push({ marker: outcome.marker, file: relFile, packSlot: slotName, reason: outcome.reason ?? 'needs manual placement' });
+          }
+        }
+        continue;
+      }
+
       pendingContent.set(absFile, content);
       if (content !== currentContent) touchedFiles.add(absFile);
 
@@ -337,4 +384,56 @@ export function runBootstrapMarkers(options: RunBootstrapMarkersOptions): Bootst
   }
 
   return report;
+}
+
+/**
+ * Disambiguates multiple candidate files for one anchor group. Returns the
+ * single winning rel path, or undefined when no unambiguous winner exists.
+ * Precedence: exactly one candidate already carrying any of the group's
+ * marker START lines wins (hand-placed or previously bootstrapped); else
+ * exactly one candidate whose content matches the group's anchor pattern
+ * exactly once wins; else undefined.
+ */
+function narrowCandidateFiles(
+  repoRoot: string,
+  candidates: string[],
+  group: AnchorGroup,
+  packSyntaxMap?: PackCommentSyntaxMap,
+): string | undefined {
+  const contents = new Map<string, string[]>();
+  for (const rel of candidates) {
+    contents.set(rel, readFileSync(path.join(repoRoot, rel), 'utf8').split('\n'));
+  }
+
+  const carrying = candidates.filter((rel) => {
+    const lines = contents.get(rel)!;
+    return group.markers.some((marker) => {
+      try {
+        const syntax = resolveMarkerSyntax(rel, marker, undefined, packSyntaxMap);
+        const target = syntax.startLine.trim();
+        return lines.some((line) => line.trim() === target);
+      } catch {
+        return false;
+      }
+    });
+  });
+  if (carrying.length === 1) return carrying[0];
+  if (carrying.length > 1) return undefined;
+
+  const pattern = group.anchor.kind === 'after-line' ? group.anchor.pattern : group.anchor.declarationPattern;
+  const anchored = candidates.filter((rel) => contents.get(rel)!.filter((line) => pattern.test(line)).length === 1);
+  return anchored.length === 1 ? anchored[0] : undefined;
+}
+
+/**
+ * When `marker` belongs to a descriptor injection whose `file` template is
+ * also one of the descriptor's `targets[]` outputs, generate creates that
+ * file itself (markers included) — returns the providing target's output
+ * template, or undefined when the marker's host file is genuinely external.
+ */
+function generateProvidedTemplate(descriptor: TemplateDescriptor | undefined, marker: string): string | undefined {
+  if (!descriptor) return undefined;
+  const injection = descriptor.injections.find((i) => i.marker === marker);
+  if (!injection) return undefined;
+  return descriptor.targets.some((t) => t.output === injection.file) ? injection.file : undefined;
 }

@@ -12,11 +12,13 @@ import { runGenerate } from './generate/generate.js';
 import { renderReport } from './generate/report.js';
 import { undoChangeset } from './undo/undo.js';
 import { computeStatus } from './status/status.js';
+import { computeNext } from './next/next.js';
 import { runBootstrapMarkers } from './bootstrapMarkers/bootstrapMarkers.js';
 import { renderBootstrapMarkersReport } from './bootstrapMarkers/bootstrapMarkersReport.js';
 import { validatePack } from './validatePack/validatePack.js';
 import { encodeToon } from './toon/codec.js';
 import { checkEdit } from './checkEdit/checkEdit.js';
+import { createPackSkeleton } from './packNew/packNew.js';
 import type { CheckEditTool } from './checkEdit/checkEdit.js';
 import { buildIntentManifest } from './manifest/build.js';
 
@@ -35,6 +37,7 @@ Typical flow:
   $ scaffold manifest new --stack backend --entity Invoice --field Amount:decimal --out invoice.manifest.json
   $ scaffold generate --manifest invoice.manifest.json --dry-run
   $ scaffold generate --manifest invoice.manifest.json
+  $ scaffold next
   $ scaffold status
 
 Run "scaffold <command> --help" for per-command options and examples.
@@ -161,6 +164,39 @@ Examples:
     }
   });
 
+const pack = program.command('pack').description('Author new template packs');
+
+pack
+  .command('new')
+  .summary('scaffold a new, minimal template pack skeleton')
+  .description(
+    'Write a schema-valid, empty manifest.templates.json (no targets/injections/inputs yet) under <dir>/<version>/, plus a tools/validate-build.mjs stub under <dir>/tools/ — the smallest starting point "scaffold validate-pack" accepts unmodified. The author adds their first target, template, and test_data fixture by hand.',
+  )
+  .requiredOption('--dir <path>', 'the pack\'s root directory (created if missing), e.g. packages/templates-go')
+  .requiredOption('--pack-version <version>', 'the version folder to create under --dir, e.g. v1')
+  .option('--stack <label>', 'a descriptive label (e.g. "backend") noted in the generated files\' comments; not enforced')
+  .addHelpText(
+    'after',
+    `
+Examples:
+  $ scaffold pack new --dir packages/templates-go --pack-version v1
+  $ scaffold pack new --dir ./my-pack --pack-version v1 --stack backend
+
+Next steps once the skeleton exists: add targets[]/injections[]/inputs[] to
+the descriptor, author .hbs templates, add test_data/ fixtures, then replace
+the validate-build.mjs stub with a real toolchain build-check.`,
+  )
+  .action((opts: { dir: string; packVersion: string; stack?: string }) => {
+    try {
+      const result = createPackSkeleton({ dir: opts.dir, version: opts.packVersion, stack: opts.stack });
+      console.log(`scaffold: wrote ${result.descriptorPath}`);
+      console.log(`scaffold: wrote ${result.validateBuildPath}`);
+    } catch (error) {
+      console.error('scaffold pack new failed:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
 const templates = program.command('templates').description('Manage template pack caches');
 
 templates
@@ -281,6 +317,33 @@ Examples:
       process.exit(result.resolvedAll ? 0 : 1);
     } catch (error) {
       console.error('scaffold status failed:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('next')
+  .summary('list open AI_IMPLEMENTATION work as a compact digest')
+  .description(
+    'List every still-open (required or empty) AI_IMPLEMENTATION block from prior generate runs as a compact per-block digest — file, line range, and current placeholder body — so a host agent can fill implementation work straight from this output instead of re-reading every generated file to find these blocks',
+  )
+  .option('--json', 'print the digest as plain JSON instead of TOON', false)
+  .addHelpText(
+    'after',
+    `
+Examples:
+  $ scaffold next
+  $ scaffold next --json
+
+Exits 0 when nothing is open (matching "scaffold status"), 1 otherwise.`,
+  )
+  .action((opts: { json: boolean }) => {
+    try {
+      const result = computeNext(process.cwd());
+      console.log(opts.json ? JSON.stringify(result, null, 2) : encodeToon(result as unknown as Record<string, unknown>));
+      process.exit(result.done ? 0 : 1);
+    } catch (error) {
+      console.error('scaffold next failed:', error instanceof Error ? error.message : error);
       process.exit(1);
     }
   });

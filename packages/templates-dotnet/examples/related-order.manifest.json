@@ -1,0 +1,21 @@
+{
+  "_comment": "Second-entity manifest showing a foreign-key relationship: generate the referenced entity (User/basic manifest) first, then this one. A field with `references` renders the FK column, a nullable navigation property on this entity, and the EF HasOne/WithMany/HasForeignKey mapping (delete behavior via optional `onDelete`, default Cascade).",
+  "manifestSchemaVersion": 1,
+  "targetStack": "backend",
+  "entity": "Order",
+  "fields": [
+    { "name": "Id", "type": "Guid" },
+    { "name": "UserId", "type": "Guid", "references": "User" },
+    { "name": "Total", "type": "decimal" },
+    { "name": "CreatedAt", "type": "DateTime" }
+  ],
+  "options": {
+    "company": "Acme",
+    "projectName": "Billing",
+    "route": "/api/orders",
+    "rootNamespace": "Acme.Billing",
+    "database": {
+      "provider": "sqlite"
+    }
+  }
+}

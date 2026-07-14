@@ -1,0 +1,14 @@
+<Project>
+  <!--
+    Brownfield wiring for the scaffold module: an existing API project named
+    {{companyProjectName}}.Api (one that scaffold did not generate, so it lacks the
+    ScaffoldModuleProject property) automatically references the module's
+    Application and Infrastructure projects without its .csproj being edited.
+    The generated greenfield API project sets ScaffoldModuleProject=true and
+    carries these references explicitly, so nothing is duplicated there.
+  -->
+  <ItemGroup Condition="'$(MSBuildProjectName)' == '{{companyProjectName}}.Api' and '$(ScaffoldModuleProject)' != 'true'">
+    <ProjectReference Include="$(MSBuildThisFileDirectory)src/{{companyProjectName}}.Application/{{companyProjectName}}.Application.csproj" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)src/{{companyProjectName}}.Infrastructure/{{companyProjectName}}.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

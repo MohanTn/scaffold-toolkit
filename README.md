@@ -36,7 +36,6 @@ Not everything under `packages/` is an npm workspace — the directory mixes thr
 | `packages/core`, `packages/adapter-copilot-cli` | npm workspaces, **published** | Built, linted, tested by root scripts; auto-published on merge to `main` |
 | `packages/adapter-claude-code` | npm workspace, **private** | Skill + hook scripts consumed from source, never published |
 | `packages/templates-dotnet`, `packages/templates-node` | Vendored template packs, **not workspaces** | Read straight off disk by `scaffold init --pack`; validated by their own `tools/validate-build.mjs` CI jobs, never built or published as packages |
-| `tools/benchmark` | Standalone script package, not a workspace | Run via `npm run benchmark` from the root |
 | `docs/` | Product and design docs | |
 
 ## Packages
@@ -128,6 +127,8 @@ should exit non-zero and list the unresolved block(s). Filling them and re-runni
 A template pack is a versioned folder of Handlebars templates plus a `manifest.templates.json` descriptor that `scaffold generate` renders against a host-supplied intent manifest. `packages/core` never knows anything about a specific stack — it only knows the descriptor schema: `targets[]` (files to render), `injections[]` (marker-based snippets to splice into existing files), `pathConfig` (named path fragments a manifest can override), `requires.scaffoldCli` (a semver range checked against the installed CLI before anything renders), and an optional pack-local `helpers.js`. `packages/templates-dotnet/v8-controller` is the reference example for everything below; read its `manifest.templates.json` and any `.hbs` file alongside this section.
 
 ### Adding a new template pack for a different framework (e.g. React)
+
+`scaffold pack new --dir <path> --version <version>` scaffolds steps 1-2's starting shape for you: a schema-valid, empty `manifest.templates.json` (no targets/injections/inputs yet) plus a `tools/validate-build.mjs` stub — the smallest thing `scaffold validate-pack` accepts unmodified. It writes no `.hbs` templates and no `test_data` fixtures; steps 2-4 below are still yours to do by hand.
 
 1. **Decide where it lives.** A local directory (e.g. `packages/templates-<name>` here, not added to the root `workspaces` array) is the normal source of truth for real consumption — that's what a target project's `.scaffold/config.json` should point `packs.<name>.path` at, e.g. `packages/templates-react`. A standalone git repo consumed via `packs.<name>.url` remains supported underneath for a hypothetical future non-vendored pack, but `scaffold init` itself only ever emits `path` entries; see the `packages/templates-dotnet` note above for what an in-repo pack copy is.
 2. **Create a version folder**, e.g. `v1-vite-axios/`, containing:

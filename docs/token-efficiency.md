@@ -12,7 +12,7 @@ Goal: for an enterprise .NET Core project, reduce LLM-generated output to the pr
 6. **Gap-fill the pack once, save forever** (implemented, see below). Any file type the LLM writes twice per entity (mapping profiles, pagination queries, integration-test fixtures) becomes a new `.hbs` template. One-time template cost, zero marginal tokens after.
 7. **Architectural additions as sibling version folders** (implemented, see below) (e.g. `v8-controller-gcp`), layered at generate time, so new targets reuse the base templates instead of the LLM re-emitting them.
 8. **Build-gate to kill retry burn** (implemented, see below). `validate-build.mjs` in CI catches namespace/using/compile errors deterministically; without it, failures come back to the LLM as expensive regenerate-and-retry loops.
-9. **Measure with the benchmark harness** (`npm run benchmark`) to confirm which changes actually cut tokens before investing in more templates.
+9. **`scaffold next` over re-reading generated files** (implemented, see below). After `generate`, the LLM's Phase-3 job is filling required `AI_IMPLEMENTATION` blocks; `scaffold next` hands it a compact digest (file + placeholder body per open block) instead of it re-reading every one of the ~25 generated files to find them.
 
 ### Stack-agnostic engine: Node.js reference pack
 
@@ -75,3 +75,7 @@ scaffold generate --manifest gcp.manifest.json         # targetStack backend-gcp
 ## Build-gate coverage (suggestion 8)
 
 `validate-build.mjs` (CI job `templates-dotnet-build-check`, in the `publish` job's `needs:` list) now covers all of the above: 24 entities plus the new test skeletons through `dotnet build` and `dotnet test`, the GCP layer's file outputs, and each `test_data/variants/*.json` scenario compiled in an isolated sample project.
+
+## `scaffold next` (suggestion 9)
+
+`scaffold status` already re-scans every pending `AI_IMPLEMENTATION` block after a `generate` run to decide whether the host agent's turn can end; `scaffold next` reshapes that same rescan into a compact, agent-facing digest instead of a bare pass/fail — file path, line range, and current placeholder body per still-open block, TOON-encoded. The agent fills required blocks straight from that output rather than re-opening every one of the ~25 generated files to relocate them. It deliberately carries no enclosing-signature extraction and no pack-authored hint field: the agent already has the feature-request context that matters, so the digest's only job is pointing it at the right spot.

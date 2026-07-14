@@ -68,17 +68,17 @@ function main() {
     runOrDie('scaffold generate', ['generate', '--manifest', MANIFEST], sampleDir);
 
     const src = (rel) => readFileSync(join(sampleDir, rel), 'utf8');
-    const entityFile = 'src/Company.MyProject.Domain/Entities/AlphaEntity.cs';
-    const validatorFile = 'src/Company.MyProject.Application/Features/AlphaEntities/Commands/CreateAlphaEntity/CreateAlphaEntityCommandValidator.cs';
-    const handlerFile = 'src/Company.MyProject.Application/Features/AlphaEntities/Commands/CreateAlphaEntity/CreateAlphaEntityCommandHandler.cs';
-    const handlerTestFile = 'tests/Company.MyProject.Application.UnitTests/Features/AlphaEntities/CreateAlphaEntityCommandHandlerTests.cs';
-    const validatorTestFile = 'tests/Company.MyProject.Application.UnitTests/Features/AlphaEntities/CreateAlphaEntityCommandValidatorTests.cs';
+    const entityFile = 'src/AcmeCorp.Domain/Entities/AlphaEntity.cs';
+    const validatorFile = 'src/AcmeCorp.Application/Features/AlphaEntities/Commands/CreateAlphaEntity/CreateAlphaEntityCommandValidator.cs';
+    const handlerFile = 'src/AcmeCorp.Application/Features/AlphaEntities/Commands/CreateAlphaEntity/CreateAlphaEntityCommandHandler.cs';
+    const handlerTestFile = 'tests/AcmeCorp.Application.UnitTests/Features/AlphaEntities/CreateAlphaEntityCommandHandlerTests.cs';
+    const validatorTestFile = 'tests/AcmeCorp.Application.UnitTests/Features/AlphaEntities/CreateAlphaEntityCommandValidatorTests.cs';
 
     console.log('\nWiring surfaces must stay frozen (suggestion 3):');
-    expectVerdict('write Program.cs', sampleDir, false, 'src/Company.MyProject.Api/Program.cs', 'write');
-    expectVerdict('edit Program.cs DI wiring', sampleDir, false, 'src/Company.MyProject.Api/Program.cs', 'edit', 'builder.Services.AddApplication();');
-    expectVerdict('edit DbContext DbSet registration', sampleDir, false, 'src/Company.MyProject.Infrastructure/Persistence/ApplicationDbContext.cs', 'edit', 'DbSet<Company.MyProject.Domain.Entities.AlphaEntity>');
-    expectVerdict('edit Infrastructure DI repository registration', sampleDir, false, 'src/Company.MyProject.Infrastructure/DependencyInjection.cs', 'edit', 'AddScoped<Company.MyProject.Application.Common.Interfaces.IAlphaEntityRepository');
+    expectVerdict('write Program.cs', sampleDir, false, 'src/AcmeCorp.Api/Program.cs', 'write');
+    expectVerdict('edit Program.cs DI wiring', sampleDir, false, 'src/AcmeCorp.Api/Program.cs', 'edit', 'Application.DependencyInjection.AddApplication(builder.Services);');
+    expectVerdict('edit DbContext DbSet registration', sampleDir, false, 'src/AcmeCorp.Infrastructure/Persistence/ApplicationDbContext.cs', 'edit', 'DbSet<AcmeCorp.Domain.Entities.AlphaEntity>');
+    expectVerdict('edit Infrastructure DI repository registration', sampleDir, false, 'src/AcmeCorp.Infrastructure/DependencyInjection.cs', 'edit', 'AddScoped<AcmeCorp.Application.Common.Interfaces.IAlphaEntityRepository');
     expectVerdict('write domain entity', sampleDir, false, entityFile, 'write');
 
     console.log('\nRule bodies must stay editable (suggestion 2):');

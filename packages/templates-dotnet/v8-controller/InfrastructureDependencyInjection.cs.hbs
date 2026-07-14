@@ -8,6 +8,7 @@ public static class DependencyInjection
             options.{{#if (eq options.database.provider "postgres")}}UseNpgsql{{else}}UseSqlite{{/if}}(configuration.GetConnectionString("Default") ?? "Data Source=app.db"));
 
         services.AddScoped<{{ns}}.Application.Common.Interfaces.IUnitOfWork, {{ns}}.Infrastructure.Persistence.UnitOfWork>();
+        services.AddHostedService<{{ns}}.Infrastructure.Persistence.DevSchemaBootstrap>();
 
         // SCAFFOLD:REPOSITORIES:START
         // SCAFFOLD:REPOSITORIES:END

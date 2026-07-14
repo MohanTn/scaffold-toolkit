@@ -1,0 +1,39 @@
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
+
+namespace {{ns}}.Api.Middleware;
+
+/// <summary>
+/// MVC exception filter mapping the module's Application exceptions to HTTP
+/// problem responses. Registered via AddApi's AddControllers options, so the
+/// mapping holds even inside an existing (brownfield) host whose middleware
+/// pipeline scaffold never touches.
+/// </summary>
+public class ApiExceptionFilter : IExceptionFilter
+{
+    public void OnException(ExceptionContext context)
+    {
+        switch (context.Exception)
+        {
+            case {{ns}}.Application.Common.Exceptions.NotFoundException notFound:
+                context.Result = new NotFoundObjectResult(new ProblemDetails
+                {
+                    Title = "Not Found",
+                    Status = StatusCodes.Status404NotFound,
+                    Detail = notFound.Message,
+                });
+                context.ExceptionHandled = true;
+                break;
+
+            case {{ns}}.Application.Common.Exceptions.ValidationException validation:
+                context.Result = new BadRequestObjectResult(new ValidationProblemDetails(validation.Errors.ToDictionary(kv => kv.Key, kv => kv.Value))
+                {
+                    Title = "One or more validation errors occurred.",
+                    Status = StatusCodes.Status400BadRequest,
+                });
+                context.ExceptionHandled = true;
+                break;
+        }
+    }
+}

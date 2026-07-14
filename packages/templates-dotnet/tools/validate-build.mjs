@@ -91,7 +91,7 @@ function main() {
     // existence, and the dotnet build below proves the layered project still
     // compiles with appsettings.Production.json in place.
     if (!runOrDie('scaffold generate (gcp layer)', process.execPath, [CORE_CLI, 'generate', '--manifest', GCP_LAYER_MANIFEST], sampleDir)) return false;
-    for (const layered of ['Dockerfile', 'cloudbuild.yaml', 'src/Company.MyProject.Api/appsettings.Production.json']) {
+    for (const layered of ['Dockerfile', 'cloudbuild.yaml', 'src/AcmeCorp.Api/appsettings.Production.json']) {
       if (!existsSync(join(sampleDir, layered))) {
         console.error(`validate-build.mjs: gcp layer did not produce ${layered}`);
         return false;
@@ -108,7 +108,7 @@ function main() {
     if (!runOrDie('dotnet restore', 'dotnet', ['restore', slnPath], sampleDir)) return false;
     if (!runOrDie('dotnet build', 'dotnet', ['build', slnPath, '--nologo'], sampleDir)) return false;
 
-    const testCsproj = join(sampleDir, 'tests', 'Company.MyProject.Application.UnitTests', 'Company.MyProject.Application.UnitTests.csproj');
+    const testCsproj = join(sampleDir, 'tests', 'AcmeCorp.Application.UnitTests', 'AcmeCorp.Application.UnitTests.csproj');
     if (existsSync(testCsproj) && !runOrDie('dotnet test', 'dotnet', ['test', testCsproj, '--nologo'], sampleDir)) return false;
 
     return true;

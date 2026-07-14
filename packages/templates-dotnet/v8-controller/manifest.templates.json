@@ -25,9 +25,9 @@
       "mode": "skip-if-exists"
     },
     {
-      "_comment": "Shared build properties (net8.0, ImplicitUsings, Nullable)",
-      "output": "Directory.Build.props",
-      "template": "Directory.Build.props.hbs",
+      "_comment": "Brownfield project-reference wiring: an existing API project picks up the module's Application/Infrastructure references without csproj edits; the generated API project opts out via ScaffoldModuleProject",
+      "output": "Directory.Build.targets",
+      "template": "Directory.Build.targets.hbs",
       "mode": "skip-if-exists"
     },
     {
@@ -157,6 +157,12 @@
       "mode": "skip-if-exists"
     },
     {
+      "_comment": "Dev-only EnsureCreated hosted service for the module's ApplicationDbContext (works in greenfield and brownfield hosts alike)",
+      "output": "src/{{companyProjectName}}.Infrastructure/{{pathConfig.infrastructurePersistence}}/DevSchemaBootstrap.cs",
+      "template": "DevSchemaBootstrap.cs.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
       "_comment": "Infrastructure layer DI setup, injection target REPOSITORIES",
       "output": "src/{{companyProjectName}}.Infrastructure/DependencyInjection.cs",
       "template": "InfrastructureDependencyInjection.cs.hbs",
@@ -166,6 +172,12 @@
       "_comment": "Exception handling middleware",
       "output": "src/{{companyProjectName}}.Api/{{pathConfig.apiMiddleware}}/ExceptionHandlingMiddleware.cs",
       "template": "ExceptionHandlingMiddleware.cs.hbs",
+      "mode": "skip-if-exists"
+    },
+    {
+      "_comment": "MVC exception filter (registered by AddApi) \u2014 maps module exceptions to 400/404 independent of the host's middleware pipeline",
+      "output": "src/{{companyProjectName}}.Api/{{pathConfig.apiMiddleware}}/ApiExceptionFilter.cs",
+      "template": "ApiExceptionFilter.cs.hbs",
       "mode": "skip-if-exists"
     },
     {
@@ -375,6 +387,49 @@
       "position": "before-end",
       "strategy": "append",
       "hashTrailerPrefix": "// scaffold-hash:"
+    }
+  ],
+  "bootstrapAnchors": [
+    {
+      "_comment": "DI registrations belong in the web host's builder zone",
+      "candidateFilenames": [
+        "Program.cs"
+      ],
+      "anchor": {
+        "kind": "after-line",
+        "pattern": "\\.CreateBuilder\\s*\\("
+      },
+      "markers": [
+        "DI"
+      ]
+    },
+    {
+      "_comment": "DbSet accumulation inside this pack's own DbContext class (AppDbContext accepted for older repos)",
+      "candidateFilenames": [
+        "ApplicationDbContext.cs",
+        "AppDbContext.cs"
+      ],
+      "anchor": {
+        "kind": "after-class-brace",
+        "declarationPattern": "\\bclass\\s+(ApplicationDbContext|AppDbContext)\\b"
+      },
+      "markers": [
+        "DBSETS"
+      ]
+    },
+    {
+      "_comment": "Repository registrations inside AddInfrastructure (this pack names the file DependencyInjection.cs; the legacy extensions filename is accepted too)",
+      "candidateFilenames": [
+        "DependencyInjection.cs",
+        "ApplicationServiceCollectionExtensions.cs"
+      ],
+      "anchor": {
+        "kind": "after-class-brace",
+        "declarationPattern": "\\bAddInfrastructure\\s*\\(\\s*this\\s+IServiceCollection"
+      },
+      "markers": [
+        "REPOSITORIES"
+      ]
     }
   ]
 }

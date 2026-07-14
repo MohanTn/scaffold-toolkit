@@ -1,0 +1,36 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+
+namespace {{ns}}.Infrastructure.Persistence;
+
+/// <summary>
+/// Development-only schema bootstrap for the scaffold module's own
+/// ApplicationDbContext: EnsureCreated on host start, so the module works
+/// out of the box in a greenfield app and inside an existing (brownfield)
+/// host without editing its Program.cs. Production deployments should use
+/// EF migrations instead.
+/// </summary>
+public class DevSchemaBootstrap : IHostedService
+{
+    private readonly IServiceProvider _services;
+    private readonly IHostEnvironment _environment;
+
+    public DevSchemaBootstrap(IServiceProvider services, IHostEnvironment environment)
+    {
+        _services = services;
+        _environment = environment;
+    }
+
+    public Task StartAsync(CancellationToken cancellationToken)
+    {
+        if (_environment.IsDevelopment())
+        {
+            using var scope = _services.CreateScope();
+            scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.EnsureCreated();
+        }
+        return Task.CompletedTask;
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+}

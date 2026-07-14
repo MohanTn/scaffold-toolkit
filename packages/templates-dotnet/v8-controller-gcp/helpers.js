@@ -89,6 +89,7 @@ module.exports = {
     // companyProjectName (alias solutionName): `{company}.{projectName}` for folder/csproj/sln naming.
     handlebars.registerHelper('companyProjectName', function (options) {
       const root = options.data && options.data.root ? options.data.root : {};
+      if (root.companyProjectName) return String(root.companyProjectName);
       const c = root.options && root.options.company;
       const p = root.options && root.options.projectName;
       const company = c ? pascalCase(c) : 'Company';
