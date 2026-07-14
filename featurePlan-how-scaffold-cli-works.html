@@ -1,0 +1,883 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Feature Implementation Plan – How the scaffold CLI works</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+            padding: 2rem 1.5rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            line-height: 1.5;
+        }
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 0.25rem;
+            color: #0f172a;
+        }
+        .subtitle {
+            color: #64748b;
+            margin-bottom: 2rem;
+            font-size: 0.95rem;
+        }
+        .card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+        .card h2 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #0f172a;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 0.5rem;
+        }
+        .card h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin: 1.5rem 0 0.5rem 0;
+            color: #1e293b;
+        }
+        label {
+            font-weight: 500;
+            display: block;
+            margin-bottom: 0.3rem;
+            font-size: 0.9rem;
+            color: #334155;
+        }
+        input,
+        textarea,
+        select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            background: #fff;
+        }
+        input:focus,
+        textarea:focus,
+        select:focus {
+            outline: 2px solid #2563eb;
+            outline-offset: 1px;
+        }
+        textarea {
+            resize: vertical;
+            font-family: 'Courier New', monospace;
+        }
+        .flex-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            align-items: center;
+        }
+        .mt-1 {
+            margin-top: 0.75rem;
+        }
+        .mt-2 {
+            margin-top: 1.5rem;
+        }
+        .text-muted {
+            color: #64748b;
+        }
+        .text-small {
+            font-size: 0.85rem;
+        }
+
+        .btn {
+            background: #f1f5f9;
+            border: 1px solid #d1d5db;
+            padding: 0.4rem 1rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: 0.15s;
+            color: #1e293b;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+        .btn:hover {
+            background: #e2e8f0;
+        }
+        .btn-primary {
+            background: #2563eb;
+            border-color: #2563eb;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #1d4ed8;
+        }
+        .btn-danger {
+            background: #ef4444;
+            border-color: #ef4444;
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+        .btn-success {
+            background: #16a34a;
+            border-color: #16a34a;
+            color: white;
+        }
+        .btn-success:hover {
+            background: #15803d;
+        }
+        .btn-outline {
+            background: transparent;
+            border: 1px dashed #2563eb;
+            color: #2563eb;
+        }
+        .btn-outline:hover {
+            background: #eff6ff;
+        }
+        .btn-sm {
+            padding: 0.2rem 0.6rem;
+            font-size: 0.8rem;
+        }
+        .btn-block {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .item-block {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background: #fafcfc;
+        }
+        .item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .item-header .item-title {
+            font-weight: 600;
+            font-size: 1rem;
+            flex: 1;
+        }
+        .item-fields {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+        }
+        .item-fields .full-width {
+            grid-column: 1 / -1;
+        }
+        .item-fields label {
+            font-size: 0.8rem;
+            margin-bottom: 0.1rem;
+            color: #475569;
+        }
+        .pseudo-code {
+            background: #f1f5f9;
+            padding: 0.5rem;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+            border: 1px solid #e2e8f0;
+            min-height: 3rem;
+        }
+        @media (max-width:700px) {
+            .item-fields {
+                grid-template-columns: 1fr;
+            }
+            .item-fields .full-width {
+                grid-column: 1;
+            }
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        th {
+            background: #f1f5f9;
+            text-align: left;
+            padding: 0.5rem 0.8rem;
+            font-weight: 600;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        td {
+            padding: 0.5rem 0.8rem;
+            border-bottom: 1px solid #e2e8f0;
+            vertical-align: middle;
+        }
+
+        .approval-gate {
+            background: #f0fdf4;
+            border-left: 4px solid #16a34a;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            color: #166534;
+            font-weight: 500;
+        }
+
+        #copy-btn {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: 0.15s;
+        }
+        #copy-btn:hover {
+            opacity: 0.9;
+        }
+        #copy-btn.copied {
+            background: #16a34a;
+        }
+        .badge {
+            display: inline-block;
+            padding: 0.1rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .badge-create {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+        .badge-update {
+            background: #fef3c7;
+            color: #b45309;
+        }
+        .badge-delete {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>⚙️ Feature Implementation Plan – How the scaffold CLI works</h1>
+    <p class="subtitle">Ultra-detailed, file-by-file plan for building a feature inside an existing codebase. <br>Edit every detail, then copy the plan to feed into an AI or hand off to a developer.</p>
+
+    <!-- OVERVIEW -->
+    <div class="card">
+        <h2>📌 Feature Overview</h2>
+        <div class="flex-row">
+            <div style="flex:2;"><label>Feature Title</label><input id="feature-title" placeholder="e.g. Add two-factor authentication" /></div>
+            <div style="flex:1;"><label>Target Module / Context</label><input id="feature-module" placeholder="e.g. User Service" /></div>
+        </div>
+        <div class="mt-1"><label>User Story / Goal</label><textarea id="feature-goal" rows="2" placeholder="As a user, I want to ... so that ..."></textarea></div>
+        <div class="mt-1"><label>Existing Codebase Context (files, classes, DB schemas that already exist)</label><textarea id="feature-context" rows="2" placeholder="e.g. We already have User.php, AuthService.php, and a 'users' table with columns..."></textarea></div>
+    </div>
+
+    <!-- DESIGN PATTERNS & OVERRIDES (Crucial for tweaking) -->
+    <div class="card">
+        <h2>🧩 Design Patterns & Architectural Overrides</h2>
+        <p class="text-muted text-small">Explicitly state which patterns to use. <strong>Change these to alter the architecture</strong> (e.g., switch from Repository to Service Layer).</p>
+        <div class="flex-row">
+            <div style="flex:1;"><label>Core Pattern</label><input id="pattern-core" placeholder="e.g. MVC, Layered Architecture" value="Layered (Controller -> Service -> Repository)" /></div>
+            <div style="flex:1;"><label>Business Logic Pattern</label><input id="pattern-business" placeholder="e.g. Transaction Script, Domain Model" value="Transaction Script" /></div>
+        </div>
+        <div class="mt-1"><label>Specific Pattern Implementations (e.g., Factory vs Builder, Repository vs DAO)</label>
+            <textarea id="pattern-specific" rows="2" placeholder="e.g. Use Repository pattern for User data. Use Factory pattern to create complex DTOs."></textarea>
+        </div>
+        <div class="mt-1"><label>Explicit Overrides / Constraints (Change these to deviate from standard patterns)</label>
+            <textarea id="pattern-overrides" rows="2" placeholder="e.g. Do NOT create a separate Repository for this; put logic directly in Service. Use Singleton for CacheManager."></textarea>
+        </div>
+    </div>
+
+    <!-- FILE MANIFEST (ORDERED) -->
+    <div class="card">
+        <h2>📂 File Change Manifest (In Order of Execution)</h2>
+        <p class="text-muted text-small">List every file that needs to be created, updated, or deleted. Order them by build sequence. Add pseudo-code for each.</p>
+        <div id="files-container"></div>
+        <button id="add-file-btn" class="btn btn-outline btn-block mt-1">＋ Add file to manifest</button>
+    </div>
+
+    <!-- CORE BUSINESS LOGIC (PSEUDO-CODE) -->
+    <div class="card">
+        <h2>🧠 Core Business Logic (Detailed Pseudo-Code)</h2>
+        <p class="text-muted text-small">The main algorithm or orchestration of the feature. Write this in plain English + pseudo-code so an AI can translate it into actual code.</p>
+        <div id="logic-container"></div>
+        <button id="add-logic-btn" class="btn btn-outline btn-block mt-1">＋ Add logic step</button>
+    </div>
+
+    <!-- API / FUNCTION CONTRACTS -->
+    <div class="card">
+        <h2>📡 Function / API Contracts</h2>
+        <p class="text-muted text-small">Inputs, outputs, signatures for the main entry points (Controllers, Event Handlers, CLI commands).</p>
+        <div id="contracts-container"></div>
+        <button id="add-contract-btn" class="btn btn-outline btn-block mt-1">＋ Add contract</button>
+    </div>
+
+    <!-- EDGE CASES & ERROR HANDLING -->
+    <div class="card">
+        <h2>🚨 Edge Cases & Error Handling</h2>
+        <p class="text-muted text-small">What happens when things go wrong? Specify validation rules, exceptions, and fallbacks.</p>
+        <div id="edges-container"></div>
+        <button id="add-edge-btn" class="btn btn-outline btn-block mt-1">＋ Add edge case</button>
+    </div>
+
+    <!-- TESTING STRATEGY -->
+    <div class="card">
+        <h2>🧪 Testing Strategy</h2>
+        <p class="text-muted text-small">Specific test scenarios per file or logic unit.</p>
+        <div id="tests-container"></div>
+        <button id="add-test-btn" class="btn btn-outline btn-block mt-1">＋ Add test scenario</button>
+    </div>
+
+    <!-- EXPORT -->
+    <div class="card">
+        <h2>📋 Export & Execution</h2>
+        <div class="approval-gate">
+            <strong>✅ Ready to generate code when:</strong> File manifest is ordered, logic is pseudo-coded, and patterns are defined.
+        </div>
+        <div class="flex-row mt-1">
+            <button id="copy-btn">📋 Copy AI-Ready Plan</button>
+            <button id="reset-btn" class="btn btn-danger">Reset all data</button>
+        </div>
+        <p class="text-muted text-small mt-1">The copied text is a structured prompt perfect for ChatGPT, Claude, or any coding AI.</p>
+    </div>
+
+    <script>
+        // Filled by featurePlan-inject.js from the AI's plan. Falls back to an
+        // empty plan when opened without injection (e.g. developing the template).
+        const INITIAL_DATA = {"title":"How the scaffold CLI works","module":"scaffold CLI (packages/core)","goal":"As a developer reading this codebase, I want to understand exactly what each `scaffold ...` command does, what data flows through it, and what each step writes to disk — so that I can use, debug, or extend it confidently without re-reading every source file.","context":"Single npm package `@mohantn/scaffold-core` (packages/core) exporting a `scaffold` CLI bin. The entry is `packages/core/src/cli.ts`, which uses Commander to wire ~13 commands/sub-commands. There are three pieces of persistent state on disk: (1) `.scaffold/config.json` — pack slot configuration, written by `scaffold init` (config/loader.ts); (2) a manifest file (`.json` or `.toon`) passed to `scaffold generate` (manifest/schema.ts + manifest/types.ts, validated with ajv); and (3) per-pack state — either a local directory (the normal case: `--pack backend=packages/templates-dotnet@v8-controller`) or a git cache at `.scaffold/cache/\u003curl>/\u003csha>/` for the legacy URL-based pack engine. Per-run bookkeeping lives under `.scaffold/pending/*.json` and `.scaffold/changes/\u003cchangesetId>.json`, produced by generate/pendingTracker.ts and generate/changeManifest.ts. The two host-agent adapters (Claude Code and Copilot CLI) are separate npm workspaces that shell out to this CLI's commands and enforce the same structural gates via PreToolUse hooks.","patternCore":"Layered (CLI command surface → orchestrator → engine modules → filesystem),","patternBusiness":"Transaction Script — each command is a single, linear orchestration (init, generate, status, next, undo, check-edit, bootstrap-markers, validate-pack) that loads config, then walks a small domain ('scan markers', 'inject pair', 'record pending', 'serialize TOON'). One source of truth per command (`.scaffold/config.json`, the manifest file, the sync cache); one of two destinations per command (real disk vs. an in-memory dry-run report).","patternSpecific":"Validation is ajv-only: `intentManifestSchema`, `configSchema`, descriptor schema, TOON codec. Rendering is Handlebars via a context built by `buildHandlebarsContext(manifest, packDefaults)` where packDefaults (pathConfig/companyProjectName from .scaffold/config.json) is spread first so the manifest's top-level fields always win. Existing-file edits use paired text markers (`// SCAFFOLD:\u003cname>:START` / `:END` lines, with a `:required` reserved token that whitelists a block as a business-logic seam). Marker scanning is single-pass and offset-based (generate/markerScan.ts); injection builds the new file from those original offsets so order is irrelevant by construction. Reports print as TOON by default (toon/codec.ts, terser than JSON for humans); `--json` switches each report to plain JSON; `--format doc` for `generate` gives a preflight doc. DryRun is a single shared code path — only the final disk-write, change-manifest, and pending-tracker steps are gated on `!dryRun`. Brownfield adoption is descriptor-driven: `bootstrap-markers` walks the repo, maps configured pack descriptor entries to real files, and persists the mappings into `packs[name].adoptedPaths`, where `check-edit` then reads them at edit-time. The same `scaffold check-edit` gate is what the host-adapter PreToolUse hooks shell out to (fail-closed on ambiguous old_string, on write-to-pack-owned, on edit-outside-AI_IMPLEMENTATION-interior).","patternOverrides":"No deviations from conventions — this is a pure documentation pass. One thing to know explicitly: this is the v1 lean shape of `scaffold pack new` (descriptor-only skeleton + validate-build.mjs stub), and the companion feature `scaffold next` (per-block digest) is also introduced at its leanest shape — placeholder body only, no enclosing signature, no authored hint — so don't over-promise what they ship.","files":[{"order":1,"action":"create","path":"packages/core/src/cli.ts","description":"CLI entry. Commander program with one command per entry point listed in the Contracts section. Reads .scaffold/config.json via config/loader.ts, dispatches flags to the right orchestrator.","pseudoCode":"const program = new Command();\nprogram.name('scaffold').version(pkg.version);\nprogram.command('init')                  // → config/loader.ts + config/projectTypeDetect.ts\nprogram.command('manifest new')          // → manifest/build.ts\nprogram.command('pack new')              // → packNew/packNew.ts\nprogram.command('templates sync')        // → templates/sync.ts\nprogram.command('templates list')        // → templates/list.ts → toon/codec.ts\nprogram.command('generate')               // → generate/generate.ts\nprogram.command('undo \u003cchangesetId>')    // → undo/undo.ts\nprogram.command('status')                 // → status/status.ts\nprogram.command('next')                   // → next/next.ts\nprogram.command('bootstrap-markers')     // → bootstrapMarkers/bootstrapMarkers.ts\nprogram.command('validate-pack')          // → validatePack/validatePack.ts\nprogram.command('check-edit')            // → checkEdit/checkEdit.ts\nprogram.parseAsync(process.argv);","id":"f-1"},{"order":2,"action":"create","path":"packages/core/src/config/loader.ts","description":"Reads/writes `.scaffold/config.json`. Validates with ajv against `configSchema`. Enforces the XOR (a pack entry has either `url` or `path`, never both) at runtime since flat ajv can't express it cleanly.","pseudoCode":"loadConfig(repoRoot): ScaffoldConfig   // throws ConfigValidationError on shape/XOR violation\nsaveConfig(repoRoot, config): void\nconfigExists(repoRoot): boolean\nconfigPath(repoRoot): string   // → \u003crepoRoot>/.scaffold/config.json","id":"f-2"},{"order":3,"action":"create","path":"packages/core/src/manifest/build.ts","description":"Implements `scaffold manifest new`. Parses `--field name:type` pairs, `--option path=value` dot-separated nesting, `--input name=value`, then coerces boolean/number values and runs the result through ajv. Reserved key guard: `--input manifestSchemaVersion|targetStack|entity|fields|options` errors out.","pseudoCode":"buildIntentManifest({ targetStack, entity?, fields, options, inputs }): IntentManifest\n  parseFieldSpec(spec): { name, type }\n  assignOptionPath(target, assignment)   // dot-separated, errors on conflict\n  coerceValue(raw): boolean | number | string","id":"f-3"},{"order":4,"action":"create","path":"packages/core/src/generate/generate.ts","description":"Orchestrator for `scaffold generate`. Single code path for real-run and --dry-run; only the disk-write + change-manifest + pending-tracker steps gate on `!dryRun`. Steps: decode manifest → load config → resolve pack version dir → loadDescriptor (ajv, range-check requires.scaffoldCli) → validateManifestInputs (per-pack input contract from descriptor.inputs) → buildHandlebarsContext → resolve every target's output path (apply pack.adoptedPaths redirect for brownfield) → gate (overwrite needs existing file) → render → group injections per file → checkProvenance per file → injectMarkers (single-pass) → scan AI_IMPLEMENTATION blocks in every created/modified file → emit GenerateReport.","pseudoCode":"runGenerate({ repoRoot, manifestPath, dryRun, force, cacheRoot? }): Promise\u003cGenerateReport>\nbuildHandlebarsContext(manifest, packDefaults): Record\u003cstring, unknown>","id":"f-4"},{"order":5,"action":"create","path":"packages/core/src/generate/injector.ts","description":"Splices rendered templates into existing files between paired markers. Uses scanMarkers' offset map (file+line-aware, single-pass over unmodified content) to rebuild the file in one pass through those offsets, so injection order is irrelevant by construction.","pseudoCode":"injectMarkers(filePath, originalContent, requests, force, freshlyCreated): { content, outcomes }\n  // requests: { marker, renderedContent, hashTrailerPrefix, position, strategy, commentSyntaxOverride, packSyntaxMap }\n  // outcomes: 'unchanged' | 'created' | 'updated'\n  // throws InjectionRefusedError before any write on a hash mismatch (interior was hand-edited) — --force overrides","id":"f-5"},{"order":6,"action":"create","path":"packages/core/src/generate/markerScan.ts","description":"Two scanners. `scanMarkers` finds paired (START,END) marker lines for injections, with hard errors on zero/one-sided/duplicate occurrences. `scanAiImplementationBlocks` parses `AI_IMPLEMENTATION_START[_END]` (or `SCAFFOLD:AI_IMPLEMENTATION:START[_END]`) using a stack, recognising `:required` as the reserved flag (not an id). Both return interior char offsets used by injector (in-place) and checkEdit (interior match test).","pseudoCode":"scanMarkers(filePath, content, requests): Map\u003cmarker, MarkerLocation>\n  // throws MarkerScanError on missing/one-sided/duplicate markers, or END-before-START\nscanAiImplementationBlocks(filePath, content): AiImplementationBlock[]\n  // stack-based; carries { id, required } from START to END","id":"f-6"},{"order":7,"action":"create","path":"packages/core/src/generate/render.ts","description":"Renders a Handlebars path template (`{{entity}}.hbs`) and a Handlebars file template. Uses the helpers registered by packHelpers.ts before any rendering starts.","pseudoCode":"renderPathTemplate(template, context): string\nrenderTemplateFile(absTemplatePath, context): string","id":"f-7"},{"order":8,"action":"create","path":"packages/core/src/generate/changeManifest.ts","description":"Per-run bookkeeping for `undo`. Each non-empty generate writes `.scaffold/changes/\u003cchangesetId>.json` listing every file created/modified, its prior content (for modified), and a sha256 of the post-write content (so `undo` can detect later edits).","pseudoCode":"writeChangeManifest(repoRoot, changesetId, entries): void\nloadChangeManifest(repoRoot, changesetId): { entries }\ndeleteChangeManifest(repoRoot, changesetId): void\nlistChangeManifests(repoRoot): { id, entries }[]\nnextChangesetId(): string   // '\u003ctimestampMs>-\u003cseq>'\nsha256Hex(s): string","id":"f-8"},{"order":9,"action":"create","path":"packages/core/src/generate/pendingTracker.ts","description":"Persists `AI_IMPLEMENTATION` blocks across runs in `.scaffold/pending/\u003cchangesetId>.json`. Status + next re-read these to decide resolved/unresolved; the host-adapter Stop/agentStop hooks re-check after every turn.","pseudoCode":"writePending(repoRoot, changesetId, targetStack, packVersion, blocks): void\nremovePendingRecord(repoRoot, changesetId): void\nreadPending(repoRoot): { changesetId, blocks[] }[]","id":"f-9"},{"order":10,"action":"create","path":"packages/core/src/status/status.ts + packages/core/src/status/resolveUnresolved.ts","description":"Implements `scaffold status`. Rescans every tracked pending block; for each, compares current on-disk content to the recorded placeholder. A block whose content has changed is resolved; the command's caller should exit 0 when all resolved, non-zero otherwise. Shared scanner with `scaffold next` so the two can never disagree.","pseudoCode":"computeStatus(repoRoot): { resolvedAll: boolean, unresolved: UnresolvedBlock[] }\nscanUnresolvedBlocks(repoRoot): UnresolvedBlock[]   // shared with next.ts","id":"f-10"},{"order":11,"action":"create","path":"packages/core/src/next/next.ts + packages/core/src/next/conventions.ts","description":"Implements `scaffold next`. Reshapes the same rescan as `status` into a per-block digest: file, line range, required flag, placeholder body. Deliberately no enclosing signature, no authored hint field — host agents have the feature-request context already; this command's only job is to point at exactly the blocks left to fill. Optionally attaches a `conventions` preamble if every open block traces to the same pack version.","pseudoCode":"computeNext(repoRoot): { done, conventions?, blocks: NextBlock[] }\n  // blocks: { file, startLine, endLine, required, placeholder }","id":"f-11"},{"order":12,"action":"create","path":"packages/core/src/undo/undo.ts","description":"Implements `scaffold undo \u003cchangesetId>`. Steps: (1) refuse if any later changeset also touched any file this one touched (must undo in reverse-chronological order); (2) for each entry, refuse if on-disk hash differs from recorded post-write hash unless `--force`; (3) `created` files → rm; `modified` files → restore priorContent.","pseudoCode":"undoChangeset(repoRoot, changesetId, force): void\n  // throws UndoBlockedError (later changeset) or UndoHashMismatchError (--force needed)","id":"f-12"},{"order":13,"action":"create","path":"packages/core/src/checkEdit/checkEdit.ts","description":"Pure function used by both host adapters' PreToolUse hooks. Algorithm (must mirror this exactly when extending): no `.scaffold/config.json` → allow; path resolves outside repo → allow; no pack target/injection pattern matches → allow; matched + tool=write → block; matched + tool=edit → allow only if `old_string` resolves to exactly one occurrence AND its full byte range sits inside one `AI_IMPLEMENTATION` block's interior (uses the offsets markerScan.ts computes). Outside an AI_IMPLEMENTATION interior, or anywhere ambiguous, blocks (fail-closed).","pseudoCode":"checkEdit({ repoRoot, file, tool, oldString?, cacheRoot? }): CheckEditResult\n  // returns { allow, reason, detail, packOwned, packSlot? }\n  // reason ∈ 'no-config' | 'outside-repo' | 'not-pack-owned' | 'write-blocked' | 'edit-allowed-in-interior' | 'edit-blocked-outside-interior' | 'edit-blocked-ambiguous-old-string'","id":"f-13"},{"order":14,"action":"create","path":"packages/core/src/bootstrapMarkers/bootstrapMarkers.ts","description":"Brownfield adoption. Synchronous end to end. For each configured pack slot: resolve the pack descriptor (cache for url-based, local dir for path-based), compile pack-declared `bootstrapAnchors` (fallback to built-in `ANCHOR_CATALOG[version]` only when descriptor is absent), walk the repo for candidate filenames, narrow exactly-one by either pre-existing markers or a unique anchor regex; place empty `SCAFFOLD:\u003cname>:START / :END` pairs into the file pendingGenerate/unsupportedPacks reporting (exit-0 friendly) for anything the descriptor's own `targets[]` will create during a future generate. Persists confident mappings into `pack.adoptedPaths` so check-edit gates them identically to generated files. Git-safety: only writes to clean-and-tracked files; hand-placed markers in dirty files are recognised as already-present (no write needed).","pseudoCode":"runBootstrapMarkers({ repoRoot, packVersion?, packDir?, dryRun }): BootstrapMarkersReport\n  // report: { placed, alreadyPresent, needsManual, pendingGenerate, unsupportedPacks, warnings, mapped, mappingNeedsManual }","id":"f-14"},{"order":15,"action":"create","path":"packages/core/src/validatePack/validatePack.ts","description":"Implements `scaffold validate-pack`. For each pack version folder: synthesises a throwaway repo (mkdtemp under os.tmpdir()), writes `.scaffold/config.json` there pointing at the pack via `path:` (resolves `--pack` against the real cwd first to avoid silent mis-resolution), synthesises every external injection host file with empty marker pairs, then runs `runGenerate` against it for real (not just render). The render-only `tools/validate-build.mjs` in each pack's repo is the faster working-tree iteration loop; `validate-pack`'s job is to exercise injection.","pseudoCode":"validatePack({ packDir, version?, manifestPath }): Promise\u003cPackValidationResult[]>\ndiscoverPackVersions(packDir): string[]   // every dir holding manifest.templates.json","id":"f-15"},{"order":16,"action":"create","path":"packages/core/src/packNew/packNew.ts","description":"Implements `scaffold pack new`. Writes the smallest real, valid pack skeleton: an empty `(targets: [], injections: [], inputs: [])` `manifest.templates.json` under \u003cdir>/\u003cversion>/, plus a commented `tools/validate-build.mjs` STUB next to every version folder. Refuses to overwrite an existing descriptor. The empty descriptor passes `scaffold validate-pack` trivially; the stub build-check fails loudly until the author replaces it — an unfinished pack should never look 'validated'.","pseudoCode":"createPackSkeleton({ dir, version, stack? }): PackNewResult\n  // writes \u003cdir>/\u003cversion>/manifest.templates.json with descriptorSchemaVersion:2 + requires.scaffoldCli >=0.2.0 \u003c1.0.0\n  // writes \u003cdir>/tools/validate-build.mjs (process.exit(1) stub) if not already present","id":"f-16"},{"order":17,"action":"create","path":"packages/core/src/templates/sync.ts + packages/core/src/templates/cache.ts + packages/core/src/templates/list.ts + packages/core/src/templates/gitClone.ts","description":"Implements `scaffold templates sync` and `scaffold templates list`. Path-based packs (the common case since `scaffold init` only ever emits those) are no-ops on sync and read straight off disk on list. URL-based packs: sync clones into `.scaffold/cache/\u003curl>/\u003csha>/` (with an idempotent `{\"type\":\"commonjs\"}` baseline written next to any pack-shipped `helpers.js` so `require()` works under any parent package.json that says `\"type\": \"module\"`). `--update` moves pinned SHA forward. Each SHA gets its own cache directory so old SHAs stay valid even after bumping.","pseudoCode":"defaultCacheRoot(repoRoot): string   // \u003crepoRoot>/.scaffold/cache\nsyncTemplates(repoRoot, cacheRoot, { update? }): Promise\u003cSyncResult[]>\nlistTemplateVersions(repoRoot, cacheRoot): PackVersionListing[]\nensurePackCjsBaseline(packRoot): void","id":"f-17"},{"order":18,"action":"create","path":"packages/core/src/generate/report.ts","description":"Builds the `GenerateReport` printed after a `generate` run (TOON by default, JSON with `--json`, preflight doc with `--format doc`). Carries solved-but-unfinished `AI_IMPLEMENTATION` blocks forward to the report.","pseudoCode":"renderReport(report, 'toon' | 'json'): string\nrenderReportAsDoc(report): string   // preflight doc view, pure formatting","id":"f-18"},{"order":19,"action":"create","path":"packages/core/src/toon/codec.ts","description":"Wraps the @toon-format/toon encode/decode for human-readable report output (defaults to TOON, which is more compact than JSON for the kind of tabular data the CLI emits).","pseudoCode":"encodeToon(value: Record\u003cstring, unknown>): string\ndecodeToon(input: string): unknown","id":"f-19"},{"order":20,"action":"create","path":"packages/core/src/config/projectTypeDetect.ts + packages/core/src/config/schema.ts","description":"`scaffold init`'s auto-detect (the one interactive path: only consulted when ambiguous, cli.ts then prompts) + ajv schema for `.scaffold/config.json`. Pack entry is one of two mutually-exclusive shapes: `{ url, version, pinnedSha? }` (legacy git-clonable) or `{ path, version }` (local dir). XOR enforced in `loader.ts`.","pseudoCode":"detectProjectType(repoRoot): 'dotnet' | 'js-family' | 'go' | 'python' | undefined\n/* configSchema (sketch): */\nScaffoldConfig = { projectType, packs: Record\u003cstack-name, PackConfig> }\nPackConfig = ({ url, version, pinnedSha? } & pathConfig? & adoptedPaths?) | ({ path, version } & pathConfig? & adoptedPaths?)","id":"f-20"}],"logicSteps":[{"step":"Resolve and load inputs (manifest → config → pack → descriptor)","pseudo":"1. `decodeManifestFile(manifestPath)` — accepts JSON or .toon, runs `validateManifest` (ajv against intentManifestSchema)\n2. `loadConfig(repoRoot)` — reads `.scaffold/config.json`, validates against configSchema, XOR-checks pack entries\n3. Look up `config.packs[manifest.targetStack]` — refuse early if absent\n4. Resolve version directory: path-based packs read straight off disk (no cache), url-based packs need a pinned SHA (else throw — run `templates sync` first)\n5. `loadDescriptor(\u003cpack>/\u003cversion>/manifest.templates.json)` — validates descriptor schema + range-checks `requires.scaffoldCli`\n6. `registerPackHelpers(\u003cversionDir>)` — loads every pack-shipped `helpers.js` (with the cjs baseline applied during sync)\n7. `validateManifestInputs(descriptor.packVersion, manifest, descriptor.inputs)` — enforces the pack-declared input contract\n8. `buildHandlebarsContext(manifest, { pathConfig, companyProjectName })` — merges, with `options` spread first then full manifest so manifest top-level wins","id":"l-1"},{"step":"Plan creations (resolve + render + gate)","pseudo":"1. For each descriptor.target:\n   a. Resolve output path: `pack.adoptedPaths[kind:template[:entity]]` if present (brownfield redirect), else `renderPathTemplate(target.output, context)`\n   b. `resolveInsideRepo(repoRoot, outputRel)` — confounds escapes outside the repo\n   c. existedBefore = existsSync(absPath)\n2. Creation gate: every `mode: 'overwrite'` target must already exist; every `mode: 'create'` target must NOT already exist (else error with the swap-to-skip-if-exists-or-overwrite hint)\n3. Render decisions: existing + `skip-if-exists` → skip (use prior content); otherwise render via `renderTemplateFile(\u003cpack>/\u003ctemplate>, context)`","id":"l-2"},{"step":"Plan injections (resolve + group + provenance-check)","pseudo":"1. For each descriptor.injection: resolve file path the same way (adoptedPaths fallback); error if the target file does not exist (and was not created this same run via virtualContent)\n2. Render every injection's template via renderTemplateFile\n3. Group rendered requests by absPath into a PlannedInjectionGroup\n4. Per group: `checkProvenance(config, relPath, { packUrl, packVersion, resolvedSha })` — refuses the whole run on a single mismatch before any write","id":"l-3"},{"step":"Inject single-pass per file (order-irrelevant by construction)","pseudo":"1. Per PlannedInjectionGroup:\n   a. originalContent = virtualContent.get(absPath) || readFileSync(absPath, 'utf8') — newly created this run is 'in-memory' so subsequent injections see the new content without a disk round-trip\n   b. `injectMarkers(relPath, originalContent, requests, force, freshlyCreated)` — uses markerScan's offset map to rebuild the file from those offsets out, never re-reading the file mid-injection; throws `InjectionRefusedError` (interior was hand-edited) before any write — --force overrides\n2. Outcomes are stamped: 'unchanged' (already correct on disk) | 'created' (interior was empty) | 'updated' (interior was rewritten with matching hash-trailer)","id":"l-4"},{"step":"Collect AI_IMPLEMENTATION blocks (the phase-3 handoff)","pseudo":"1. For every created file (non-skipped): `scanAiImplementationBlocks(file, content)` — stack-based, parses the `:required` reserved token\n2. For every injected file whose new content differs from the original: same scan on new content\n3. Filter to (empty || required) — these are the seams the host agent must complete\n4. Build the report's aiImplementation[] with file / startLine / endLine / content / empty / required","id":"l-5"},{"step":"If !dryRun — write phase and bookkeeping","pseudo":"1. mkdir + writeFile every created file (skip if `skip-if-exists`)\n2. For each injected file: writeFile newContent; `recordProvenance(config, relPath, provenanceRecord)`; changeEntry (only if changed)\n3. If any config mutated: saveConfig(repoRoot, config)\n4. If any changeEntries were collected:\n   a. changesetId = `nextChangesetId()` (timestamp-seq)\n   b. writeChangeManifest(repoRoot, changesetId, changeEntries)\n   c. writePending(repoRoot, changesetId, targetStack, version, aiBlocks.filter(empty || required))\n   d. appendHistoryEntry(repoRoot, { changesetId, packSlot, packVersion, entity?, options })\n   e. report.changesetId = changesetId\n5. Otherwise return the report with no changesetId (idempotent re-runs still report what they would have done)","id":"l-6"},{"step":"Render the report","pseudo":"1. `renderReport(report, opts.format)` — 'toon' (default) wraps toon/codec.ts; 'json' flat JSON; preflight `--format doc` calls renderReportAsDoc which lays out the same data as a readable doc (entity, options, files-to-create, files-to-inject, AI_IMPLEMENTATION blocks pending)","id":"l-7"},{"step":"Companion flow: status / next / undo are the checkpoint trio","pseudo":"1. `scaffold status` — rescans every .scaffold/pending/\u003cid>.json, compares current on-disk content to recorded placeholder; `resolvedAll: true` → exit 0, else exit 1 (this is the bit adapter hooks re-check after every turn)\n2. `scaffold next` — same rescan, reshaped into a per-block digest (file + line range + required + placeholder body) the host agent can act on without re-reading every generated file; `done: true` → exit 0\n3. `scaffold undo \u003cchangesetId>` — refuses if any later changeset also touched any file this one touched (must undo in reverse order); refuses on a hash mismatch unless --force; created files are deleted, modified files restored from priorContent\n4. `scaffold check-edit` — the edit-time gate the host-adapter PreToolUse hooks shell out to (fail-closed on ambiguous old_string, on write-to-pack-owned, on edit-outside-AI_IMPLEMENTATION interior)","id":"l-8"}],"contracts":[{"name":"scaffold init","inputs":"--project-type? \u003cdotnet|js-family|go|python>  (auto-detected if omitted; one interactive prompt on ambiguity)   --pack \u003cname>=\u003cpath>@\u003cversion>...  (repeatable; rejects git URLs with a pointer to the local-directory spec)","outputs":"stdout: `scaffold: wrote .scaffold/config.json (projectType: \u003ctype>, packs: \u003cnames>)`. exit 0 on success; non-zero on validation failure.","id":"c-1"},{"name":"scaffold manifest new","inputs":"--stack \u003ctargetStack>  --entity? \u003cPascalCase>  --field? \u003cname:type>...  --option? \u003cdot.path=value>...  --input? \u003cname=value>...  --out? \u003cfile>","outputs":"Schema-validated intent manifest (stdout or --out file). Exits non-zero on bad PascalCase, unknown field type, option-path conflict, or reserved input key.","id":"c-2"},{"name":"scaffold pack new","inputs":"--dir \u003cpath> (creates if missing)  --pack-version \u003cversion folder>  --stack? \u003clabel> (only noted in generated-file comments)","outputs":"Two files: `\u003cdir>/\u003cversion>/manifest.templates.json` (schema-valid empty descriptor with `requires.scaffoldCli: >=0.2.0 \u003c1.0.0`) and `\u003cdir>/tools/validate-build.mjs` (an exit-1 stub the author must replace). Exits non-zero if the descriptor already exists.","id":"c-3"},{"name":"scaffold templates sync [--update]","inputs":"--update  (move each url-based pack's pinned SHA forward to remote HEAD; no-op for path-based packs)","outputs":"Per pack: `scaffold: \u003cpack> -> \u003csha>` (or `-> \u003csha> (updated)` if changed). Path-based packs are no-ops. Updates `.scaffold/config.json`'s pinnedSha for url-based packs whose SHA changed.","id":"c-4"},{"name":"scaffold templates list","inputs":"(no flags)","outputs":"TOON-encoded table: for each configured pack, `pack`, `url`, `resolvedSha`, and the available version folders that hold a descriptor.","id":"c-5"},{"name":"scaffold generate --manifest \u003cfile> [--dry-run] [--force] [--json] [--format \u003ctoon|json|doc>]","inputs":"--manifest \u003c.json|.toon>  --dry-run  --force  --json  --format \u003cdoc> (only meaningful in combination with --dry-run for a readable preflight)","outputs":"TOON/JSON/doc report: every file created, every injection outcome (unchanged|created|updated), and every `AI_IMPLEMENTATION` block left pending (file, line range, current content, required flag). For real runs: `changesetId` is included so the run is undoable. Exits non-zero on any pre-write failure.","id":"c-6"},{"name":"scaffold undo \u003cchangesetId> [--force]","inputs":"\u003cchangesetId> (printed in the generate report)  --force  (discard edits that no longer match the post-generate hash)","outputs":"stdout: `scaffold: undone changeset \u003cid>`. Exits non-zero if a later changeset also touched any of the same files (must undo in reverse order) or on a hash mismatch without --force.","id":"c-7"},{"name":"scaffold status [--json]","inputs":"--json","outputs":"TOON/JSON: `{ resolvedAll, unresolved[] }`. Exit 0 when all `AI_IMPLEMENTATION` blocks are resolved, 1 otherwise — this is the bit the host-adapter Stop/agentStop hooks and the Copilot `gh scaffold generate` precheck all use.","id":"c-8"},{"name":"scaffold next [--json]","inputs":"--json","outputs":"TOON/JSON: `{ done, conventions?, blocks: [{ file, startLine, endLine, required, placeholder }] }`. Exit 0 when nothing is open (matching `status`), 1 otherwise. Same scanner as `status`; deliberately carries no enclosing signature and no authored hint.","id":"c-9"},{"name":"scaffold bootstrap-markers [--pack-version \u003cv>] [--pack \u003cdir>] [--dry-run] [--json]","inputs":"--pack-version \u003cv> (one-shot override; no .scaffold/config.json needed)  --pack \u003cdir> (local pack override; requires --pack-version)  --dry-run  --json","outputs":"TOON/JSON report with five outcome channels: `placed`, `alreadyPresent`, `needsManual`, `pendingGenerate` (informational, exit-0 friendly), `unsupportedPacks`; plus `mapped`/`mappingNeedsManual` for descriptor-driven ownership mappings persisted into `pack.adoptedPaths`. Exit 1 when any marker or mapping still needs manual placement.","id":"c-10"},{"name":"scaffold validate-pack --pack \u003cdir> [--pack-version \u003cv>] --manifest \u003cfile> [--json]","inputs":"--pack \u003cdir>  --pack-version? \u003cv> (default: every version folder in the pack)  --manifest \u003c.json|.toon>  --json","outputs":"TOON/JSON: per-version `{ ok, error?, targetsRendered, injectionsExercised, synthesizedFiles }` plus top-level `allValid`. Exits non-zero when any version fails. Only proves generate did not throw — pair with the pack's own `tools/validate-build.mjs` to catch compile errors.","id":"c-11"},{"name":"scaffold check-edit --file \u003cpath> --tool \u003cwrite|edit> [--old-string \u003ctext>|--old-string-file \u003cpath>]","inputs":"--file \u003cabs-or-rel path>  --tool \u003cwrite|edit>  --old-string? \u003ctext>  --old-string-file? \u003cpath> (read --old-string from this file instead of the cmdline to avoid shell-escaping multi-line strings)","outputs":"Plain JSON line: `{ allow: boolean, reason: \u003cone of seven reasons>, detail: string, packOwned: boolean, packSlot? }`. Exit 0 allows, 1 blocks.","id":"c-12"},{"name":"scaffold -v, --version","inputs":"(no flags)","outputs":"Installed scaffold-core version (from packages/core/package.json).","id":"c-13"}],"edgeCases":[{"condition":"`scaffold init --pack name=\u003cgit-url>@\u003cversion>` — git URL, scp-style `git@host:...`, or bare-host scp shorthand","handling":"cli.ts parsePackSpecs rejects outright with a pointer to `--pack name=path@version`. The git/`url` pack engine is still in place underneath for a hypothetical future non-vendored pack; nothing in `init` produces a `url` entry.","id":"e-1"},{"condition":"Manifest schema validation fails (bad PascalCase entity, bad field shape, wrong manifestSchemaVersion)","handling":"manifest/decode.ts throws ajv-formatted error before any file is read — fail-fast at the entry, before generate does any work.","id":"e-2"},{"condition":"URL-based pack referenced by `generate` but never `templates sync`-ed (no pinnedSha)","handling":"generate.ts throws `'pack \u003cname> has not been synced yet — run \"scaffold templates sync\" first'`. Path-based packs never trigger this; they have no cache step.","id":"e-3"},{"condition":"`requires.scaffoldCli` semver range disagrees with installed CLI","handling":"descriptor/load.ts throws after descriptor ajv validation — no rendering or injection runs.","id":"e-4"},{"condition":"Target with `mode: 'create'` already exists on disk","handling":"generate throws with the file path; hint to switch to 'skip-if-exists' or 'overwrite'.","id":"e-5"},{"condition":"Injection marker START or END not found, appears more than once, or END-before-START","handling":"markerScan.ts throws MarkerScanError with file path and line number, enumerated — hard failure before any write.","id":"e-6"},{"condition":"Pack supplied an injection targeting a file that does not exist on disk","handling":"generate throws `injection target \u003crelPath> does not exist in the target repo` unless the same run created it as a target (via virtualContent).","id":"e-7"},{"condition":"An injection's interior was hand-edited since its prior write — hash mismatch","handling":"injector.ts throws `InjectionRefusedError` before any write — protects user code over idempotency. `--force` overrides.","id":"e-8"},{"condition":"Provenance record for an injection target disagrees with the running pack identity","handling":"generate.ts throws on the first mismatch, aborts the entire run — nothing is written.","id":"e-9"},{"condition":"`scaffold undo` requested but a *later* changeset touched one of the same files","handling":"undo.ts throws UndoBlockedError naming the later changeset id(s) that must be undone first.","id":"e-10"},{"condition":"`scaffold undo` requested but on-disk hash differs from recorded post-generate hash","handling":"undo.ts throws UndoHashMismatchError; pass --force to discard the divergent edits.","id":"e-11"},{"condition":"`scaffold check-edit --tool edit` with empty, missing, ambiguous, or non-interior old_string","handling":"Fails closed: returns `edit-blocked-ambiguous-old-string` or `edit-blocked-outside-interior` with allow:false, exit 1. See checkEdit.ts for the exact rule.","id":"e-12"},{"condition":"`scaffold check-edit --tool write` to a pack-owned file","handling":"Always blocked (`write-blocked`); creating or overwriting a pack-owned file must go through `scaffold generate`.","id":"e-13"},{"condition":"`bootstrap-markers` finds multiple candidates for the same anchor and none uniquely matches","handling":"Writes all markers for the group to `needsManual` with a concrete reason naming the files — exits non-zero so the user can disambiguate before continuing.","id":"e-14"},{"condition":"Pack-shipped `helpers.js` would ERR_REQUIRE_ESM under a parent package.json with `\"type\": \"module\"`","handling":"templates/sync.ts writes a sibling `{\"type\":\"commonjs\"}` `package.json` next to every pack-shipped helpers.js (idempotent — pre-existing pack-authored package.json is left untouched) before committing the clone. validatePack.ts applies the same baseline on `--pack` (local).","id":"e-15"}],"testScenarios":[{"target":"packages/core/test/integration/cli.test.ts","scenario":"Every CLI command resolves by name, prints the right exit code for success/failure cases, and parses flags correctly (including the camelCase multi-flag --pack / --field / --option parsers).","id":"t-1"},{"target":"packages/core/test/integration/generate.test.ts","scenario":"A full generate run creates files, injects markers, scans AI_IMPLEMENTATION blocks, writes the changeset + pending record, emits a TOON report — and a re-run is idempotent (no spurious changes in the second run).","id":"t-2"},{"target":"packages/core/test/integration/determinism.test.ts","scenario":"Dry-run and real-run produce byte-identical reports for an identical working-tree state; the same input produces the same output across reruns (the determinism guarantee the CLAUDE.md guarantees).","id":"t-3"},{"target":"packages/core/test/integration/next.test.ts","scenario":"`scaffold next` reports only the unresolved blocks, reshapes the placeholder body, and exits 0/1 in lockstep with `scaffold status`.","id":"t-4"},{"target":"packages/core/test/integration/validatePack.test.ts","scenario":"validate-pack exercises a real generate against a synthesized throwaway target repo for every pack version; an injection-target file that the pack does NOT create is synthesized with empty marker pairs so the injector has somewhere to land.","id":"t-5"},{"target":"packages/core/test/integration/bootstrapMarkers.test.ts","scenario":"Brownfield adoption places markers into the correct files, handles multiple-candidate ambiguity, refuses to write to dirty/untracked files, and persists confident mappings into `adoptedPaths`.","id":"t-6"},{"target":"packages/core/test/integration/checkEdit.test.ts","scenario":"The seven reason codes (no-config, outside-repo, not-pack-owned, write-blocked, edit-allowed-in-interior, edit-blocked-outside-interior, edit-blocked-ambiguous-old-string) all return the right `allow`/exit code for their input; old_string ambiguity always fails closed.","id":"t-7"},{"target":"packages/core/test/integration/undo.test.ts","scenario":"Undo restores prior state, refuses on later-changeset conflict, refuses on hash mismatch without --force, deletes created files (does not leave them with stale content).","id":"t-8"},{"target":"packages/core/test/integration/templatesSync.test.ts","scenario":"Path-based packs are no-ops on sync; url-based packs clone into `.scaffold/cache` and `--update` rewrites pinnedSha; the cjs baseline gets applied next to helpers.js.","id":"t-9"},{"target":"packages/core/test/integration/provenance.test.ts","scenario":"Provenance refuse-on-mismatch aborts the whole run before any write; the record persists in `.scaffold/config.json` after a successful run.","id":"t-10"},{"target":"packages/core/test/unit/markerScan.test.ts","scenario":"scanMarkers throws on missing/one-sided/duplicate markers and on END-before-START; scanAiImplementationBlocks recognises the `:required` reserved token and stacks START/END with optional pairing id.","id":"t-11"},{"target":"packages/core/test/unit/manifestBuild.test.ts","scenario":"`scaffold manifest new` produces a schema-validated manifest: --option dot-paths nest, --input reserved keys error, --field name:type parses, boolean/number coercions hold.","id":"t-12"},{"target":"packages/core/test/unit/report.test.ts","scenario":"renderReport produces TOON by default and JSON with --json; renderReportAsDoc lays out created/injected/AI_IMPLEMENTATION blocks readably.","id":"t-13"},{"target":"packages/core/test/unit/render.test.ts","scenario":"renderPathTemplate interpolates {{entity}}/{{pathConfig.foo}} correctly; renderTemplateFile registers pack helpers before rendering.","id":"t-14"},{"target":"packages/core/test/integration/generateModes.test.ts + changeManifestAndPending.test.ts","scenario":"create/skip-if-exists/overwrite target modes behave as advertised; one real run is undoable by its changesetId end-to-end.","id":"t-15"}]};
+    </script>
+    <script>
+        // ------------------------------------------------------------------
+        // Data Layer
+        // ------------------------------------------------------------------
+        const STORAGE_KEY = 'feature-impl-plan:' + document.title;
+
+        // One-time migration from the previous single-key localStorage layout
+        // used by the original pasted template ('feature-impl-plan-data'). If
+        // the per-document key is empty but the old global key has data, copy
+        // it across and clear it so the user's edits survive the upgrade.
+        function migrateLegacyStorage() {
+            try {
+                if (localStorage.getItem(STORAGE_KEY)) return;
+                const legacy = localStorage.getItem('feature-impl-plan-data');
+                if (!legacy) return;
+                localStorage.setItem(STORAGE_KEY, legacy);
+                localStorage.removeItem('feature-impl-plan-data');
+            } catch (e) { /* ignore */ }
+        }
+        migrateLegacyStorage();
+
+        let data = loadData();
+
+        function emptyData() {
+            return {
+                title: '',
+                module: '',
+                goal: '',
+                context: '',
+                patternCore: 'Layered (Controller -> Service -> Repository)',
+                patternBusiness: 'Transaction Script',
+                patternSpecific: '',
+                patternOverrides: '',
+                files: [],
+                logicSteps: [],
+                contracts: [],
+                edgeCases: [],
+                testScenarios: []
+            };
+        }
+
+        function loadData() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    return normalize(parsed);
+                }
+            } catch (e) { /* ignore */ }
+            return normalize(INITIAL_DATA || emptyData());
+        }
+
+        // Fills in any missing top-level keys so a sparse persisted or seeded
+        // payload still renders a valid page.
+        function normalize(parsed) {
+            const base = emptyData();
+            if (!parsed || typeof parsed !== 'object') parsed = {};
+            for (let key in base) {
+                if (parsed[key] === undefined) parsed[key] = base[key];
+            }
+            return parsed;
+        }
+
+        function saveData() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            } catch (e) { /* ignore */ }
+        }
+
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+        }
+
+        // ------------------------------------------------------------------
+        // Rendering Helpers
+        // ------------------------------------------------------------------
+        function renderAll() {
+            renderFiles();
+            renderLogic();
+            renderContracts();
+            renderEdges();
+            renderTests();
+
+            document.getElementById('feature-title').value = data.title || '';
+            document.getElementById('feature-module').value = data.module || '';
+            document.getElementById('feature-goal').value = data.goal || '';
+            document.getElementById('feature-context').value = data.context || '';
+            document.getElementById('pattern-core').value = data.patternCore || '';
+            document.getElementById('pattern-business').value = data.patternBusiness || '';
+            document.getElementById('pattern-specific').value = data.patternSpecific || '';
+            document.getElementById('pattern-overrides').value = data.patternOverrides || '';
+        }
+
+        // Generic render for simple item lists (logic, contracts, edges, tests)
+        function renderSimpleList(containerId, items, fields, labelSingular, btnId) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            items.forEach((item, index) => {
+                const block = document.createElement('div');
+                block.className = 'item-block';
+
+                const header = document.createElement('div');
+                header.className = 'item-header';
+                const titleSpan = document.createElement('span');
+                titleSpan.className = 'item-title';
+                titleSpan.textContent = `${labelSingular} #${index+1}`;
+                header.appendChild(titleSpan);
+
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'btn btn-danger btn-sm';
+                removeBtn.textContent = '✕ Remove';
+                removeBtn.addEventListener('click', () => {
+                    items.splice(index, 1);
+                    saveData();
+                    renderAll();
+                });
+                header.appendChild(removeBtn);
+                block.appendChild(header);
+
+                const fieldDiv = document.createElement('div');
+                fieldDiv.className = 'item-fields';
+
+                fields.forEach(f => {
+                    const wrapper = document.createElement('div');
+                    if (f.fullWidth) wrapper.className = 'full-width';
+
+                    const label = document.createElement('label');
+                    label.textContent = f.label;
+                    wrapper.appendChild(label);
+
+                    let input;
+                    if (f.type === 'textarea') {
+                        input = document.createElement('textarea');
+                        input.rows = f.rows || 3;
+                        input.placeholder = f.placeholder || '';
+                        input.value = item[f.key] || '';
+                        input.addEventListener('input', () => {
+                            item[f.key] = input.value;
+                            saveData();
+                        });
+                    } else if (f.type === 'select') {
+                        input = document.createElement('select');
+                        f.options.forEach(opt => {
+                            const option = document.createElement('option');
+                            option.value = opt.value;
+                            option.textContent = opt.label;
+                            if (item[f.key] === opt.value) option.selected = true;
+                            input.appendChild(option);
+                        });
+                        input.addEventListener('change', () => {
+                            item[f.key] = input.value;
+                            saveData();
+                        });
+                    } else {
+                        input = document.createElement('input');
+                        input.type = f.type || 'text';
+                        input.placeholder = f.placeholder || '';
+                        input.value = item[f.key] || '';
+                        input.addEventListener('input', () => {
+                            item[f.key] = input.value;
+                            saveData();
+                        });
+                    }
+                    wrapper.appendChild(input);
+                    fieldDiv.appendChild(wrapper);
+                });
+
+                block.appendChild(fieldDiv);
+                container.appendChild(block);
+            });
+        }
+
+        // ------------------------------------------------------------------
+        // Render Files (with sorting by order)
+        // ------------------------------------------------------------------
+        function renderFiles() {
+            const container = document.getElementById('files-container');
+            container.innerHTML = '';
+            // Sort by order
+            const sorted = [...data.files].sort((a, b) => (a.order || 999) - (b.order || 999));
+
+            sorted.forEach((item, idx) => {
+                // find original index for removal
+                const origIndex = data.files.indexOf(item);
+                const block = document.createElement('div');
+                block.className = 'item-block';
+
+                const header = document.createElement('div');
+                header.className = 'item-header';
+
+                const titleSpan = document.createElement('span');
+                titleSpan.className = 'item-title';
+                const badge = document.createElement('span');
+                const action = item.action || 'update';
+                badge.className = `badge badge-${action}`;
+                badge.textContent = action.toUpperCase();
+                titleSpan.appendChild(badge);
+                titleSpan.appendChild(document.createTextNode(` ${item.path || 'Untitled file'}`));
+                header.appendChild(titleSpan);
+
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'btn btn-danger btn-sm';
+                removeBtn.textContent = '✕ Remove';
+                removeBtn.addEventListener('click', () => {
+                    data.files.splice(origIndex, 1);
+                    saveData();
+                    renderAll();
+                });
+                header.appendChild(removeBtn);
+                block.appendChild(header);
+
+                const fieldDiv = document.createElement('div');
+                fieldDiv.className = 'item-fields';
+
+                // Order
+                const orderWrap = document.createElement('div');
+                const orderLabel = document.createElement('label');
+                orderLabel.textContent = 'Order';
+                orderWrap.appendChild(orderLabel);
+                const orderInput = document.createElement('input');
+                orderInput.type = 'number';
+                orderInput.min = 1;
+                orderInput.value = item.order || idx + 1;
+                orderInput.addEventListener('input', () => {
+                    item.order = parseInt(orderInput.value) || 999;
+                    saveData();
+                    renderFiles(); // re-sort
+                });
+                orderWrap.appendChild(orderInput);
+                fieldDiv.appendChild(orderWrap);
+
+                // Action
+                const actionWrap = document.createElement('div');
+                const actionLabel = document.createElement('label');
+                actionLabel.textContent = 'Action';
+                actionWrap.appendChild(actionLabel);
+                const actionSelect = document.createElement('select');
+                ['create', 'update', 'delete'].forEach(a => {
+                    const opt = document.createElement('option');
+                    opt.value = a;
+                    opt.textContent = a.charAt(0).toUpperCase() + a.slice(1);
+                    if (item.action === a) opt.selected = true;
+                    actionSelect.appendChild(opt);
+                });
+                actionSelect.addEventListener('change', () => {
+                    item.action = actionSelect.value;
+                    saveData();
+                    renderFiles();
+                });
+                actionWrap.appendChild(actionSelect);
+                fieldDiv.appendChild(actionWrap);
+
+                // Path
+                const pathWrap = document.createElement('div');
+                const pathLabel = document.createElement('label');
+                pathLabel.textContent = 'File Path';
+                pathWrap.appendChild(pathLabel);
+                const pathInput = document.createElement('input');
+                pathInput.type = 'text';
+                pathInput.placeholder = 'src/Service/NewService.php';
+                pathInput.value = item.path || '';
+                pathInput.addEventListener('input', () => {
+                    item.path = pathInput.value;
+                    saveData();
+                    renderFiles();
+                });
+                pathWrap.appendChild(pathInput);
+                fieldDiv.appendChild(pathWrap);
+
+                // Description
+                const descWrap = document.createElement('div');
+                descWrap.className = 'full-width';
+                const descLabel = document.createElement('label');
+                descLabel.textContent = 'Purpose / Description';
+                descWrap.appendChild(descLabel);
+                const descInput = document.createElement('textarea');
+                descInput.rows = 1;
+                descInput.placeholder = 'What does this file do?';
+                descInput.value = item.description || '';
+                descInput.addEventListener('input', () => {
+                    item.description = descInput.value;
+                    saveData();
+                });
+                descWrap.appendChild(descInput);
+                fieldDiv.appendChild(descWrap);
+
+                // Pseudo-code
+                const codeWrap = document.createElement('div');
+                codeWrap.className = 'full-width';
+                const codeLabel = document.createElement('label');
+                codeLabel.textContent = 'Pseudo-code / Expected Signature (write code stubs here)';
+                codeWrap.appendChild(codeLabel);
+                const codeInput = document.createElement('textarea');
+                codeInput.rows = 4;
+                codeInput.placeholder = "e.g.\nclass NewService {\n  public function execute($input) {\n    // 1. Validate input\n    // 2. Call repository\n  }\n}";
+                codeInput.value = item.pseudoCode || '';
+                codeInput.addEventListener('input', () => {
+                    item.pseudoCode = codeInput.value;
+                    saveData();
+                });
+                codeWrap.appendChild(codeInput);
+                fieldDiv.appendChild(codeWrap);
+
+                block.appendChild(fieldDiv);
+                container.appendChild(block);
+            });
+        }
+
+        // ------------------------------------------------------------------
+        // Render specific sections
+        // ------------------------------------------------------------------
+        function renderLogic() {
+            const fields = [
+                { key: 'step', label: 'Step Title', type: 'text', placeholder: 'e.g. Validate user input' },
+                { key: 'pseudo', label: 'Detailed Pseudo-code / Logic', type: 'textarea', rows: 4, fullWidth: true }
+            ];
+            renderSimpleList('logic-container', data.logicSteps, fields, 'Logic Step', 'add-logic-btn');
+        }
+
+        function renderContracts() {
+            const fields = [
+                { key: 'name', label: 'Function / Endpoint Name', type: 'text', placeholder: 'POST /api/v2/verify-2fa' },
+                { key: 'inputs', label: 'Inputs / Parameters', type: 'textarea', rows: 2, fullWidth: true },
+                { key: 'outputs', label: 'Outputs / Returns', type: 'textarea', rows: 2, fullWidth: true }
+            ];
+            renderSimpleList('contracts-container', data.contracts, fields, 'Contract', 'add-contract-btn');
+        }
+
+        function renderEdges() {
+            const fields = [
+                { key: 'condition', label: 'Condition / Scenario', type: 'text', placeholder: 'e.g. User enters wrong OTP' },
+                { key: 'handling', label: 'Expected Handling', type: 'textarea', rows: 2, fullWidth: true }
+            ];
+            renderSimpleList('edges-container', data.edgeCases, fields, 'Edge Case', 'add-edge-btn');
+        }
+
+        function renderTests() {
+            const fields = [
+                { key: 'target', label: 'Target File / Method', type: 'text', placeholder: 'NewService::execute()' },
+                { key: 'scenario', label: 'Test Scenario', type: 'textarea', rows: 2, fullWidth: true }
+            ];
+            renderSimpleList('tests-container', data.testScenarios, fields, 'Test', 'add-test-btn');
+        }
+
+        // ------------------------------------------------------------------
+        // Event Bindings for Add Buttons
+        //
+        // NOTE: The inline default items below MUST stay in sync with the
+        // ITEM_FIELD_DEFAULTS table in agents/skills/featurePlan/featurePlan-inject.js
+        // — both describe the same per-section field schema, and adding or
+        // renaming a field requires changes in both places.
+        // ------------------------------------------------------------------
+        function bindAdd(btnId, arrayKey, defaultItem) {
+            document.getElementById(btnId).addEventListener('click', () => {
+                data[arrayKey].push({ ...defaultItem, id: generateId() });
+                saveData();
+                renderAll();
+            });
+        }
+
+        bindAdd('add-file-btn', 'files', { order: data.files.length + 1, action: 'create', path: '', description: '',
+            pseudoCode: '' });
+        bindAdd('add-logic-btn', 'logicSteps', { step: '', pseudo: '' });
+        bindAdd('add-contract-btn', 'contracts', { name: '', inputs: '', outputs: '' });
+        bindAdd('add-edge-btn', 'edgeCases', { condition: '', handling: '' });
+        bindAdd('add-test-btn', 'testScenarios', { target: '', scenario: '' });
+
+        // Input bindings for top-level fields
+        document.getElementById('feature-title').addEventListener('input', (e) => { data.title = e.target.value;
+            saveData(); });
+        document.getElementById('feature-module').addEventListener('input', (e) => { data.module = e.target.value;
+            saveData(); });
+        document.getElementById('feature-goal').addEventListener('input', (e) => { data.goal = e.target.value;
+            saveData(); });
+        document.getElementById('feature-context').addEventListener('input', (e) => { data.context = e.target.value;
+            saveData(); });
+        document.getElementById('pattern-core').addEventListener('input', (e) => { data.patternCore = e.target.value;
+            saveData(); });
+        document.getElementById('pattern-business').addEventListener('input', (e) => { data.patternBusiness = e.target.value;
+            saveData(); });
+        document.getElementById('pattern-specific').addEventListener('input', (e) => { data.patternSpecific = e.target.value;
+            saveData(); });
+        document.getElementById('pattern-overrides').addEventListener('input', (e) => { data.patternOverrides = e.target.value;
+            saveData(); });
+
+        // ------------------------------------------------------------------
+        // Export
+        // ------------------------------------------------------------------
+        function buildExportText() {
+            const lines = [];
+            lines.push('FEATURE IMPLEMENTATION PLAN (AI-READY PROMPT)');
+            lines.push('==============================================');
+            lines.push('');
+            lines.push(`FEATURE TITLE: ${data.title || 'Not set'}`);
+            lines.push(`TARGET MODULE: ${data.module || 'Not set'}`);
+            lines.push(`USER STORY: ${data.goal || 'Not set'}`);
+            lines.push(`EXISTING CONTEXT: ${data.context || 'Not set'}`);
+            lines.push('');
+
+            lines.push('--- DESIGN PATTERNS & OVERRIDES ---');
+            lines.push(`Core Pattern: ${data.patternCore || 'Not set'}`);
+            lines.push(`Business Logic Pattern: ${data.patternBusiness || 'Not set'}`);
+            lines.push(`Specific Implementations: ${data.patternSpecific || 'None'}`);
+            lines.push(`Explicit Overrides: ${data.patternOverrides || 'None'}`);
+            lines.push('');
+
+            // Files
+            lines.push('--- FILE CHANGE MANIFEST (IN ORDER) ---');
+            const sortedFiles = [...data.files].sort((a, b) => (a.order || 999) - (b.order || 999));
+            if (sortedFiles.length === 0) {
+                lines.push('(No files defined)');
+            } else {
+                sortedFiles.forEach((f, idx) => {
+                    lines.push(`[${idx+1}] ${f.action.toUpperCase()} | ${f.path || 'Untitled'}`);
+                    if (f.description) lines.push(`    Description: ${f.description}`);
+                    if (f.pseudoCode) {
+                        lines.push(`    Pseudo-code:`);
+                        f.pseudoCode.split('\n').forEach(line => {
+                            lines.push(`      ${line}`);
+                        });
+                    }
+                    lines.push('');
+                });
+            }
+
+            // Logic
+            lines.push('--- CORE BUSINESS LOGIC (PSEUDO-CODE) ---');
+            if (data.logicSteps.length === 0) {
+                lines.push('(No logic steps defined)');
+            } else {
+                data.logicSteps.forEach((l, idx) => {
+                    lines.push(`Step ${idx+1}: ${l.step || 'Untitled'}`);
+                    if (l.pseudo) {
+                        l.pseudo.split('\n').forEach(line => {
+                            lines.push(`  ${line}`);
+                        });
+                    }
+                    lines.push('');
+                });
+            }
+
+            // Contracts
+            lines.push('--- FUNCTION / API CONTRACTS ---');
+            if (data.contracts.length === 0) {
+                lines.push('(No contracts defined)');
+            } else {
+                data.contracts.forEach(c => {
+                    lines.push(`Signature: ${c.name || 'Unnamed'}`);
+                    if (c.inputs) lines.push(`  Inputs: ${c.inputs}`);
+                    if (c.outputs) lines.push(`  Outputs: ${c.outputs}`);
+                    lines.push('');
+                });
+            }
+
+            // Edge Cases
+            lines.push('--- EDGE CASES & ERROR HANDLING ---');
+            if (data.edgeCases.length === 0) {
+                lines.push('(No edge cases defined)');
+            } else {
+                data.edgeCases.forEach(e => {
+                    lines.push(`Condition: ${e.condition || 'Untitled'}`);
+                    if (e.handling) lines.push(`  Handling: ${e.handling}`);
+                    lines.push('');
+                });
+            }
+
+            // Tests
+            lines.push('--- TESTING STRATEGY ---');
+            if (data.testScenarios.length === 0) {
+                lines.push('(No tests defined)');
+            } else {
+                data.testScenarios.forEach(t => {
+                    lines.push(`Target: ${t.target || 'Untitled'}`);
+                    if (t.scenario) lines.push(`  Scenario: ${t.scenario}`);
+                    lines.push('');
+                });
+            }
+
+            lines.push('--- END OF PLAN ---');
+            lines.push('Generate the actual code based strictly on the above plan.');
+            return lines.join('\n');
+        }
+
+        document.getElementById('copy-btn').addEventListener('click', () => {
+            const text = buildExportText();
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = document.getElementById('copy-btn');
+                btn.textContent = '✓ Copied!';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.textContent = '📋 Copy AI-Ready Plan';
+                    btn.classList.remove('copied');
+                }, 2500);
+            }).catch(() => {
+                alert('Could not copy. Please select and copy manually.');
+            });
+        });
+
+        document.getElementById('reset-btn').addEventListener('click', () => {
+            if (confirm('Reset all data? This cannot be undone.')) {
+                data = emptyData();
+                saveData();
+                renderAll();
+            }
+        });
+
+        // ------------------------------------------------------------------
+        // Initial Render
+        // ------------------------------------------------------------------
+        renderAll();
+    </script>
+
+</body>
+</html>

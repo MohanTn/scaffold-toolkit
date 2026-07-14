@@ -17,6 +17,97 @@
     "apiMiddleware": "Middleware",
     "testsApplicationFeatures": "Features"
   },
+  "codingStandards": {
+    "CreateEntityCommandHandler.cs.hbs": {
+      "fileType": "handler",
+      "rules": [
+        "Decompose methods >150 LOC into private helpers (validate, load, process, persist)",
+        "Validate input before loading entities",
+        "Load all required entities before processing",
+        "Use async/await for I/O operations (Handle method is async)",
+        "Return explicit return types (not void); map to DTO for queries, Result<T> for commands",
+        "Use private methods for reusable logic; add them inside the class-level AI_IMPLEMENTATION marker"
+      ]
+    },
+    "UpdateEntityCommandHandler.cs.hbs": {
+      "fileType": "handler",
+      "rules": [
+        "Validate input before loading the entity",
+        "Load entity by ID with failure handling (throw NotFoundException if not found)",
+        "Apply updates to the existing entity instance (not create new)",
+        "Decompose complex update logic into private methods as needed",
+        "Persist via IUnitOfWork.SaveChangesAsync()",
+        "Return explicit Result<T> with success/failure semantics"
+      ]
+    },
+    "DeleteEntityCommandHandler.cs.hbs": {
+      "fileType": "handler",
+      "rules": [
+        "Load entity by ID before deletion (validate it exists)",
+        "Delete via repository method or direct removal",
+        "Persist via IUnitOfWork.SaveChangesAsync()",
+        "Return explicit Result<T> indicating success or appropriate error"
+      ]
+    },
+    "GetEntityByIdQueryHandler.cs.hbs": {
+      "fileType": "handler",
+      "rules": [
+        "Load entity by ID with eager-loaded related entities via .Include() if needed",
+        "Return NotFoundException if entity not found",
+        "Map entity to DTO before returning",
+        "Use IEnumerable or IQueryable for lazy evaluation where appropriate"
+      ]
+    },
+    "GetEntityListQueryHandler.cs.hbs": {
+      "fileType": "handler",
+      "rules": [
+        "Build query using IEnumerable or IQueryable for lazy evaluation",
+        "Apply filters/pagination as needed",
+        "Eager-load related entities via .Include() to avoid N+1 queries",
+        "Map collection to DTO list",
+        "Return paginated result (List, IEnumerable, or paged collection)"
+      ]
+    },
+    "EntityRepository.cs.hbs": {
+      "fileType": "repository",
+      "rules": [
+        "Wrap mutating operations (Add, Update, Delete) in transactions when needed, or use using statements",
+        "Use 'using' blocks for DbContext cleanup (though DbContext is scoped in DI, pattern is good practice)",
+        "Validate input parameters before querying (null checks, bounds validation)",
+        "Return IEnumerable<T> or IQueryable<T> for read queries to enable lazy evaluation",
+        "Eager-load related entities via .Include() when navigating relationships; document N+1 concerns",
+        "Use private methods for reusable query/filter logic; add them inside the class-level marker"
+      ]
+    },
+    "EntityConfiguration.cs.hbs": {
+      "fileType": "configuration",
+      "rules": [
+        "Configure all properties (HasKey, HasIndex, IsRequired, HasMaxLength)",
+        "Define foreign key relationships via HasOne/WithMany or HasMany/WithOne",
+        "Set cascade delete rules per business logic (usually Cascade for sub-entities, Restrict for references)",
+        "Add value conversions for enums or custom types as needed"
+      ]
+    },
+    "Create*CommandValidator.cs.hbs": {
+      "fileType": "validator",
+      "rules": [
+        "One validator per command/query type (Create, Update, Delete, etc.)",
+        "Use FluentValidation.AbstractValidator fluent API (RuleFor chains)",
+        "Include custom error messages that convey business context (not just 'invalid format')",
+        "Validate business invariants (e.g., 'EndDate must be after StartDate'), not just field format",
+        "Use private methods for reusable validation rules; add them inside the marker as needed"
+      ]
+    },
+    "EntityDto.cs.hbs": {
+      "fileType": "dto",
+      "rules": [
+        "DTO properties match entity properties but use safer types (no navigations, IDs instead of objects)",
+        "Include all fields needed for API responses or command inputs",
+        "Use nullable types (?) for optional fields",
+        "Add data annotations for API documentation/validation if using Swagger"
+      ]
+    }
+  },
   "targets": [
     {
       "_comment": "Solution file, wires all 7 projects",

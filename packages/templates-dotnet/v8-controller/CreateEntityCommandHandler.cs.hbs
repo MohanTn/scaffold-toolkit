@@ -11,9 +11,11 @@ public class Create{{entity}}CommandHandler : IRequestHandler<Create{{entity}}Co
         _unitOfWork = unitOfWork;
     }
 
+    /// SCAFFOLD:AI_IMPLEMENTATION:START:required
     public async Task<{{ns}}.Application.Features.{{plural entity}}.{{entity}}Dto> Handle(Create{{entity}}Command request, CancellationToken cancellationToken)
     {
-        // SCAFFOLD:AI_IMPLEMENTATION:START
+        // Entry method: orchestrate validation → load → process → persist → return
+        // Decompose into private methods as needed (ValidateRequest, CreateEntity, PersistChanges, etc.)
         var entity = new {{ns}}.Domain.Entities.{{entity}}
         {
             Id = Guid.NewGuid(){{#each fields}}{{#unless (eq (pascal name) "Id")}},
@@ -21,7 +23,9 @@ public class Create{{entity}}CommandHandler : IRequestHandler<Create{{entity}}Co
         };
         await _repository.AddAsync(entity, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
-        // SCAFFOLD:AI_IMPLEMENTATION:END
         return new {{ns}}.Application.Features.{{plural entity}}.{{entity}}Dto({{#each fields}}entity.{{pascal name}}{{#unless @last}}, {{/unless}}{{/each}});
     }
+
+    // Add private helper methods here as needed (validate, load entities, apply business logic, persist)
+    /// SCAFFOLD:AI_IMPLEMENTATION:END
 }

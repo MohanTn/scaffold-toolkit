@@ -9,6 +9,7 @@ public class {{entity}}Repository : {{ns}}.Application.Common.Interfaces.I{{enti
         _context = context;
     }
 
+    /// SCAFFOLD:AI_IMPLEMENTATION:START:required
     public async Task<{{ns}}.Domain.Entities.{{entity}}?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await _context.{{plural entity}}.FindAsync(new object[] { id }, cancellationToken: cancellationToken);
@@ -35,4 +36,7 @@ public class {{entity}}Repository : {{ns}}.Application.Common.Interfaces.I{{enti
         _context.{{plural entity}}.Remove(entity);
         return Task.CompletedTask;
     }
+
+    // Add private helper methods (query builders, filters, transaction logic) as needed
+    /// SCAFFOLD:AI_IMPLEMENTATION:END
 }

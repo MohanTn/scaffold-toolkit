@@ -1,37 +1,11 @@
 #!/usr/bin/env node
 /**
- * PreToolUse hook: the actual hard gate. Fires before Claude's Write/Edit
- * tool call runs, so — unlike PostToolUse/Stop, which only ever nudge or
- * block *after* the damage is already on disk — this is the only hook that
- * can stop a hand-written, un-scaffolded file from ever being written in
- * the first place. Shells out to `scaffold check-edit`, the host-agnostic
- * structural gate in packages/core, and translates its allow/block verdict
- * into Claude Code's PreToolUse decision protocol.
- *
  * Only acts on `Write` and `Edit` tool calls; every other tool is a silent
  * no-op. Checks `.scaffold/config.json` existence itself, via plain
  * `existsSync`, before spawning anything — the zero-added-cost requirement
  * for a repo that isn't scaffold-managed at all (this mirrors `scaffold
  * check-edit`'s own fast path, so an unconfigured repo pays for the check
  * exactly once, not twice).
- *
- * Contract (confirmed against https://code.claude.com/docs/en/hooks,
- * fetched 2026-07-11 during this feature's implementation — this is the
- * one item the plan flagged as needing independent re-confirmation before
- * ship, and it now is):
- *   - PreToolUse blocks via `hookSpecificOutput.permissionDecision: "deny"`
- *     plus `hookSpecificOutput.permissionDecisionReason`, NOT the top-level
- *     `decision: "block"` shape Stop/UserPromptSubmit use — those are a
- *     different field family for a different set of events. Allowing is
- *     either `permissionDecision: "allow"` or simply omitting
- *     `hookSpecificOutput` entirely (the default permission flow then
- *     applies) — this script uses the latter (an empty `{}`), matching
- *     post-tool-use.mjs's existing no-op convention, so it never overrides
- *     the user's own `acceptEdits`/`ask` permission mode on the allow path,
- *     only ever intervenes to deny.
- *   - The `matcher` field in settings.json hook configs supports pipe
- *     alternation (`"Write|Edit"` in one entry, confirmed via the same
- *     fetch) — SKILL.md's one-time-setup wiring uses that single-entry form.
  *
  * A `scaffold check-edit` invocation failure (binary missing, crash,
  * unparseable stdout) is treated as a block, not an allow — this mirrors
@@ -45,6 +19,12 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import {
+  resolvePack,
+  loadManifest,
+  getStandardsForFile,
+  formatStandardsGuidance,
+} from './packManifestReader.mjs';
 
 const EDIT_TOOLS = new Set(['Write', 'Edit']);
 
@@ -67,6 +47,26 @@ export function shouldUseOldStringFile(oldString) {
 export function shouldCheckEdit(hookInput) {
   if (!hookInput) return false;
   return EDIT_TOOLS.has(hookInput.tool_name);
+}
+
+/**
+ * True when: Edit tool, oldString contains AI_IMPLEMENTATION_START marker, repo is scaffold-managed.
+ * These are the cases where we want to inject coding standards guidance.
+ */
+export function shouldInjectStandards(hookInput, cwd) {
+  if (!hookInput || hookInput.tool_name !== 'Edit') return false;
+
+  const toolInput = (hookInput && hookInput.tool_input) || {};
+  const oldString = toolInput.old_string;
+  if (typeof oldString !== 'string') return false;
+
+  // Check for AI_IMPLEMENTATION marker (both syntaxes: _START and :START)
+  if (!/AI_IMPLEMENTATION[_:]START/.test(oldString)) return false;
+
+  // Check that repo is scaffold-managed
+  if (!existsSync(path.join(cwd, '.scaffold', 'config.json'))) return false;
+
+  return true;
 }
 
 /**
@@ -94,9 +94,9 @@ export function extractEditRequest(hookInput) {
 
 /**
  * Pure decision function, unit-tested directly: given `scaffold check-edit`'s
- * real exit code and stdout, returns the JSON this hook should print.
+ * real exit code and stdout, plus optional coding standards guidance, returns the JSON this hook should print.
  */
-export function buildDecision(checkEditExitCode, checkEditStdout) {
+export function buildDecision(checkEditExitCode, checkEditStdout, standardsGuidance = null) {
   let result;
   try {
     result = JSON.parse(checkEditStdout);
@@ -112,7 +112,18 @@ export function buildDecision(checkEditExitCode, checkEditStdout) {
     };
   }
 
-  if (result.allow) return {};
+  if (result.allow) {
+    // If allowed and we have standards guidance, inject it as additionalContext
+    if (standardsGuidance) {
+      return {
+        hookSpecificOutput: {
+          hookEventName: 'PreToolUse',
+          additionalContext: standardsGuidance,
+        },
+      };
+    }
+    return {};
+  }
 
   return {
     hookSpecificOutput: {
@@ -171,7 +182,28 @@ function main() {
   }
 
   const { exitCode, stdout } = runCheckEdit(cwd, editRequest.file, editRequest.tool, editRequest.oldString);
-  process.stdout.write(JSON.stringify(buildDecision(exitCode, stdout)));
+
+  // Try to inject coding standards if this is an AI_IMPLEMENTATION block edit
+  let standardsGuidance = null;
+  if (shouldInjectStandards(hookInput, cwd)) {
+    try {
+      const packInfo = resolvePack(cwd, editRequest.file);
+      if (packInfo) {
+        const manifest = loadManifest(packInfo.packPath);
+        if (manifest) {
+          const standards = getStandardsForFile(editRequest.file, manifest);
+          if (standards) {
+            standardsGuidance = formatStandardsGuidance(standards, editRequest.file);
+          }
+        }
+      }
+    } catch (err) {
+      // Log but don't block: fail open. Standards injection is optional; enforcement (check-edit) is not.
+      // console.error('Failed to inject standards:', err);
+    }
+  }
+
+  process.stdout.write(JSON.stringify(buildDecision(exitCode, stdout, standardsGuidance)));
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
