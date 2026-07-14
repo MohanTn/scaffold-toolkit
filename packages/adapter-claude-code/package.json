@@ -1,6 +1,6 @@
 {
   "name": "@mohantn/scaffold-adapter-claude-code",
-  "version": "0.2.14",
+  "version": "0.2.15",
   "description": "Claude Code Skill plus hooks that let Claude drive @mohantn/scaffold-core for deterministic scaffolding, with hard enforcement that every AI_IMPLEMENTATION block is filled before the turn ends.",
   "license": "MIT",
   "author": "Mohan TN <mohan.tn100@gmail.com>",
