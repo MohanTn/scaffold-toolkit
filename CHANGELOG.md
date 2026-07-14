@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format is based on 
 
 ### Changed
 
+- Expanded codingStandards section from 5 generic handler rules to 20+ detailed specifications covering the full clean architecture/DDD+CQRS stack. Each file type now has prescriptive guidance on immutability, validation, dependency injection, error handling, and architectural layering.
 - README.md expanded from minimal technical description to comprehensive project documentation with badges, quick-start instructions, clear value propositions, restructured package descriptions as a table, explicit contribution guidelines, and improved release notes. Maintains all existing technical content while significantly improving user onboarding and project presentation.
 
 ### Added

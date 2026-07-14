@@ -18,93 +18,260 @@
     "testsApplicationFeatures": "Features"
   },
   "codingStandards": {
-    "CreateEntityCommandHandler.cs.hbs": {
-      "fileType": "handler",
+    "DomainEntity.cs.hbs": {
+      "fileType": "entity",
       "rules": [
-        "Decompose methods >150 LOC into private helpers (validate, load, process, persist)",
-        "Validate input before loading entities",
-        "Load all required entities before processing",
-        "Use async/await for I/O operations (Handle method is async)",
-        "Return explicit return types (not void); map to DTO for queries, Result<T> for commands",
-        "Use private methods for reusable logic; add them inside the class-level AI_IMPLEMENTATION marker"
-      ]
-    },
-    "UpdateEntityCommandHandler.cs.hbs": {
-      "fileType": "handler",
-      "rules": [
-        "Validate input before loading the entity",
-        "Load entity by ID with failure handling (throw NotFoundException if not found)",
-        "Apply updates to the existing entity instance (not create new)",
-        "Decompose complex update logic into private methods as needed",
-        "Persist via IUnitOfWork.SaveChangesAsync()",
-        "Return explicit Result<T> with success/failure semantics"
-      ]
-    },
-    "DeleteEntityCommandHandler.cs.hbs": {
-      "fileType": "handler",
-      "rules": [
-        "Load entity by ID before deletion (validate it exists)",
-        "Delete via repository method or direct removal",
-        "Persist via IUnitOfWork.SaveChangesAsync()",
-        "Return explicit Result<T> indicating success or appropriate error"
-      ]
-    },
-    "GetEntityByIdQueryHandler.cs.hbs": {
-      "fileType": "handler",
-      "rules": [
-        "Load entity by ID with eager-loaded related entities via .Include() if needed",
-        "Return NotFoundException if entity not found",
-        "Map entity to DTO before returning",
-        "Use IEnumerable or IQueryable for lazy evaluation where appropriate"
-      ]
-    },
-    "GetEntityListQueryHandler.cs.hbs": {
-      "fileType": "handler",
-      "rules": [
-        "Build query using IEnumerable or IQueryable for lazy evaluation",
-        "Apply filters/pagination as needed",
-        "Eager-load related entities via .Include() to avoid N+1 queries",
-        "Map collection to DTO list",
-        "Return paginated result (List, IEnumerable, or paged collection)"
-      ]
-    },
-    "EntityRepository.cs.hbs": {
-      "fileType": "repository",
-      "rules": [
-        "Wrap mutating operations (Add, Update, Delete) in transactions when needed, or use using statements",
-        "Use 'using' blocks for DbContext cleanup (though DbContext is scoped in DI, pattern is good practice)",
-        "Validate input parameters before querying (null checks, bounds validation)",
-        "Return IEnumerable<T> or IQueryable<T> for read queries to enable lazy evaluation",
-        "Eager-load related entities via .Include() when navigating relationships; document N+1 concerns",
-        "Use private methods for reusable query/filter logic; add them inside the class-level marker"
-      ]
-    },
-    "EntityConfiguration.cs.hbs": {
-      "fileType": "configuration",
-      "rules": [
-        "Configure all properties (HasKey, HasIndex, IsRequired, HasMaxLength)",
-        "Define foreign key relationships via HasOne/WithMany or HasMany/WithOne",
-        "Set cascade delete rules per business logic (usually Cascade for sub-entities, Restrict for references)",
-        "Add value conversions for enums or custom types as needed"
-      ]
-    },
-    "Create*CommandValidator.cs.hbs": {
-      "fileType": "validator",
-      "rules": [
-        "One validator per command/query type (Create, Update, Delete, etc.)",
-        "Use FluentValidation.AbstractValidator fluent API (RuleFor chains)",
-        "Include custom error messages that convey business context (not just 'invalid format')",
-        "Validate business invariants (e.g., 'EndDate must be after StartDate'), not just field format",
-        "Use private methods for reusable validation rules; add them inside the marker as needed"
+        "Enforce domain invariants via private setters and validation in constructor or fluent builder pattern",
+        "Encapsulate state: use private fields with public properties for controlled access",
+        "Never expose ICollection<T> directly; use IReadOnlyCollection<T> or return defensive copies",
+        "Implement business logic as domain methods (e.g., CanApplyDiscount(), MarkAsCompleted()), not just data container",
+        "Use value objects for complex properties (e.g., Address, Money, Email) instead of primitive strings",
+        "Document business rules and constraints as code comments or exception messages",
+        "Keep entity lightweight: domain logic, not persistence logic (no EF annotations in domain)"
       ]
     },
     "EntityDto.cs.hbs": {
       "fileType": "dto",
       "rules": [
-        "DTO properties match entity properties but use safer types (no navigations, IDs instead of objects)",
-        "Include all fields needed for API responses or command inputs",
-        "Use nullable types (?) for optional fields",
-        "Add data annotations for API documentation/validation if using Swagger"
+        "Use simple types: string, int, bool, DateTime, Guid (no entity references or nested DTOs)",
+        "Include ONLY fields needed for the API contract (responses) or command input",
+        "Use nullable types (?) for optional fields; document why each is optional",
+        "Make DTO immutable: all properties are { get; set; } OR use init-only setters (records preferred)",
+        "Apply data annotations for Swagger/validation: [Required], [MaxLength], [Range] for API contracts",
+        "Do NOT include IDs of related entities unless explicitly needed for filtering/linking",
+        "Map DTO ↔ Entity in Handlers or service layer, never in domain entity itself"
+      ]
+    },
+    "Create*Command.cs.hbs": {
+      "fileType": "command",
+      "rules": [
+        "Command class is a simple DTO: immutable, no logic",
+        "Include only fields required for the business operation (not UI convenience fields)",
+        "Use init-only setters (records preferred) to enforce immutability",
+        "Add XML documentation (///) on the class describing the business intent, not the data",
+        "Implement IRequest<T> where T is the DTO or Result<DTO> returned by the handler",
+        "No validation logic here; validation belongs in CommandValidator class"
+      ]
+    },
+    "Update*Command.cs.hbs": {
+      "fileType": "command",
+      "rules": [
+        "Command includes ID of entity to update plus fields being changed",
+        "Use init-only setters or records for immutability",
+        "Include only necessary fields; don't replicate the entire entity",
+        "Example: UpdateOrderCommand with OrderId, Status, EstimatedDelivery (not all 20 fields)",
+        "Implement IRequest<Result<DTO>>",
+        "Add clear XML documentation explaining the business operation"
+      ]
+    },
+    "Delete*Command.cs.hbs": {
+      "fileType": "command",
+      "rules": [
+        "Delete command is minimal: typically just the ID (and version for optimistic concurrency if needed)",
+        "Example: DeleteOrderCommand(Guid OrderId, int? Version)",
+        "No need for other entity data; repository loads it for validation",
+        "Implement IRequest<Result<Unit>> (void result) unless returning deleted entity DTO"
+      ]
+    },
+    "Get*Query.cs.hbs": {
+      "fileType": "query",
+      "rules": [
+        "Query is a filter/search request: ID, search term, pagination, sorting",
+        "Example GetOrderListQuery: PageNumber, PageSize, Status, CustomerId, SortBy",
+        "Immutable: init-only setters or records",
+        "Implement IRequest<Result<List<DTO>>> or IRequest<Result<PagedResult<DTO>>>",
+        "No business logic; QueryHandler extracts, filters, and returns data"
+      ]
+    },
+    "Create*CommandValidator.cs.hbs": {
+      "fileType": "validator",
+      "rules": [
+        "Inherit AbstractValidator<Create{{entity}}Command> from FluentValidation",
+        "Define rules in constructor using RuleFor(...).Must/NotEmpty/MaximumLength chains",
+        "Validate format: NotEmpty(), EmailAddress(), Custom() for complex rules",
+        "Validate business invariants: e.g., EndDate > StartDate, Quantity > 0, Status transitions",
+        "Use .WithMessage() with context-specific, user-friendly error messages",
+        "Keep validators focused: one validator per command/query type",
+        "Use private methods for reusable validation logic (e.g., IsValidPhoneNumber), defined inside class-level marker"
+      ]
+    },
+    "Update*CommandValidator.cs.hbs": {
+      "fileType": "validator",
+      "rules": [
+        "Validate update constraints: some fields may not be editable in certain states",
+        "Example: Cannot change OrderStatus from Shipped back to Pending",
+        "Validate required fields and field formats (email, phone, length)",
+        "Use Custom() rule for async validation if needed (e.g., checking uniqueness)",
+        "Provide clear error messages: 'Status change not allowed: order is already shipped'"
+      ]
+    },
+    "Delete*CommandValidator.cs.hbs": {
+      "fileType": "validator",
+      "rules": [
+        "Validate delete preconditions: is entity deletable in current state?",
+        "Example: Cannot delete Order if shipment already initiated",
+        "Validate version/concurrency token if using optimistic locking",
+        "Keep validation lightweight; detailed checks belong in handler"
+      ]
+    },
+    "Create*CommandHandler.cs.hbs": {
+      "fileType": "handler",
+      "rules": [
+        "Entry method: public async Task<Result<{{entity}}Dto>> Handle(Create{{entity}}Command request, CancellationToken ct)",
+        "Decompose into private methods: ValidateRequest(), LoadDependencies(), CreateEntity(), PersistChanges(), MapToDto()",
+        "Validate input (throw BusinessException for violations) → Load related entities → Create new domain entity → Persist via UnitOfWork → Map to DTO → Return",
+        "Use dependency injection (constructor): IRepository<T>, IUnitOfWork, IMapper, ILogger",
+        "Throw NotFoundException if required related entities not found",
+        "Catch DbUpdateConcurrencyException for optimistic locking; catch DbUpdateException for constraint violations",
+        "Return Result<{{entity}}Dto> (success or failure DTO, not exceptions); let middleware map to HTTP status"
+      ]
+    },
+    "Update*CommandHandler.cs.hbs": {
+      "fileType": "handler",
+      "rules": [
+        "Load existing entity by ID first; throw NotFoundException if not found",
+        "Validate state transitions (e.g., can status change from current to requested?)",
+        "Apply updates to the EXISTING entity instance via setter or Update() method, not create new",
+        "Decompose logic: LoadEntity(), ValidateStateTransition(), ApplyChanges(), PersistChanges()",
+        "Use optimistic locking (version) if concurrent edits are possible; catch concurrency exceptions gracefully",
+        "Return Result<DTO> with updated entity mapped to DTO"
+      ]
+    },
+    "Delete*CommandHandler.cs.hbs": {
+      "fileType": "handler",
+      "rules": [
+        "Load entity by ID; throw NotFoundException if not found",
+        "Validate delete preconditions (state, related entities, business rules)",
+        "Delete via repository.Remove() (or custom soft-delete logic if needed)",
+        "Persist via UnitOfWork.SaveChangesAsync()",
+        "Return Result<Unit> (void result); log deletion for audit if required"
+      ]
+    },
+    "GetEntityByIdQueryHandler.cs.hbs": {
+      "fileType": "queryhandler",
+      "rules": [
+        "Load entity by ID with eager-loaded related entities via .Include(e => e.Related)",
+        "Return NotFoundException if entity not found; do NOT return null DTO",
+        "Map entity to DTO using projection (Select(e => new Dto { ... })) or AutoMapper",
+        "Use IQueryable.FirstOrDefaultAsync() for efficiency (DB-side filtering, not in-memory)",
+        "Example: _context.Orders.Include(o => o.Items).FirstOrDefaultAsync(o => o.Id == request.Id)"
+      ]
+    },
+    "GetEntityListQueryHandler.cs.hbs": {
+      "fileType": "queryhandler",
+      "rules": [
+        "Build query: var query = _context.{{plural entity}}.AsNoTracking().Where(...)",
+        "Filter by request parameters (SearchTerm, Status, CustomerId, DateRange)",
+        "Eager-load related entities: .Include(e => e.Related) to prevent N+1 queries",
+        "Apply sorting: .OrderBy(e => e.Name).ThenBy(e => e.Id) for deterministic ordering",
+        "Apply pagination LAST: .Skip(pageSize * (pageNumber - 1)).Take(pageSize)",
+        "Map to DTOs via projection (Select()) or AutoMapper",
+        "Return PagedResult<DTO>(items, totalCount, pageNumber, pageSize)"
+      ]
+    },
+    "EntityRepository.cs.hbs": {
+      "fileType": "repository",
+      "rules": [
+        "Repository is a persistence abstraction: single responsibility is data access",
+        "Inject DbContext<T> or DbContextFactory<T>; keep DbSet<T> private",
+        "Implement IRepository<T> interface methods: AddAsync, UpdateAsync, RemoveAsync, GetByIdAsync, GetAllAsync",
+        "For mutations (Add/Update/Remove): validate input (null/bounds), use DbContext methods, NOT custom SQL",
+        "For queries: build IQueryable<T>, use .AsNoTracking() for read-only scenarios, .Include() for eager loading",
+        "Return IQueryable<T> for queries (lazy evaluation); return Task<T> for commands (eager)",
+        "Use private helper methods (GetQueryable, ApplyFilters, ApplySort) for reusable query patterns",
+        "ALWAYS prevent N+1: document query complexity, use .Include() explicitly, consider projection for large result sets",
+        "Example: public async Task<Order?> GetByIdAsync(Guid id) => await _context.Orders.Include(o => o.Items).FirstOrDefaultAsync(o => o.Id == id)"
+      ]
+    },
+    "IEntityRepository.cs.hbs": {
+      "fileType": "repositoryinterface",
+      "rules": [
+        "Repository interface defines contracts for data operations, not implementation",
+        "Methods: AddAsync(T), UpdateAsync(T), RemoveAsync(T), GetByIdAsync(Guid), GetAllAsync()",
+        "Include specialized query methods: GetByCustomerIdAsync, SearchByNameAsync, etc.",
+        "Return types: Task<T?> for single entity, Task<IEnumerable<T>> or Task<List<T>> for collections",
+        "Do NOT include DbContext or DbSet in interface; repository hides persistence details",
+        "XML documentation must explain business intent, not implementation (e.g., 'Get orders for customer excluding cancelled')"
+      ]
+    },
+    "EntityConfiguration.cs.hbs": {
+      "fileType": "configuration",
+      "rules": [
+        "Implement IEntityTypeConfiguration<T> from EF Core",
+        "Configure in Configure(EntityTypeBuilder<T> builder) method",
+        "MUST configure: .HasKey(e => e.Id) for primary key",
+        "Configure required fields: .Property(e => e.Name).IsRequired().HasMaxLength(200)",
+        "Configure indices for query performance: .HasIndex(e => e.Email).IsUnique()",
+        "Configure relationships: .HasMany(e => e.Items).WithOne(i => i.Order).HasForeignKey(i => i.OrderId)",
+        "Set cascade delete: .OnDelete(DeleteBehavior.Cascade) for sub-entities, Restrict for references",
+        "Use Value Conversions for enums: .Property(e => e.Status).HasConversion(v => v.ToString(), v => Enum.Parse<Status>(v))",
+        "NEVER put data seeding here; use separate Seeder class or migrations"
+      ]
+    },
+    "UnitOfWork.cs.hbs": {
+      "fileType": "unitofwork",
+      "rules": [
+        "UnitOfWork coordinates multiple repositories and manages transactions",
+        "Implement IUnitOfWork with property for each repository (IOrderRepository, ICustomerRepository, etc.)",
+        "Implement IAsyncDisposable; DbContext cleanup happens in Dispose()",
+        "Provide SaveChangesAsync() method that persists all changes from all repositories in one transaction",
+        "Transaction handling: SaveChangesAsync() wraps changes in DbContext.Database.BeginTransactionAsync() if needed",
+        "Example: public async Task SaveChangesAsync() => await _context.SaveChangesAsync();",
+        "Repositories share same DbContext instance; never create new contexts in repository methods"
+      ]
+    },
+    "Entity*Controller.cs.hbs": {
+      "fileType": "controller",
+      "rules": [
+        "Controller is a thin HTTP adapter: route mapping, request parsing, response formatting",
+        "Inject IMediator (MediatR) and ILogger<T>",
+        "Route pattern: [ApiController] [Route(\"api/[controller]\")] for RESTful conventions",
+        "Methods: [HttpGet(\"{id}\")] GetById, [HttpGet] GetList, [HttpPost] Create, [HttpPut(\"{id}\")] Update, [HttpDelete(\"{id}\")] Delete",
+        "Return IActionResult or ActionResult<T>: Ok(dto), CreatedAtAction, NotFound, BadRequest, UnprocessableEntity(errors)",
+        "Use async Task methods: public async Task<ActionResult<OrderDto>> GetById(Guid id)",
+        "Send command/query via mediator: var result = await _mediator.Send(new GetOrderByIdQuery(id))",
+        "Map HTTP status codes: 200 Ok (GET, PUT), 201 CreatedAtAction (POST), 204 NoContent (DELETE), 404 NotFound, 400 BadRequest, 422 UnprocessableEntity (validation)",
+        "Return Result<T> from handler; convert to appropriate HTTP status in controller catch/switch block"
+      ]
+    },
+    "ValidationBehavior.cs.hbs": {
+      "fileType": "behavior",
+      "rules": [
+        "MediatR behavior that runs validation for every command/query before handler",
+        "Check if IRequest has FluentValidation validators; run them if present",
+        "If validation fails, throw ValidationException with all errors (not just first)",
+        "Return error response with field-level details: { field: 'OrderTotal', message: 'must be > 0' }",
+        "Log validation failures for monitoring"
+      ]
+    },
+    "LoggingBehavior.cs.hbs": {
+      "fileType": "behavior",
+      "rules": [
+        "MediatR behavior that logs command/query execution for auditing and debugging",
+        "Log at Info level: command/query name, execution time, result status",
+        "Log at Error level: exceptions with full context (what request caused it)",
+        "Include correlation ID or request ID for tracing across services",
+        "Example: Log.Information(\"Command {CommandName} completed in {ElapsedMs}ms\", typeof(TRequest).Name, stopwatch.ElapsedMilliseconds)"
+      ]
+    },
+    "NotFoundException.cs.hbs": {
+      "fileType": "exception",
+      "rules": [
+        "Custom exception for domain/business entity not found (not HTTP 404, but semantic)",
+        "Inherit from ApplicationException or custom base",
+        "Include entity type and ID for debugging: NotFoundException(typeof(Order), orderId)",
+        "HTTP middleware catches and converts to 404 Not Found response",
+        "Message: 'Order with id {orderId} not found' (user-friendly, not stacktrace)"
+      ]
+    },
+    "ValidationException.cs.hbs": {
+      "fileType": "exception",
+      "rules": [
+        "Custom exception for domain validation failures (business rule violations)",
+        "Include field-level errors: Dictionary<string, string[]> Errors { get; }",
+        "Example: new ValidationException(\"EndDate must be after StartDate\", new { endDate = errors })",
+        "HTTP middleware catches and converts to 422 Unprocessable Entity response",
+        "Used by FluentValidation and custom validation logic"
       ]
     }
   },
