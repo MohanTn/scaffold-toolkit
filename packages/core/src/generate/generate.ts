@@ -12,6 +12,7 @@ import path from 'node:path';
 import { loadConfig, saveConfig } from '../config/loader.js';
 import { isPathPack } from '../config/schema.js';
 import { decodeManifestFile } from '../manifest/decode.js';
+import { adoptedPathKey } from '../bootstrapMarkers/descriptorMapper.js';
 import { loadDescriptor } from '../descriptor/load.js';
 import type { DescriptorTarget } from '../descriptor/schema.js';
 import { validateManifestInputs } from '../manifest/inputValidation.js';
@@ -147,9 +148,23 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRep
     relPath: string;
     existedBefore: boolean;
   }
+  // Brownfield redirect: a template whose path was adopted during
+  // `scaffold bootstrap-markers` (persisted in the pack slot's
+  // `adoptedPaths`) resolves to the repo's real file instead of the
+  // pack-shaped rendered path, so generate and check-edit agree on which
+  // file a descriptor entry means. Entity-specific keys win over
+  // entity-free ones; an unadopted template renders exactly as before.
+  const manifestEntity = typeof manifest.entity === 'string' ? manifest.entity : undefined;
+  const adoptedPathFor = (kind: 'target' | 'injection', template: string): string | undefined => {
+    const adopted = pack.adoptedPaths;
+    if (!adopted) return undefined;
+    const entityKey = manifestEntity !== undefined ? adopted[adoptedPathKey(kind, template, manifestEntity)] : undefined;
+    return entityKey ?? adopted[adoptedPathKey(kind, template)];
+  };
+
   const resolvedTargets: ResolvedTarget[] = [];
   for (const target of descriptor.targets) {
-    const outputRel = renderPathTemplate(target.output, context);
+    const outputRel = adoptedPathFor('target', target.output) ?? renderPathTemplate(target.output, context);
     const absPath = resolveInsideRepo(repoRoot, outputRel);
     const relPath = path.relative(repoRoot, absPath);
     const existedBefore = existsSync(absPath);
@@ -209,7 +224,7 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRep
   // --- Plan injections, grouped by target file (single-pass rebuild per file) ----
   const groupsByFile = new Map<string, PlannedInjectionGroup>();
   for (const injection of descriptor.injections) {
-    const fileRel = renderPathTemplate(injection.file, context);
+    const fileRel = adoptedPathFor('injection', injection.file) ?? renderPathTemplate(injection.file, context);
     const absPath = resolveInsideRepo(repoRoot, fileRel);
     const relPath = path.relative(repoRoot, absPath);
 

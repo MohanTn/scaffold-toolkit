@@ -13,7 +13,7 @@ public class Delete{{entity}}CommandHandler : IRequestHandler<Delete{{entity}}Co
 
     public async Task<Unit> Handle(Delete{{entity}}Command request, CancellationToken cancellationToken)
     {
-        // SCAFFOLD:AI_IMPLEMENTATION:START:required
+        // SCAFFOLD:AI_IMPLEMENTATION:START
         var entity = await _repository.GetByIdAsync(request.Id, cancellationToken);
         if (entity is null) throw new {{ns}}.Application.Common.Exceptions.NotFoundException(nameof({{ns}}.Domain.Entities.{{entity}}), request.Id);
         await _repository.RemoveAsync(entity, cancellationToken);

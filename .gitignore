@@ -4,6 +4,6 @@ dist/
 .DS_Store
 .pipeline-worker/**
 
-# .NET build residue (validate-build sample projects)
-dotnet_folder/
+# .NET build residue (validate-build sample projects live in the OS tmpdir,
+# but guard against accidental in-repo dotnet runs)
 **/obj/

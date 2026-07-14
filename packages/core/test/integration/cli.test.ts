@@ -6,7 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { syncTemplates, defaultCacheRoot } from '../../src/templates/sync.js';
@@ -123,6 +123,99 @@ test('scaffold generate then scaffold status end to end through the CLI: non-zer
   assert.equal(statusAfter.status, 0);
 });
 
+test('scaffold generate then scaffold next end to end through the CLI: non-zero with a placeholder digest, filling clears it', async () => {
+  const packRepo = buildFixturePackRepo();
+  const targetRepo = buildFixtureTargetRepo();
+  runCli(['init', '--project-type', 'dotnet', '--pack', `backend=${packRepo}@v1`], targetRepo);
+  await syncTemplates(targetRepo, defaultCacheRoot(targetRepo));
+  const manifestFile = writeManifestFile(targetRepo, 'Invoice');
+  runCli(['generate', '--manifest', manifestFile, '--json'], targetRepo);
+
+  const nextBefore = runCli(['next', '--json'], targetRepo);
+  assert.equal(nextBefore.status, 1);
+  const digestBefore = JSON.parse(nextBefore.stdout);
+  assert.equal(digestBefore.done, false);
+  assert.equal(digestBefore.blocks[0].file, 'src/Endpoints/InvoiceEndpoint.cs');
+  assert.ok('placeholder' in digestBefore.blocks[0]);
+
+  const endpointPath = path.join(targetRepo, 'src/Endpoints/InvoiceEndpoint.cs');
+  const filled = readFileSync(endpointPath, 'utf8').replace(
+    '// AI_IMPLEMENTATION_START\n\n        // AI_IMPLEMENTATION_END',
+    '// AI_IMPLEMENTATION_START\n        Console.WriteLine("handled");\n        // AI_IMPLEMENTATION_END',
+  );
+  const { writeFileSync } = await import('node:fs');
+  writeFileSync(endpointPath, filled);
+
+  const nextAfter = runCli(['next', '--json'], targetRepo);
+  assert.equal(nextAfter.status, 0);
+  const digestAfter = JSON.parse(nextAfter.stdout);
+  assert.equal(digestAfter.done, true);
+  assert.deepEqual(digestAfter.blocks, []);
+});
+
+test('scaffold pack new writes a schema-valid empty descriptor plus a validate-build.mjs stub, and refuses to overwrite an existing one', async () => {
+  const targetRepo = buildFixtureTargetRepo();
+  const packDir = path.join(targetRepo, 'my-pack');
+
+  const result = runCli(['pack', 'new', '--dir', packDir, '--pack-version', 'v1', '--stack', 'backend'], targetRepo);
+  assert.equal(result.status, 0);
+
+  const descriptor = JSON.parse(readFileSync(path.join(packDir, 'v1', 'manifest.templates.json'), 'utf8'));
+  assert.equal(descriptor.descriptorSchemaVersion, 2);
+  assert.equal(descriptor.packVersion, 'v1');
+  assert.deepEqual(descriptor.targets, []);
+  assert.deepEqual(descriptor.injections, []);
+  assert.deepEqual(descriptor.inputs, []);
+
+  const stub = readFileSync(path.join(packDir, 'tools', 'validate-build.mjs'), 'utf8');
+  assert.match(stub, /STUB/);
+  assert.match(stub, /backend/);
+
+  // No .hbs templates and no test_data fixtures — the leanest MVP skeleton.
+  const versionDirEntries = readdirSync(path.join(packDir, 'v1'));
+  assert.deepEqual(versionDirEntries, ['manifest.templates.json']);
+  assert.ok(!existsSync(path.join(packDir, 'test_data')));
+
+  const again = runCli(['pack', 'new', '--dir', packDir, '--pack-version', 'v1'], targetRepo);
+  assert.notEqual(again.status, 0);
+  assert.match(again.stderr, /already exists/);
+});
+
+test('scaffold pack new\'s empty skeleton passes scaffold validate-pack trivially, against any manifest', async () => {
+  const targetRepo = buildFixtureTargetRepo();
+  const packDir = path.join(targetRepo, 'my-pack');
+  runCli(['pack', 'new', '--dir', packDir, '--pack-version', 'v1'], targetRepo);
+
+  const { writeFileSync } = await import('node:fs');
+  const manifestPath = path.join(targetRepo, 'minimal.manifest.json');
+  writeFileSync(manifestPath, JSON.stringify({ manifestSchemaVersion: 1, targetStack: 'backend' }));
+
+  const result = runCli(['validate-pack', '--pack', packDir, '--manifest', manifestPath, '--json'], targetRepo);
+  assert.equal(result.status, 0, result.stderr);
+  const report = JSON.parse(result.stdout);
+  assert.equal(report.allValid, true);
+  assert.equal(report.results[0].targetsRendered, 0);
+  assert.equal(report.results[0].injectionsExercised, 0);
+});
+
+test('scaffold pack new\'s validate-build.mjs stub fails loudly when run, instead of silently "passing" an unimplemented build-check', () => {
+  const targetRepo = buildFixtureTargetRepo();
+  const packDir = path.join(targetRepo, 'my-pack');
+  runCli(['pack', 'new', '--dir', packDir, '--pack-version', 'v1'], targetRepo);
+
+  let status = 0;
+  let stderr = '';
+  try {
+    execFileSync('node', [path.join(packDir, 'tools', 'validate-build.mjs')], { encoding: 'utf8' });
+  } catch (error) {
+    const err = error as { status?: number; stderr?: string };
+    status = err.status ?? 1;
+    stderr = err.stderr ?? '';
+  }
+  assert.notEqual(status, 0);
+  assert.match(stderr, /stub/i);
+});
+
 test('scaffold status prints a friendly error and exits 1 instead of a raw stack trace when a tracked file is malformed', async () => {
   const packRepo = buildFixturePackRepo();
   const targetRepo = buildFixtureTargetRepo();
@@ -148,7 +241,7 @@ test('scaffold status prints a friendly error and exits 1 instead of a raw stack
 test('scaffold --help lists every command with a short summary plus a typical-flow epilogue', () => {
   const { stdout, status } = runCli(['--help'], __dirname);
   assert.equal(status, 0);
-  for (const command of ['init', 'manifest', 'templates', 'generate', 'undo', 'status', 'bootstrap-markers', 'validate-pack', 'check-edit']) {
+  for (const command of ['init', 'manifest', 'templates', 'generate', 'next', 'undo', 'status', 'bootstrap-markers', 'validate-pack', 'check-edit', 'pack']) {
     assert.match(stdout, new RegExp(`^\\s+${command}`, 'm'), `command "${command}" missing from scaffold --help`);
   }
   // Long descriptions must not leak into the command list — summaries keep it scannable.

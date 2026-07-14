@@ -81,11 +81,30 @@ export interface BootstrapMarkersWarningEntry {
   message: string;
 }
 
+/**
+ * A marker whose host file does not exist yet but is itself one of the pack's
+ * own generate targets (the injection's `file` template equals a `targets[]`
+ * `output` template): `scaffold generate` will create that file with the
+ * marker pair already in place, so there is nothing to bootstrap and nothing
+ * for a human to do. Informational only — never gates the exit code, unlike
+ * `needsManual` (which previously mis-reported exactly this case and made
+ * bootstrap-markers exit 1 forever on packs that provide their own injection
+ * files).
+ */
+export interface BootstrapMarkersPendingGenerateEntry {
+  marker: string;
+  packSlot: string;
+  /** The descriptor `targets[]` output template that will provide the file. */
+  template: string;
+  reason: string;
+}
+
 export interface BootstrapMarkersReport {
   dryRun: boolean;
   placed: BootstrapMarkersPlacedEntry[];
   alreadyPresent: BootstrapMarkersAlreadyPresentEntry[];
   needsManual: BootstrapMarkersNeedsManualEntry[];
+  pendingGenerate: BootstrapMarkersPendingGenerateEntry[];
   unsupportedPacks: BootstrapMarkersUnsupportedPackEntry[];
   warnings: BootstrapMarkersWarningEntry[];
   mapped: BootstrapMarkersMappedEntry[];

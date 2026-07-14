@@ -42,6 +42,9 @@ module.exports = {
 
     handlebars.registerHelper('eq', (a, b) => a === b);
 
+    // isNullable: true when a manifest field type is C#-nullable (ends with '?').
+    handlebars.registerHelper('isNullable', (t) => String(t == null ? '' : t).trim().endsWith('?'));
+
     handlebars.registerHelper('default', function (value, fallback) {
       return value == null || value === '' ? fallback : value;
     });
@@ -89,6 +92,10 @@ module.exports = {
     // companyProjectName (alias solutionName): `{company}.{projectName}` for folder/csproj/sln naming.
     handlebars.registerHelper('companyProjectName', function (options) {
       const root = options.data && options.data.root ? options.data.root : {};
+      // Brownfield override: a top-level companyProjectName (persisted in the
+      // pack slot by scaffold bootstrap-markers, or set in the manifest) wins,
+      // so existing single-token layouts like "ThetaDesk" are representable.
+      if (root.companyProjectName) return String(root.companyProjectName);
       const c = root.options && root.options.company;
       const p = root.options && root.options.projectName;
       const company = c ? pascalCase(c) : 'Company';
@@ -118,6 +125,7 @@ module.exports = {
       if (root.options && root.options.rootNamespace) {
         return root.options.rootNamespace;
       }
+      if (root.companyProjectName) return String(root.companyProjectName);
       const c = root.options && root.options.company;
       const p = root.options && root.options.projectName;
       const company = c ? pascalCase(c) : 'Company';

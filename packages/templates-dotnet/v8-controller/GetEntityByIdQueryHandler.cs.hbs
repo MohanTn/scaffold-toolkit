@@ -11,9 +11,9 @@ public class Get{{entity}}ByIdQueryHandler : IRequestHandler<Get{{entity}}ByIdQu
 
     public async Task<{{ns}}.Application.Features.{{plural entity}}.{{entity}}Dto?> Handle(Get{{entity}}ByIdQuery request, CancellationToken cancellationToken)
     {
-        // SCAFFOLD:AI_IMPLEMENTATION:START:required
+        // SCAFFOLD:AI_IMPLEMENTATION:START
         var entity = await _repository.GetByIdAsync(request.Id, cancellationToken);
         // SCAFFOLD:AI_IMPLEMENTATION:END
-        return entity is null ? null : new {{ns}}.Application.Features.{{plural entity}}.{{entity}}Dto({{#each fields}}{{#unless (eq (pascal name) "Id")}}entity.{{pascal name}}{{#unless @last}}, {{/unless}}{{/unless}}{{/each}});
+        return entity is null ? null : new {{ns}}.Application.Features.{{plural entity}}.{{entity}}Dto({{#each fields}}entity.{{pascal name}}{{#unless @last}}, {{/unless}}{{/each}});
     }
 }

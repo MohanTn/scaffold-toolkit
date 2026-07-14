@@ -219,7 +219,11 @@ test('bootstrap-markers refuses on an untracked file inside a git repo', () => {
   writeFileSync(path.join(repo, 'README.md'), 'placeholder so the repo has a first commit\n');
   git(repo, ['add', '-A']);
   git(repo, ['commit', '-q', '-m', 'initial']);
-  writeFileSync(path.join(repo, 'Program.cs'), readFileSync(path.join(repo, 'README.md'), 'utf8')); // untracked new file, content irrelevant to this assertion
+  // Untracked new file with a real, placeable anchor: the git gate only
+  // guards *writes*, so the file must be one bootstrap would otherwise
+  // modify for the refusal (rather than an anchor error) to be what's
+  // asserted here.
+  writeFileSync(path.join(repo, 'Program.cs'), 'var builder = WebApplication.CreateBuilder(args);\nvar app = builder.Build();\napp.Run();\n');
 
   const report = runBootstrapMarkers({ repoRoot: repo, packVersion: 'v10-minimal-api-gcp', dryRun: false });
   const di = findMarker(report.needsManual, 'DI');

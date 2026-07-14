@@ -1,6 +1,7 @@
 {
   "manifestSchemaVersion": 1,
   "targetStack": "backend-gcp",
+  "companyProjectName": "AcmeCorp",
   "options": {
     "gcp": {
       "projectId": "acme-billing-prod",

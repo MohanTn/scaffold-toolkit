@@ -13,11 +13,15 @@ public class Create{{entity}}CommandHandler : IRequestHandler<Create{{entity}}Co
 
     public async Task<{{ns}}.Application.Features.{{plural entity}}.{{entity}}Dto> Handle(Create{{entity}}Command request, CancellationToken cancellationToken)
     {
-        // SCAFFOLD:AI_IMPLEMENTATION:START:required
-        var entity = new {{ns}}.Domain.Entities.{{entity}} { Id = Guid.NewGuid() };
+        // SCAFFOLD:AI_IMPLEMENTATION:START
+        var entity = new {{ns}}.Domain.Entities.{{entity}}
+        {
+            Id = Guid.NewGuid(){{#each fields}}{{#unless (eq (pascal name) "Id")}},
+            {{pascal name}} = request.{{pascal name}}{{/unless}}{{/each}}
+        };
         await _repository.AddAsync(entity, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         // SCAFFOLD:AI_IMPLEMENTATION:END
-        return new {{ns}}.Application.Features.{{plural entity}}.{{entity}}Dto({{#each fields}}{{#unless (eq (pascal name) "Id")}}entity.{{pascal name}}{{#unless @last}}, {{/unless}}{{/unless}}{{/each}});
+        return new {{ns}}.Application.Features.{{plural entity}}.{{entity}}Dto({{#each fields}}entity.{{pascal name}}{{#unless @last}}, {{/unless}}{{/each}});
     }
 }
