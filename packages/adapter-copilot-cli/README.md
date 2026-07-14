@@ -72,6 +72,14 @@ There's also `hooks/post-tool-use.mjs` (installed by the same `install-hooks` co
 | 1 | Precheck blocked, scaffold binary unreachable, or `scaffold-core` exited non-zero |
 | 2 | Usage error (unknown subcommand, missing `--manifest`) |
 
+## Commands this shim doesn't wrap (call `scaffold` directly)
+
+`gh scaffold` wraps only `status`/`generate`/`install-hooks` — the generate-then-must-fill-blocks loop its precheck and hooks exist to protect. Three more `scaffold-core` subcommands are commonly useful in a Copilot Chat session but need no shim orchestration, so call the `scaffold` binary directly (same `PATH` prerequisite as this shim):
+
+- **`scaffold next [--json]`** — after `generate`, reshapes the same rescan `gh scaffold status` uses into a compact digest of still-open `AI_IMPLEMENTATION` work: `{ done, blocks: [{ file, startLine, endLine, required, placeholder }] }`. Use it in a later turn to re-orient on Phase-3 fill-in work without re-reading every generated file — `placeholder` is the block's exact current interior, usable the same way as `generate`'s report `content` field to locate the block in your own file editor. Exits `0` when `done`, `1` otherwise.
+- **`scaffold bootstrap-markers [--dry-run] [--json]`** — one-time-per-repo brownfield adoption, run before the first `generate` on a repo that already has hand-written code a configured pack should now own. Maps the pack's `targets[]`/`injections[]` to the repo's real files (persisted to `.scaffold/config.json`'s `adoptedPaths`, gated by `preToolUse`/`check-edit` exactly like generated files) and bootstraps empty `SCAFFOLD:<marker>:START/END` pairs where an anchor is known. Run `--dry-run` first. In the report, treat `pendingGenerate` as informational (the anchor file is itself a `generate` target and arrives with its marker pair already placed — nothing to do by hand) and `needsManual` as something to surface to the user rather than guess at (genuinely ambiguous: zero or multiple candidate files). Exits `1` while any `needsManual`/`mappingNeedsManual` entries remain.
+- **`scaffold pack new --dir <path> --pack-version <version> [--stack <label>]`** — pack-authoring, not pack-consuming. Scaffolds an empty, schema-valid `manifest.templates.json` plus a `tools/validate-build.mjs` stub for a brand-new template pack. Only relevant if the user wants support for a stack no configured pack covers yet; the author still adds real `.hbs` templates, `test_data/` fixtures, and a real build-check by hand afterward.
+
 ## What this shim does *not* do
 
 - **Build the intent manifest.** The Copilot Chat session is responsible for that, exactly as the Claude Code Skill instructs Claude. The published manifest schema and TOON/JSON wire format are the same with both adapters.

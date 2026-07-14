@@ -108,6 +108,13 @@ export function advancePackRepo(packRepo: string): void {
   git(packRepo, ['commit', '-q', '-m', 'advance']);
 }
 
+/** Adds (and commits) a conventions.md sibling file to a pack version folder — used by `scaffold next`'s conventions-preamble tests. */
+export function addConventionsMd(packRepo: string, version: string, content: string): void {
+  writeFileSync(path.join(packRepo, version, 'conventions.md'), content);
+  git(packRepo, ['add', '-A']);
+  git(packRepo, ['commit', '-q', '-m', 'add conventions.md']);
+}
+
 export function buildFixtureTargetRepo(withMarkers = true): string {
   const dir = mkdtempSync(path.join(tmpdir(), 'scaffold-target-'));
   writeFileSync(path.join(dir, 'Program.cs'), withMarkers ? PROGRAM_CS : BROWNFIELD_PROGRAM_CS);

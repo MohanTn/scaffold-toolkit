@@ -9,7 +9,7 @@ import { detectProjectType } from './config/projectTypeDetect.js';
 import { defaultCacheRoot, syncTemplates } from './templates/sync.js';
 import { listTemplateVersions } from './templates/list.js';
 import { runGenerate } from './generate/generate.js';
-import { renderReport } from './generate/report.js';
+import { renderReport, renderReportAsDoc } from './generate/report.js';
 import { undoChangeset } from './undo/undo.js';
 import { computeStatus } from './status/status.js';
 import { computeNext } from './next/next.js';
@@ -253,21 +253,25 @@ program
   .option('--dry-run', 'plan without writing anything to disk', false)
   .option('--force', 'overwrite content that would otherwise be refused for differing from a prior injection', false)
   .option('--json', 'print the report as plain JSON instead of TOON', false)
+  .option('--format <format>', 'print the report as a curated, human-readable preflight doc instead of TOON/JSON — only useful value today is "doc" (pairs naturally with --dry-run)')
   .addHelpText(
     'after',
     `
 Examples:
   $ scaffold generate --manifest invoice.manifest.json --dry-run
+  $ scaffold generate --manifest invoice.manifest.json --dry-run --format doc
   $ scaffold generate --manifest invoice.manifest.json
   $ scaffold generate --manifest invoice.manifest.toon --force --json
 
 The report lists every file created/injected plus any AI_IMPLEMENTATION blocks
-left for the agent to fill; check them with "scaffold status".`,
+left for the agent to fill; check them with "scaffold status". "--dry-run
+--format doc" renders the same data as a readable preflight before committing
+to a real run.`,
   )
-  .action(async (opts: { manifest: string; dryRun: boolean; force: boolean; json: boolean }) => {
+  .action(async (opts: { manifest: string; dryRun: boolean; force: boolean; json: boolean; format?: string }) => {
     try {
       const report = await runGenerate({ repoRoot: process.cwd(), manifestPath: opts.manifest, dryRun: opts.dryRun, force: opts.force });
-      console.log(renderReport(report, opts.json ? 'json' : 'toon'));
+      console.log(opts.format === 'doc' ? renderReportAsDoc(report) : renderReport(report, opts.json ? 'json' : 'toon'));
     } catch (error) {
       console.error('scaffold generate failed:', error instanceof Error ? error.message : error);
       process.exit(1);

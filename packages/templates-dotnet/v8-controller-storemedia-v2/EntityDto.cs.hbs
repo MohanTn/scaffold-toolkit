@@ -1,0 +1,5 @@
+namespace {{ns}}.V2.Application.DTOs;
+
+public record {{entity}}Dto(
+    long Id{{#each fields}}{{#unless (eq (pascal name) "Id")}},
+    {{type}} {{pascal name}}{{/unless}}{{/each}});

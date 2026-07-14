@@ -1,0 +1,5 @@
+namespace {{ns}}.V2.Application.Commands;
+
+public record Update{{entity}}Command(
+    long Id{{#each fields}}{{#unless (eq (pascal name) "Id")}},
+    {{type}} {{pascal name}}{{/unless}}{{/each}}) : {{ns}}.MediatR.ICommand<{{ns}}.V2.Application.DTOs.{{entity}}Dto>;

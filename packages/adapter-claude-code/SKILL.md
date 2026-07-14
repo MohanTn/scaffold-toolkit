@@ -99,6 +99,25 @@ Wiring notes (these are not arbitrary; the hooks' behaviour and the Claude Code 
 
 If you detect on a later invocation that `.claude/settings.json` no longer has these entries (the user edited it, or this is a fresh repo), re-run this merge step before doing anything else. The Stop hook is the load-bearing piece; without it, this Skill downgrades to the same prose-based non-determinism the tool exists to remove.
 
+## Adopting an existing (brownfield) repo
+
+If the target repo already has hand-written code that a configured pack should now own — the user is retrofitting `scaffold` onto a repo instead of starting from an empty one — run this once per repo, after `.scaffold/config.json` exists but before the first `generate`:
+
+```bash
+npx -y @mohantn/scaffold-core bootstrap-markers --dry-run
+```
+
+Review the plan, then drop `--dry-run` to write. This maps each configured pack's `targets[]`/`injections[]` to the repo's real files (persisted to `.scaffold/config.json`'s `adoptedPaths`, so `PreToolUse`/`check-edit` gate them exactly like generated files) and bootstraps empty `SCAFFOLD:<marker>:START/END` pairs into existing files where an anchor is known.
+
+Read the report's channels before deciding what to do next:
+
+- `placed` / `alreadyPresent` — marker pairs written this run, or already present from a previous run. No action needed.
+- `pendingGenerate` — informational, not an error: the anchor file doesn't exist yet, but it's one of the pack's own `generate` targets, so the marker pair arrives already in place the first time `scaffold generate` runs. Nothing to do by hand.
+- `needsManual` — genuinely ambiguous (zero or multiple candidate files, none uniquely matching the group's markers or anchor pattern). Surface the reason to the user and place the marker pair by hand (or have them do it) before proceeding — don't guess which file it means.
+- `unsupportedPacks` — the configured pack version has no anchor catalog entry, built-in or descriptor-declared. Nothing this command can do for that slot; proceed straight to `generate`.
+
+Exit code is `1` while any `needsManual`/`mappingNeedsManual` entries remain, `0` otherwise — the same shape as `status`.
+
 ## Per-invocation workflow
 
 ### 1. Confirm the target repo is configured
@@ -225,6 +244,14 @@ This is phase 3 — the work only you (your host LLM) can do.
 
 **This is the load-bearing constraint: never replace a block where `empty === false`.** A subsequent `generate` (e.g., the user asked to add another field to an existing entity) reports `AI_IMPLEMENTATION` entries with `empty: false` for blocks you've already filled — that's just the scanner noticing those blocks still exist; skip them. Only `empty: true` entries are yours to fill. Editing a non-empty block throws away work you already did.
 
+If you need to re-orient on open work without a fresh `generate` call — a later turn, after context got compacted, or just to double-check before ending — run:
+
+```bash
+npx -y @mohantn/scaffold-core next
+```
+
+`next` reshapes the same rescan `status` uses into a compact digest instead of a bare pass/fail: `{ done, blocks: [{ file, startLine, endLine, required, placeholder }] }` (add `--json` for plain JSON). `placeholder` is the block's exact current interior — use it as Edit's `old_string` the same way you'd use the generate report's `content` field. This saves you from re-reading every generated file to relocate open blocks. Exits `0` when `done`, `1` otherwise, matching `status`'s exit code.
+
 When all blocks marked `empty: true` are filled, run:
 
 ```bash
@@ -251,6 +278,8 @@ This is what makes the tool safe to call incrementally: each `generate` writes o
 - **React/TS packs** typically recognise: `string`, `number`, `boolean`, `Date`, `UUID`, `enum:<Name>`.
 
 If the pack is unfamiliar, run `scaffold templates list` first and read its README / templates folder — those are the authoritative references for what `type` strings the pack renders.
+
+If no pack exists yet for the stack the user wants, that's pack-authoring, not this Skill's consuming workflow: point them at `scaffold pack new --dir <path> --pack-version <version> [--stack <label>]`, which writes an empty, schema-valid `manifest.templates.json` plus a `tools/validate-build.mjs` stub — the smallest thing `scaffold validate-pack` accepts unmodified. Don't hand-author a descriptor yourself; the author still has to add real `.hbs` templates, `test_data/` fixtures, and a real build-check by hand afterward.
 
 ## Common failure modes
 

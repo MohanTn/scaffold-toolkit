@@ -8,6 +8,7 @@ import { syncTemplates, defaultCacheRoot } from '../../src/templates/sync.js';
 import { runGenerate } from '../../src/generate/generate.js';
 import { buildFixturePackRepo, buildFixtureTargetRepo, fixtureDescriptor, writeInitialConfig, writeManifestFile, PROGRAM_CS } from './testHarness.js';
 import { saveConfig } from '../../src/config/loader.js';
+import { listHistoryEntries } from '../../src/history/history.js';
 
 test('scaffold generate: full end-to-end run creates a file, injects two independent markers, and reports an unfilled AI_IMPLEMENTATION block', async () => {
   const packRepo = buildFixturePackRepo();
@@ -50,6 +51,35 @@ test('scaffold generate: full end-to-end run creates a file, injects two indepen
   assert.ok(report.changesetId);
   assert.ok(existsSync(path.join(targetRepo, '.scaffold', 'changes', `${report.changesetId}.json`)));
   assert.ok(existsSync(path.join(targetRepo, '.scaffold', 'pending', `${report.changesetId}.json`)));
+
+  // A successful real run also appends a .scaffold/history/ entry, independent of changeManifest's own schema.
+  const history = listHistoryEntries(targetRepo);
+  assert.equal(history.length, 1);
+  assert.equal(history[0].changesetId, report.changesetId);
+  assert.equal(history[0].packSlot, 'backend');
+  assert.equal(history[0].packVersion, 'v1');
+  assert.equal(history[0].entity, 'Invoice');
+  assert.deepEqual(history[0].options, { route: '/api/invoices' });
+  assert.ok(history[0].timestamp);
+});
+
+test('scaffold generate: dry-run and a validation failure both leave .scaffold/history/ untouched — only a completed real run is indexed', async () => {
+  const packRepo = buildFixturePackRepo();
+  const targetRepo = buildFixtureTargetRepo();
+  writeInitialConfig(targetRepo, packRepo);
+  await syncTemplates(targetRepo, defaultCacheRoot(targetRepo));
+  const manifestFile = writeManifestFile(targetRepo, 'Invoice');
+
+  await runGenerate({ repoRoot: targetRepo, manifestPath: manifestFile, dryRun: true, force: false });
+  assert.deepEqual(listHistoryEntries(targetRepo), []);
+
+  const badManifestFile = path.join(targetRepo, 'bad.manifest.json');
+  writeFileSync(badManifestFile, JSON.stringify({ manifestSchemaVersion: 1, targetStack: 'no-such-pack' }));
+  await assert.rejects(() => runGenerate({ repoRoot: targetRepo, manifestPath: badManifestFile, dryRun: false, force: false }));
+  assert.deepEqual(listHistoryEntries(targetRepo), []);
+
+  await runGenerate({ repoRoot: targetRepo, manifestPath: manifestFile, dryRun: false, force: false });
+  assert.equal(listHistoryEntries(targetRepo).length, 1);
 });
 
 test('scaffold generate: dry-run does not touch disk but produces the same report as a real run', async () => {

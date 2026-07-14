@@ -25,6 +25,16 @@ export interface PendingBlock {
 
 export interface PendingRecord {
   changesetId: string;
+  /**
+   * The pack slot (matching a key in .scaffold/config.json's `packs`) and
+   * pack version this record's blocks were generated against — lets
+   * `scaffold next` resolve that pack version's optional conventions.md
+   * without re-deriving it from the changeset. Optional so a record written
+   * before this field existed still parses; older records simply carry no
+   * conventions preamble.
+   */
+  packSlot?: string;
+  packVersion?: string;
   blocks: PendingBlock[];
 }
 
@@ -33,11 +43,11 @@ function pendingDir(repoRoot: string): string {
 }
 
 /** No file is written when `blocks` is empty — nothing to track. */
-export function writePending(repoRoot: string, changesetId: string, blocks: PendingBlock[]): void {
+export function writePending(repoRoot: string, changesetId: string, packSlot: string, packVersion: string, blocks: PendingBlock[]): void {
   if (blocks.length === 0) return;
   const dir = pendingDir(repoRoot);
   mkdirSync(dir, { recursive: true });
-  const record: PendingRecord = { changesetId, blocks };
+  const record: PendingRecord = { changesetId, packSlot, packVersion, blocks };
   writeFileSync(path.join(dir, `${changesetId}.json`), `${JSON.stringify(record, null, 2)}\n`, 'utf8');
 }
 

@@ -123,6 +123,21 @@ test('scaffold generate then scaffold status end to end through the CLI: non-zer
   assert.equal(statusAfter.status, 0);
 });
 
+test('scaffold generate --dry-run --format doc renders a human-readable preflight and writes nothing to disk', async () => {
+  const packRepo = buildFixturePackRepo();
+  const targetRepo = buildFixtureTargetRepo();
+  runCli(['init', '--project-type', 'dotnet', '--pack', `backend=${packRepo}@v1`], targetRepo);
+  await syncTemplates(targetRepo, defaultCacheRoot(targetRepo));
+  const manifestFile = writeManifestFile(targetRepo, 'Invoice');
+
+  const result = runCli(['generate', '--manifest', manifestFile, '--dry-run', '--format', 'doc'], targetRepo);
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /scaffold generate — preflight \(dry-run, nothing written\)/);
+  assert.match(result.stdout, /Entity: Invoice/);
+  assert.match(result.stdout, /src\/Endpoints\/InvoiceEndpoint\.cs \(mode: skip-if-exists\)/);
+  assert.equal(existsSync(path.join(targetRepo, 'src/Endpoints/InvoiceEndpoint.cs')), false, '--dry-run must still write nothing to disk under --format doc');
+});
+
 test('scaffold generate then scaffold next end to end through the CLI: non-zero with a placeholder digest, filling clears it', async () => {
   const packRepo = buildFixturePackRepo();
   const targetRepo = buildFixtureTargetRepo();

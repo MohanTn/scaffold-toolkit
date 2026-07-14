@@ -21,6 +21,9 @@ export interface UnresolvedBlockDetail {
   /** The block's current interior content — the still-unfilled placeholder body. */
   content: string;
   required: boolean;
+  /** The pack slot/version this block's record was generated against (see PendingRecord); absent for a record written before these fields existed. */
+  packSlot?: string;
+  packVersion?: string;
 }
 
 export function scanUnresolvedBlocks(repoRoot: string): UnresolvedBlockDetail[] {
@@ -50,6 +53,8 @@ export function scanUnresolvedBlocks(repoRoot: string): UnresolvedBlockDetail[] 
           endLine: block.endLine + 1,
           content: match?.content ?? block.placeholderContent,
           required: match?.required ?? false,
+          packSlot: record.packSlot,
+          packVersion: record.packVersion,
         });
         anyUnresolvedInRecord = true;
       }

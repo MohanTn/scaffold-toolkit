@@ -28,6 +28,7 @@ import { scanAiImplementationBlocks } from './markerScan.js';
 import { writeChangeManifest, nextChangesetId, sha256Hex } from './changeManifest.js';
 import type { ChangeEntry } from './changeManifest.js';
 import { writePending } from './pendingTracker.js';
+import { appendHistoryEntry } from '../history/history.js';
 import type { GenerateReport, ReportAiImplementationEntry, ReportCreatedEntry, ReportInjectedEntry } from './report.js';
 import { checkCreationGate } from './creationGate.js';
 import type { CreationGateTarget } from './creationGate.js';
@@ -311,7 +312,8 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRep
   const created: ReportCreatedEntry[] = plannedCreates.map((c) => ({ file: c.relPath, mode: c.mode, skipped: c.skip }));
   const injected: ReportInjectedEntry[] = injectedFiles.flatMap((f) => f.outcomes);
 
-  const report: GenerateReport = { dryRun, created, injected, aiImplementation };
+  const report: GenerateReport = { dryRun, created, injected, aiImplementation, options: manifest.options ?? {} };
+  if (manifestEntity !== undefined) report.entity = manifestEntity;
 
   if (dryRun) return report;
 
@@ -348,6 +350,8 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRep
     writePending(
       repoRoot,
       changesetId,
+      manifest.targetStack,
+      pack.version,
       // Track a block when it ships empty (an unfilled stub) or when the pack
       // explicitly marked it `required` (a business-logic seam the host agent
       // must complete even though the shipped placeholder already compiles).
@@ -355,6 +359,13 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRep
         .filter((b) => b.empty || b.required)
         .map((b) => ({ file: b.file, blockIndex: b.blockIndex, startLine: b.startLine, endLine: b.endLine, placeholderContent: b.content })),
     );
+    appendHistoryEntry(repoRoot, {
+      changesetId,
+      packSlot: manifest.targetStack,
+      packVersion: pack.version,
+      entity: manifestEntity,
+      options: manifest.options ?? {},
+    });
     report.changesetId = changesetId;
   }
 

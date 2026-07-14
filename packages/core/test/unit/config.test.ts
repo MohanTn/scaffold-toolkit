@@ -54,3 +54,28 @@ test('saveConfig then loadConfig round-trips a path-based pack entry', () => {
   saveConfig(dir, config);
   assert.deepEqual(loadConfig(dir), config);
 });
+
+test('saveConfig then loadConfig round-trips a manually-declared capabilityFlags map, keyed like adoptedPaths', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'scaffold-config-'));
+  const config = {
+    projectType: 'dotnet',
+    packs: {
+      backend: {
+        path: 'packages/templates-dotnet',
+        version: 'v8-controller',
+        capabilityFlags: { 'target:src/Controllers/{{entity}}Controller.cs::Order': 'CRUD' as const },
+      },
+    },
+  };
+  saveConfig(dir, config);
+  assert.deepEqual(loadConfig(dir), config);
+});
+
+test('loadConfig rejects a capabilityFlags value outside READ-ONLY/WRITE-ONLY/CRUD', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'scaffold-config-'));
+  writeRawConfig(dir, {
+    projectType: 'dotnet',
+    packs: { backend: { path: 'packages/templates-dotnet', version: 'v1', capabilityFlags: { 'target:Foo.cs': 'DELETE-ONLY' } } },
+  });
+  assert.throws(() => loadConfig(dir), ConfigValidationError);
+});

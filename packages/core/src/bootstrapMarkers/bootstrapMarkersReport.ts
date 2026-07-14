@@ -1,6 +1,7 @@
 /** Builds the TOON/JSON report `scaffold bootstrap-markers` prints, mirroring generate/report.ts's format switch. */
 
 import { encodeToon } from '../toon/codec.js';
+import type { CapabilityFlag } from '../config/schema.js';
 
 export interface BootstrapMarkersPlacedEntry {
   marker: string;
@@ -36,6 +37,8 @@ export interface BootstrapMarkersMappedEntry {
   entity?: string;
   file: string;
   packSlot: string;
+  /** Manually-declared capability flag for this target/injection (config.json's `capabilityFlags`, keyed identically to `adoptedPaths`) — never inferred, and only ever attached to an entry that was already confidently mapped. */
+  capability?: CapabilityFlag;
 }
 
 /**

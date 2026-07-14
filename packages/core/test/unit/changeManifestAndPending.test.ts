@@ -48,14 +48,16 @@ test('deleteChangeManifest removes the file; loadChangeManifest then throws', ()
 test('writePending is a no-op for zero blocks, then listPendingRecords/removePendingRecord round-trip a real one', () => {
   const repoRoot = tmpRepo();
   const id = nextChangesetId();
-  writePending(repoRoot, id, []);
+  writePending(repoRoot, id, 'backend', 'v1', []);
   assert.deepEqual(listPendingRecords(repoRoot), []);
 
   const blocks = [{ file: 'src/Endpoints/InvoiceEndpoint.cs', blockIndex: 0, startLine: 4, endLine: 6, placeholderContent: '// TODO' }];
-  writePending(repoRoot, id, blocks);
+  writePending(repoRoot, id, 'backend', 'v1', blocks);
   const records = listPendingRecords(repoRoot);
   assert.equal(records.length, 1);
   assert.equal(records[0].changesetId, id);
+  assert.equal(records[0].packSlot, 'backend');
+  assert.equal(records[0].packVersion, 'v1');
   assert.deepEqual(records[0].blocks, blocks);
 
   removePendingRecord(repoRoot, id);

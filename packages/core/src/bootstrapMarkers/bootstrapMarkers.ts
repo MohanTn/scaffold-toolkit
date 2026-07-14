@@ -217,7 +217,13 @@ export function runBootstrapMarkers(options: RunBootstrapMarkersOptions): Bootst
       const context = { companyProjectName: persistTarget?.companyProjectName, pathConfig: persistTarget?.pathConfig };
       const { mapped, needsManual: mappingNeedsManual } = mapDescriptorToRepo(repoRoot, slotDescriptor.full, context, insideGitWorkTree);
       for (const entry of mapped) {
-        report.mapped.push({ ...entry, packSlot: slotName });
+        // Capability flags are read-only annotation here — set by hand in
+        // config.json, never inferred from this scan — and only ever
+        // attached to an entry the mapping above already resolved
+        // confidently; they never influence whether an entry lands in
+        // `mapped` vs. `mappingNeedsManual` in the first place.
+        const capability = persistTarget?.capabilityFlags?.[adoptedPathKey(entry.kind, entry.template, entry.entity)];
+        report.mapped.push({ ...entry, packSlot: slotName, ...(capability !== undefined ? { capability } : {}) });
         if (persistTarget) {
           persistTarget.adoptedPaths = { ...persistTarget.adoptedPaths, [adoptedPathKey(entry.kind, entry.template, entry.entity)]: entry.file };
           configDirty = true;

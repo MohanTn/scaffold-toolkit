@@ -22,6 +22,7 @@
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "validate:templates-dotnet": "node packages/templates-dotnet/tools/validate-build.mjs",
+    "validate:templates-dotnet-storemedia-v2": "node packages/templates-dotnet/v8-controller-storemedia-v2/tools/validate-build.mjs",
     "check:guardrails:templates-dotnet": "node packages/templates-dotnet/tools/check-guardrails.mjs",
     "validate:templates-node": "node packages/templates-node/tools/validate-build.mjs",
     "check:guardrails:templates-node": "node packages/templates-node/tools/check-guardrails.mjs"

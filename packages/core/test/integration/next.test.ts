@@ -5,7 +5,7 @@ import path from 'node:path';
 import { syncTemplates, defaultCacheRoot } from '../../src/templates/sync.js';
 import { runGenerate } from '../../src/generate/generate.js';
 import { computeNext } from '../../src/next/next.js';
-import { buildFixturePackRepo, buildFixtureTargetRepo, buildRequiredBlockFixturePackRepo, writeInitialConfig, writeManifestFile } from './testHarness.js';
+import { addConventionsMd, buildFixturePackRepo, buildFixtureTargetRepo, buildRequiredBlockFixturePackRepo, writeInitialConfig, writeManifestFile } from './testHarness.js';
 
 test('scaffold next: reports the open block\'s file, line range, and placeholder body; filling it clears the digest', async () => {
   const packRepo = buildFixturePackRepo();
@@ -64,4 +64,32 @@ test('scaffold next: with nothing pending (no generate run yet), reports done wi
   const result = computeNext(targetRepo);
   assert.equal(result.done, true);
   assert.deepEqual(result.blocks, []);
+});
+
+test('scaffold next: attaches the pack version\'s conventions.md once as a preamble when every open block traces to it', async () => {
+  const packRepo = buildFixturePackRepo();
+  addConventionsMd(packRepo, 'v1', '# House rules\n\nAlways use paginated repository methods, never raw DbSet queries.\n');
+  const targetRepo = buildFixtureTargetRepo();
+  writeInitialConfig(targetRepo, packRepo);
+  await syncTemplates(targetRepo, defaultCacheRoot(targetRepo));
+  const manifestFile = writeManifestFile(targetRepo, 'Invoice');
+
+  await runGenerate({ repoRoot: targetRepo, manifestPath: manifestFile, dryRun: false, force: false });
+
+  const result = computeNext(targetRepo);
+  assert.equal(result.conventions, '# House rules\n\nAlways use paginated repository methods, never raw DbSet queries.\n');
+  assert.equal(result.blocks.length, 1, 'conventions is a single top-level preamble, not duplicated per block');
+});
+
+test('scaffold next: omits `conventions` entirely when the pack version ships no conventions.md', async () => {
+  const packRepo = buildFixturePackRepo();
+  const targetRepo = buildFixtureTargetRepo();
+  writeInitialConfig(targetRepo, packRepo);
+  await syncTemplates(targetRepo, defaultCacheRoot(targetRepo));
+  const manifestFile = writeManifestFile(targetRepo, 'Invoice');
+
+  await runGenerate({ repoRoot: targetRepo, manifestPath: manifestFile, dryRun: false, force: false });
+
+  const result = computeNext(targetRepo);
+  assert.equal(result.conventions, undefined, 'a pack version with no conventions.md must not surface a preamble from an unrelated pack');
 });

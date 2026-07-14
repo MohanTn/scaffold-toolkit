@@ -40,6 +40,7 @@ jobs:
       - run: npm run build --workspace=packages/core
       - run: node packages/templates-dotnet/tools/check-guardrails.mjs
       - run: node packages/templates-dotnet/tools/validate-build.mjs
+      - run: node packages/templates-dotnet/v8-controller-storemedia-v2/tools/validate-build.mjs
 
   templates-node-build-check:
     runs-on: ubuntu-latest

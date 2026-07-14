@@ -355,6 +355,50 @@ test('bootstrap-markers (E1): a target file whose path already matches the descr
   assert.equal(editResult.reason, 'edit-blocked-outside-interior');
 });
 
+test('bootstrap-markers: a manually-declared capabilityFlags entry is surfaced on its already-mapped target, read verbatim from config.json, never inferred', () => {
+  const repo = buildFixtureTargetRepo(false); // brownfield Program.cs, no markers
+  mkdirSync(path.join(repo, 'src', 'Controllers'), { recursive: true });
+  writeFileSync(path.join(repo, 'src', 'Controllers', 'OrderController.cs'), 'namespace Fixture;\n\npublic class OrderController\n{\n}\n');
+
+  const packDir = pathBasedAdoptionPackDir();
+  const targetKey = 'target:src/{{pathConfig.dir}}/{{entity}}Controller.cs::Order';
+  saveConfig(repo, {
+    projectType: 'dotnet',
+    packs: { backend: { path: packDir, version: 'v1', capabilityFlags: { [targetKey]: 'CRUD' } } },
+  });
+
+  const report = runBootstrapMarkers({ repoRoot: repo, dryRun: false });
+
+  const orderMapped = report.mapped.find((m) => m.kind === 'target' && m.entity === 'Order');
+  assert.ok(orderMapped);
+  assert.equal(orderMapped!.capability, 'CRUD');
+
+  // Entries with no configured flag stay untouched — no inference, no default.
+  const injectionMapped = report.mapped.find((m) => m.kind === 'injection');
+  assert.equal(injectionMapped!.capability, undefined);
+});
+
+test('bootstrap-markers: a capabilityFlags entry for a target that lands in mappingNeedsManual never promotes it into mapped', () => {
+  const repo = buildFixtureTargetRepo(false);
+  mkdirSync(path.join(repo, 'src', 'Controllers'), { recursive: true });
+  mkdirSync(path.join(repo, 'src', 'Legacy'), { recursive: true });
+  writeFileSync(path.join(repo, 'src', 'Controllers', 'CustomerController.cs'), 'x');
+  writeFileSync(path.join(repo, 'src', 'Legacy', 'CustomerController.cs'), 'x'); // duplicate — ambiguous, forces mappingNeedsManual
+
+  const packDir = pathBasedAdoptionPackDir();
+  const targetKey = 'target:src/{{pathConfig.dir}}/{{entity}}Controller.cs::Customer';
+  saveConfig(repo, {
+    projectType: 'dotnet',
+    packs: { backend: { path: packDir, version: 'v1', capabilityFlags: { [targetKey]: 'CRUD' } } },
+  });
+
+  const report = runBootstrapMarkers({ repoRoot: repo, dryRun: false });
+
+  assert.equal(report.mapped.find((m) => m.kind === 'target' && m.entity === 'Customer'), undefined, 'an ambiguous target must not be silently promoted into mapped just because a capability flag is configured for it');
+  const customerNeedsManual = report.mappingNeedsManual.find((m) => m.kind === 'target' && m.entity === 'Customer');
+  assert.ok(customerNeedsManual, 'it must still land in mappingNeedsManual, unaffected by the configured flag');
+});
+
 test('bootstrap-markers (E3): an entity matched by two files is left unmapped under mappingNeedsManual, while an unambiguous entity in the same run still maps', () => {
   const repo = buildFixtureTargetRepo(false);
   mkdirSync(path.join(repo, 'src', 'Controllers'), { recursive: true });

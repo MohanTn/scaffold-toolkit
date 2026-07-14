@@ -1,0 +1,11 @@
+namespace {{ns}}.V2.Domain.Entities;
+
+public class {{entity}}
+{
+    public long Id { get; set; }
+{{#each fields}}{{#unless (eq (pascal name) "Id")}}    public {{type}} {{pascal name}} { get; set; } = default!;
+{{/unless}}{{/each}}
+    // SCAFFOLD:AI_IMPLEMENTATION:START
+    // Add domain behaviour and invariants for {{entity}} here.
+    // SCAFFOLD:AI_IMPLEMENTATION:END
+}

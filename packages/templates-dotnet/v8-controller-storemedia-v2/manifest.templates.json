@@ -1,0 +1,185 @@
+{
+  "descriptorSchemaVersion": 2,
+  "packVersion": "v8-controller-storemedia-v2",
+  "requires": {
+    "scaffoldCli": ">=0.2.0 <1.0.0"
+  },
+  "_comment": "Brownfield-region pack for the store-media-api monolith's V2 clean-architecture CQRS area (src/StoreMediaApi/V2). Unlike v8-controller (a greenfield 4-project solution), every target lands INSIDE the existing single project via pathConfig, and the two host files it injects into (StoreMediaDbContext, V2 DI registration) are adopted through `scaffold bootstrap-markers`. Marker names are _V2-suffixed so they never collide with v8-controller's DI/DBSETS/REPOSITORIES.",
+  "pathConfig": {
+    "_comment": "Documentation only — the engine reads pathConfig from the manifest or the persisted pack slot, NOT from here. These are the intended store-media-api defaults; persist them in .scaffold/config.json's pack slot (or repeat in each manifest).",
+    "projectRoot": "src/StoreMediaApi",
+    "v2Entities": "V2/Domain/Entities",
+    "v2Dtos": "V2/Application/DTOs",
+    "v2Commands": "V2/Application/Commands",
+    "v2Queries": "V2/Application/Queries",
+    "v2Handlers": "V2/Application/Handlers",
+    "v2Validators": "V2/Application/Validators",
+    "v2Repositories": "V2/Infrastructure/Repositories",
+    "v2Configurations": "V2/Infrastructure/Configurations",
+    "v2Controllers": "V2/Controllers",
+    "dbContextFile": "Data/StoreMediaDbContext.cs",
+    "v2Registration": "V2/V2ServiceRegistration.cs",
+    "testProject": "tests/StoreMediaApi.UnitTests",
+    "v2TestHandlers": "V2/Application/Handlers"
+  },
+  "inputs": [
+    { "name": "entity", "type": "string", "required": true, "pattern": "^[A-Z][A-Za-z0-9]*$" },
+    { "name": "fields", "type": "array", "required": true, "minItems": 1 }
+  ],
+  "targets": [
+    {
+      "_comment": "Per-entity: V2 domain entity (long Id + fields)",
+      "output": "{{pathConfig.projectRoot}}/{{pathConfig.v2Entities}}/{{entity}}.cs",
+      "template": "Entity.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: response DTO",
+      "output": "{{pathConfig.projectRoot}}/{{pathConfig.v2Dtos}}/{{entity}}Dto.cs",
+      "template": "EntityDto.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: repository interface",
+      "output": "{{pathConfig.projectRoot}}/{{pathConfig.v2Repositories}}/I{{entity}}Repository.cs",
+      "template": "IEntityRepository.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: repository implementation over StoreMediaDbContext",
+      "output": "{{pathConfig.projectRoot}}/{{pathConfig.v2Repositories}}/{{entity}}Repository.cs",
+      "template": "EntityRepository.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: EF Core configuration",
+      "output": "{{pathConfig.projectRoot}}/{{pathConfig.v2Configurations}}/{{entity}}Configuration.cs",
+      "template": "EntityConfiguration.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: Create command",
+      "output": "{{pathConfig.projectRoot}}/{{pathConfig.v2Commands}}/Create{{entity}}Command.cs",
+      "template": "CreateEntityCommand.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: Create command handler",
+      "output": "{{pathConfig.projectRoot}}/{{pathConfig.v2Handlers}}/Create{{entity}}Handler.cs",
+      "template": "CreateEntityHandler.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: Create command validator",
+      "output": "{{pathConfig.projectRoot}}/{{pathConfig.v2Validators}}/Create{{entity}}Validator.cs",
+      "template": "CreateEntityValidator.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: Update command",
+      "output": "{{pathConfig.projectRoot}}/{{pathConfig.v2Commands}}/Update{{entity}}Command.cs",
+      "template": "UpdateEntityCommand.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: Update command handler",
+      "output": "{{pathConfig.projectRoot}}/{{pathConfig.v2Handlers}}/Update{{entity}}Handler.cs",
+      "template": "UpdateEntityHandler.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: Update command validator",
+      "output": "{{pathConfig.projectRoot}}/{{pathConfig.v2Validators}}/Update{{entity}}Validator.cs",
+      "template": "UpdateEntityValidator.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: Delete command",
+      "output": "{{pathConfig.projectRoot}}/{{pathConfig.v2Commands}}/Delete{{entity}}Command.cs",
+      "template": "DeleteEntityCommand.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: Delete command handler",
+      "output": "{{pathConfig.projectRoot}}/{{pathConfig.v2Handlers}}/Delete{{entity}}Handler.cs",
+      "template": "DeleteEntityHandler.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: Get-by-id query",
+      "output": "{{pathConfig.projectRoot}}/{{pathConfig.v2Queries}}/Get{{entity}}ByIdQuery.cs",
+      "template": "GetEntityByIdQuery.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: Get-by-id query handler",
+      "output": "{{pathConfig.projectRoot}}/{{pathConfig.v2Handlers}}/Get{{entity}}ByIdHandler.cs",
+      "template": "GetEntityByIdHandler.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: Get-list query",
+      "output": "{{pathConfig.projectRoot}}/{{pathConfig.v2Queries}}/Get{{entity}}ListQuery.cs",
+      "template": "GetEntityListQuery.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: Get-list query handler",
+      "output": "{{pathConfig.projectRoot}}/{{pathConfig.v2Handlers}}/Get{{entity}}ListHandler.cs",
+      "template": "GetEntityListHandler.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: V2 controller driven by the custom Broker",
+      "output": "{{pathConfig.projectRoot}}/{{pathConfig.v2Controllers}}/{{entity}}Controller.cs",
+      "template": "EntityController.cs.hbs",
+      "mode": "create"
+    },
+    {
+      "_comment": "Per-entity: Create handler unit test",
+      "output": "{{pathConfig.testProject}}/{{pathConfig.v2TestHandlers}}/Create{{entity}}HandlerTests.cs",
+      "template": "CreateEntityHandlerTests.cs.hbs",
+      "mode": "create"
+    }
+  ],
+  "injections": [
+    {
+      "_comment": "DbSet registration appended into StoreMediaDbContext",
+      "file": "{{pathConfig.projectRoot}}/{{pathConfig.dbContextFile}}",
+      "marker": "V2_DBSETS",
+      "template": "dbset-registration.hbs",
+      "position": "before-end",
+      "strategy": "append",
+      "hashTrailerPrefix": "// scaffold-hash:"
+    },
+    {
+      "_comment": "Repository DI registration appended into the V2 service-registration extension",
+      "file": "{{pathConfig.projectRoot}}/{{pathConfig.v2Registration}}",
+      "marker": "V2_REPOSITORIES",
+      "template": "di-repository-registration.hbs",
+      "position": "before-end",
+      "strategy": "append",
+      "hashTrailerPrefix": "// scaffold-hash:"
+    }
+  ],
+  "bootstrapAnchors": [
+    {
+      "_comment": "DbSets accumulate inside the StoreMediaDbContext class body",
+      "candidateFilenames": ["StoreMediaDbContext.cs", "ApplicationDbContext.cs"],
+      "anchor": {
+        "kind": "after-class-brace",
+        "declarationPattern": "\\bclass\\s+(StoreMediaDbContext|ApplicationDbContext)\\b"
+      },
+      "markers": ["V2_DBSETS"]
+    },
+    {
+      "_comment": "Repository registrations belong inside the V2 AddV2Services extension method",
+      "candidateFilenames": ["V2ServiceRegistration.cs", "ServiceCollectionExtensions.cs"],
+      "anchor": {
+        "kind": "after-class-brace",
+        "declarationPattern": "\\bAddV2Services\\s*\\(\\s*this\\s+IServiceCollection"
+      },
+      "markers": ["V2_REPOSITORIES"]
+    }
+  ]
+}

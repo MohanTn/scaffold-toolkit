@@ -1,0 +1,38 @@
+namespace {{ns}}.V2.Infrastructure.Repositories;
+
+public class {{entity}}Repository : I{{entity}}Repository
+{
+    private readonly {{ns}}.Data.StoreMediaDbContext _context;
+
+    public {{entity}}Repository({{ns}}.Data.StoreMediaDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<{{ns}}.V2.Domain.Entities.{{entity}}?> GetByIdAsync(long id, CancellationToken cancellationToken = default)
+    {
+        return await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+            _context.Set<{{ns}}.V2.Domain.Entities.{{entity}}>(), e => e.Id == id, cancellationToken);
+    }
+
+    public async Task<List<{{ns}}.V2.Domain.Entities.{{entity}}>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        return await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(
+            _context.Set<{{ns}}.V2.Domain.Entities.{{entity}}>(), cancellationToken);
+    }
+
+    public async Task AddAsync({{ns}}.V2.Domain.Entities.{{entity}} entity, CancellationToken cancellationToken = default)
+    {
+        await _context.Set<{{ns}}.V2.Domain.Entities.{{entity}}>().AddAsync(entity, cancellationToken);
+    }
+
+    public void Update({{ns}}.V2.Domain.Entities.{{entity}} entity)
+    {
+        _context.Set<{{ns}}.V2.Domain.Entities.{{entity}}>().Update(entity);
+    }
+
+    public void Remove({{ns}}.V2.Domain.Entities.{{entity}} entity)
+    {
+        _context.Set<{{ns}}.V2.Domain.Entities.{{entity}}>().Remove(entity);
+    }
+}

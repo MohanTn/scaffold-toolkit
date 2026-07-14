@@ -31,12 +31,23 @@
  * real repo-relative path bootstrap-markers
  * confidently matched it to — consulted by `checkEdit/collectPackOwnership.ts`
  * so an adopted file is gated identically to a scaffold-generated one.
+ *
+ * `capabilityFlags` is a manually-declared, per-target/injection READ-ONLY /
+ * WRITE-ONLY / CRUD tag, keyed identically to `adoptedPaths`. It is never
+ * inferred by a repo scan — the user or pack author sets it by hand — and
+ * `bootstrap-markers` only ever reads it to annotate an entry it already
+ * placed in `mapped`; it never affects the needsManual/mapped bucketing
+ * decision itself (see `bootstrapMarkers.ts`).
  */
+
+export const CAPABILITY_FLAGS = ['READ-ONLY', 'WRITE-ONLY', 'CRUD'] as const;
+export type CapabilityFlag = (typeof CAPABILITY_FLAGS)[number];
 
 interface PackConfigCommon {
   pathConfig?: Record<string, string>;
   companyProjectName?: string;
   adoptedPaths?: Record<string, string>;
+  capabilityFlags?: Record<string, CapabilityFlag>;
 }
 
 export type PackConfig =
@@ -70,6 +81,11 @@ const stringRecordSchema = {
   additionalProperties: { type: 'string' },
 } as const;
 
+const capabilityFlagsSchema = {
+  type: 'object',
+  additionalProperties: { enum: ['READ-ONLY', 'WRITE-ONLY', 'CRUD'] },
+} as const;
+
 const packConfigSchema = {
   type: 'object',
   additionalProperties: false,
@@ -82,6 +98,7 @@ const packConfigSchema = {
     pathConfig: stringRecordSchema,
     companyProjectName: { type: 'string', minLength: 1 },
     adoptedPaths: stringRecordSchema,
+    capabilityFlags: capabilityFlagsSchema,
   },
 } as const;
 

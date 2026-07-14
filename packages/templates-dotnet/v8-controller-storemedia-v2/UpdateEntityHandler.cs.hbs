@@ -1,0 +1,28 @@
+namespace {{ns}}.V2.Application.Handlers;
+
+public class Update{{entity}}Handler
+    : {{ns}}.MediatR.ICommandHandler<{{ns}}.V2.Application.Commands.Update{{entity}}Command, {{ns}}.V2.Application.DTOs.{{entity}}Dto>
+{
+    private readonly {{ns}}.V2.Infrastructure.Repositories.I{{entity}}Repository _repository;
+    private readonly {{ns}}.V2.Infrastructure.UnitOfWork.IUnitOfWork _unitOfWork;
+
+    public Update{{entity}}Handler(
+        {{ns}}.V2.Infrastructure.Repositories.I{{entity}}Repository repository,
+        {{ns}}.V2.Infrastructure.UnitOfWork.IUnitOfWork unitOfWork)
+    {
+        _repository = repository;
+        _unitOfWork = unitOfWork;
+    }
+
+    public async Task<{{ns}}.V2.Application.DTOs.{{entity}}Dto> HandleAsync({{ns}}.V2.Application.Commands.Update{{entity}}Command command, CancellationToken cancellationToken)
+    {
+        // SCAFFOLD:AI_IMPLEMENTATION:START
+        var entity = await _repository.GetByIdAsync(command.Id, cancellationToken)
+            ?? throw new System.InvalidOperationException($"{{entity}} {command.Id} was not found.");
+{{#each fields}}{{#unless (eq (pascal name) "Id")}}        entity.{{pascal name}} = command.{{pascal name}};
+{{/unless}}{{/each}}        _repository.Update(entity);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        // SCAFFOLD:AI_IMPLEMENTATION:END
+        return new {{ns}}.V2.Application.DTOs.{{entity}}Dto(entity.Id{{#each fields}}{{#unless (eq (pascal name) "Id")}}, entity.{{pascal name}}{{/unless}}{{/each}});
+    }
+}
