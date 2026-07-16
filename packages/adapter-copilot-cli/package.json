@@ -1,6 +1,6 @@
 {
   "name": "@mohantn/scaffold-adapter-copilot-cli",
-  "version": "0.2.17",
+  "version": "0.2.18",
   "description": "GitHub Copilot CLI Skill plus hooks that let Copilot drive @mohantn/scaffold-core for deterministic scaffolding, with hard enforcement that every AI_IMPLEMENTATION block is filled before the turn ends.",
   "license": "MIT",
   "author": "Mohan TN <mohan.tn100@gmail.com>",
