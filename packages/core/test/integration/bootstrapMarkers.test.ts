@@ -285,6 +285,42 @@ test('bootstrap-markers: a configured slot backed by a path-based pack has its d
   assert.equal(custom!.packSlot, 'backend');
 });
 
+test('bootstrap-markers: a decoy file inside a path-based pack\'s own directory is never treated as the real candidate', () => {
+  const repo = buildFixtureTargetRepo(false); // brownfield Program.cs, no markers
+  const packDir = mkdtempSync(path.join(tmpdir(), 'scaffold-local-anchor-pack-'));
+  const versionDir = path.join(packDir, 'v1');
+  mkdirSync(versionDir, { recursive: true });
+  writeFileSync(
+    path.join(versionDir, 'manifest.templates.json'),
+    JSON.stringify({
+      descriptorSchemaVersion: 2,
+      packVersion: 'v1',
+      requires: { scaffoldCli: '>=0.0.0' },
+      targets: [],
+      injections: [],
+      bootstrapAnchors: [
+        { candidateFilenames: ['Program.cs'], anchor: { kind: 'after-line', pattern: '\\.CreateBuilder\\s*\\(' }, markers: ['CUSTOM_SLOT'] },
+      ],
+    }),
+  );
+  // A harness copy inside the pack's own vendored directory, same basename
+  // the anchor group looks for, already carrying the marker pair — this
+  // must never be mistaken for the real host file.
+  mkdirSync(path.join(packDir, 'tools', 'harness'), { recursive: true });
+  writeFileSync(
+    path.join(packDir, 'tools', 'harness', 'Program.cs'),
+    '// SCAFFOLD:CUSTOM_SLOT:START\n// SCAFFOLD:CUSTOM_SLOT:END\n',
+  );
+
+  saveConfig(repo, { projectType: 'dotnet', packs: { backend: { path: packDir, version: 'v1' } } });
+
+  const report = runBootstrapMarkers({ repoRoot: repo, dryRun: false });
+  assert.equal(findMarker(report.alreadyPresent, 'CUSTOM_SLOT'), undefined, 'must not treat the harness decoy as already carrying the marker');
+  const custom = findMarker(report.placed, 'CUSTOM_SLOT');
+  assert.ok(custom, 'expected CUSTOM_SLOT to be placed into the real host Program.cs, not skipped because of the harness decoy');
+  assert.equal(custom!.file, 'Program.cs');
+});
+
 // The tests below exercise arch-brownfield-adoption.html's approved
 // acceptance examples (E1, E3, E4, E6) end to end through the real
 // runBootstrapMarkers entry point, not just descriptorMapper.ts in

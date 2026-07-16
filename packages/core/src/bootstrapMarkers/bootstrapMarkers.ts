@@ -177,6 +177,18 @@ export function runBootstrapMarkers(options: RunBootstrapMarkersOptions): Bootst
     ? [{ name: options.packDir ? '(--pack + --pack-version override)' : '(--pack-version override)', version: options.packVersion }]
     : [];
 
+  // Every configured path-based pack's own on-disk directory is off-limits
+  // as a candidate location for the anchor-group scan below — its own
+  // tools/harness, test_data, etc. may ship files with the same basenames as
+  // the real host files (e.g. a harness copy of StoreMediaDbContext.cs) that
+  // must never be mistaken for the real host file. Excluded for every slot's
+  // scan, not just the slot currently being processed, since a sibling
+  // path-based pack's directory is just as much a false-positive risk.
+  const packPathExcludeDirs = configuredSlots
+    .map((slot) => slot.packPath)
+    .filter((p): p is string => p !== undefined)
+    .map((p) => path.relative(repoRoot, path.resolve(repoRoot, p)).split(path.sep).join('/'));
+
   const cacheRoot = defaultCacheRoot(repoRoot);
 
   const insideGitWorkTree = isInsideGitWorkTree(repoRoot);
@@ -270,7 +282,7 @@ export function runBootstrapMarkers(options: RunBootstrapMarkersOptions): Bootst
     }
 
     for (const group of groups) {
-      const candidates = findCandidateFiles(repoRoot, group.candidateFilenames);
+      const candidates = findCandidateFiles(repoRoot, group.candidateFilenames, packPathExcludeDirs);
 
       let relFile: string;
       if (candidates.length === 1) {

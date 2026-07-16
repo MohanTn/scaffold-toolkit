@@ -27,6 +27,7 @@ All notable changes to this project are documented here. The format is based on 
 
 ### Fixed
 
+- Four surgical fixes to scaffold-core: (1) generate.ts merges ChangeEntry by file path so files both created and injected in one run get post-injection hashes, fixing undo hash-mismatch and leftover-file bugs; (2) repoWalk.ts adds optional path-based excludeDirs parameter to skip directories by full path, not just basename; (3) bootstrapMarkers.ts derives packPathExcludeDirs from configured packs and excludes them from anchor candidate scans, preventing harness decoy files from false-positiving; (4) descriptorMapper.ts adds specificity pre-pass so files claimed by multiple templates are kept only for the most literal-specific one.
 - The `bootstrap-markers` fallback chain (descriptor-declared → built-in `ANCHOR_CATALOG` → `unsupportedPacks`) now gracefully handles a descriptor that exists but fails to load (e.g. `requires.scaffoldCli` mismatch): the failure is recorded on a `warnings` channel and the command falls through to the built-in catalog, so a pack with an out-of-sync CLI version today doesn't silently regress a path that previously worked.
 
 ### Security

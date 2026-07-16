@@ -46,3 +46,14 @@ test('findCandidateFiles finds multiple matches across sibling directories', () 
   assert.ok(results.includes(path.join('a', 'Program.cs')));
   assert.ok(results.includes(path.join('b', 'Program.cs')));
 });
+
+test('findCandidateFiles excludes a directory passed in excludeDirs even though its name is not in IGNORED_DIRS', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'scaffold-repowalk-exclude-'));
+  mkdirSync(path.join(root, 'src'), { recursive: true });
+  writeFileSync(path.join(root, 'src', 'AppDbContext.cs'), 'real');
+  mkdirSync(path.join(root, 'packages', 'templates-dotnet', 'tools', 'harness'), { recursive: true });
+  writeFileSync(path.join(root, 'packages', 'templates-dotnet', 'tools', 'harness', 'AppDbContext.cs'), 'harness decoy');
+
+  const results = findCandidateFiles(root, ['AppDbContext.cs'], ['packages/templates-dotnet']);
+  assert.deepEqual(results, [path.join('src', 'AppDbContext.cs')]);
+});

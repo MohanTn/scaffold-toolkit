@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { syncTemplates, defaultCacheRoot } from '../../src/templates/sync.js';
 import { runGenerate } from '../../src/generate/generate.js';
@@ -13,6 +15,69 @@ async function setup() {
   writeInitialConfig(targetRepo, packRepo);
   await syncTemplates(targetRepo, defaultCacheRoot(targetRepo));
   return { packRepo, targetRepo };
+}
+
+function git(cwd: string, args: string[]): void {
+  execFileSync('git', args, { cwd, stdio: 'pipe' });
+}
+
+// A fixture pack whose single create target is ALSO an injection target — the
+// endpoint file ships its own marker pair, and the same generate run both
+// creates it and injects into it (mirroring a controller that registers
+// itself via its own marker group). This is the scenario that previously
+// produced two ChangeEntry records for one file (create-time hash, then a
+// separate post-injection hash), causing `undo` to require --force and then
+// leave the file behind.
+function buildSelfInjectingFixturePackRepo(): string {
+  const dir = mkdtempSync(path.join(tmpdir(), 'scaffold-self-inject-pack-'));
+  git(dir, ['init', '-q']);
+  git(dir, ['config', 'user.email', 'test@example.com']);
+  git(dir, ['config', 'user.name', 'Scaffold Test']);
+
+  const versionDir = path.join(dir, 'v1');
+  mkdirSync(versionDir, { recursive: true });
+  writeFileSync(
+    path.join(versionDir, 'manifest.templates.json'),
+    JSON.stringify(
+      {
+        descriptorSchemaVersion: 2,
+        packVersion: 'v1',
+        requires: { scaffoldCli: '>=0.0.0' },
+        targets: [{ output: 'src/Endpoints/{{entity}}Endpoint.cs', template: 'Endpoint.cs.hbs', mode: 'skip-if-exists' }],
+        injections: [
+          {
+            file: 'src/Endpoints/{{entity}}Endpoint.cs',
+            marker: 'REGISTER',
+            template: 'register.hbs',
+            position: 'before-end',
+            hashTrailerPrefix: '// scaffold-hash:',
+          },
+        ],
+      },
+      null,
+      2,
+    ),
+  );
+  writeFileSync(
+    path.join(versionDir, 'Endpoint.cs.hbs'),
+    `namespace Fixture.Endpoints;
+
+public class {{entity}}Endpoint
+{
+    public void Handle()
+    {
+    }
+
+    // SCAFFOLD:REGISTER:START
+    // SCAFFOLD:REGISTER:END
+}
+`,
+  );
+  writeFileSync(path.join(versionDir, 'register.hbs'), `    // registered {{entity}}`);
+
+  git(dir, ['add', '-A']);
+  git(dir, ['commit', '-q', '-m', 'self-injecting pack']);
+  return dir;
 }
 
 test('scaffold undo: reverts a generate run to the exact prior state, deleting the created file', async () => {
@@ -64,4 +129,28 @@ test('scaffold undo: refuses to undo an earlier changeset once a later changeset
     assert.match(err.message, /Program\.cs/);
     return true;
   });
+});
+
+test('scaffold undo: a file created and injected into in the same run undoes without --force and leaves nothing behind', async () => {
+  const packRepo = buildSelfInjectingFixturePackRepo();
+  const targetRepo = buildFixtureTargetRepo();
+  writeInitialConfig(targetRepo, packRepo);
+  await syncTemplates(targetRepo, defaultCacheRoot(targetRepo));
+
+  const manifestFile = writeManifestFile(targetRepo, 'Invoice');
+  const report = await runGenerate({ repoRoot: targetRepo, manifestPath: manifestFile, dryRun: false, force: false });
+
+  const endpointPath = path.join(targetRepo, 'src/Endpoints/InvoiceEndpoint.cs');
+  assert.ok(existsSync(endpointPath));
+  assert.match(readFileSync(endpointPath, 'utf8'), /registered Invoice/);
+
+  // Must NOT throw UndoHashMismatchError: the create-phase hash and the
+  // post-injection hash must have been merged into a single ChangeEntry.
+  undoChangeset(targetRepo, report.changesetId!, false);
+  assert.equal(existsSync(endpointPath), false, 'created+injected file must be fully removed, not left with pre-injection content');
+
+  // Re-generate right after must succeed — no leftover create-mode file
+  // blocking it with "already exists and its target mode is create".
+  const secondManifest = writeManifestFile(targetRepo, 'Invoice');
+  await assert.doesNotReject(() => runGenerate({ repoRoot: targetRepo, manifestPath: secondManifest, dryRun: false, force: false }));
 });

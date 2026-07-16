@@ -72,6 +72,24 @@ test('mapDescriptorToRepo: multiple matches for an entity-free template is needs
   assert.match(result.needsManual[0].reason, /expected exactly one/);
 });
 
+test('mapDescriptorToRepo: a file matching both I{{entity}}Repository.cs and {{entity}}Repository.cs is attributed only to the more specific interface template', () => {
+  const repo = mkdtempSync(path.join(tmpdir(), 'scaffold-mapper-'));
+  writeFileSync(path.join(repo, 'IAisleRepository.cs'), 'interface');
+  writeFileSync(path.join(repo, 'AisleRepository.cs'), 'impl');
+  const descriptor = baseDescriptor({
+    targets: [
+      { output: 'I{{entity}}Repository.cs', template: 'irepo.hbs', mode: 'create' },
+      { output: '{{entity}}Repository.cs', template: 'repo.hbs', mode: 'create' },
+    ],
+  });
+
+  const result = mapDescriptorToRepo(repo, descriptor, {}, false);
+  assert.equal(result.mapped.length, 2);
+  assert.ok(result.mapped.some((m) => m.template === 'I{{entity}}Repository.cs' && m.entity === 'Aisle' && m.file === 'IAisleRepository.cs'));
+  assert.ok(result.mapped.some((m) => m.template === '{{entity}}Repository.cs' && m.entity === 'Aisle' && m.file === 'AisleRepository.cs'));
+  assert.equal(result.needsManual.length, 0, 'IAisleRepository.cs must not also surface as an ambiguous/needsManual match under the less-specific template');
+});
+
 test('mapDescriptorToRepo: a per-entity target template maps each distinct entity to its own file', () => {
   const repo = mkdtempSync(path.join(tmpdir(), 'scaffold-mapper-'));
   mkdirSync(path.join(repo, 'src', 'Controllers'), { recursive: true });

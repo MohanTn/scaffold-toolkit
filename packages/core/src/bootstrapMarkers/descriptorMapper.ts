@@ -49,6 +49,7 @@ export interface MapperResult {
 }
 
 const BARE_ENTITY_RE = /\{\{\s*entity\s*\}\}/;
+const PLACEHOLDER_RE = /\{\{[^}]+\}\}/g;
 
 function isEntityTemplate(template: string): boolean {
   return BARE_ENTITY_RE.test(template);
@@ -75,15 +76,17 @@ function findMatchingFiles(repoRoot: string, pattern: RegExp, insideGitWorkTree:
   return matches.filter((relPath) => isFileCleanAndTracked(repoRoot, relPath));
 }
 
+/** Literal (non-placeholder) character count of a template string — a proxy for how specific a template is, used to arbitrate a file matched by more than one template's pattern (see `mapDescriptorToRepo`'s specificity pre-pass). */
+function literalLength(template: string): number {
+  return template.replace(PLACEHOLDER_RE, '').length;
+}
+
 function mapEntityTemplate(
-  repoRoot: string,
   kind: MapperEntryKind,
   template: string,
   pattern: RegExp,
-  insideGitWorkTree: boolean,
+  matches: string[],
 ): { mapped: MapperMappedEntry[]; needsManual: MapperNeedsManualEntry[] } {
-  const matches = findMatchingFiles(repoRoot, pattern, insideGitWorkTree);
-
   const byEntity = new Map<string, string[]>();
   for (const file of matches) {
     const entity = pattern.exec(file)?.groups?.entity;
@@ -110,20 +113,21 @@ function mapEntityTemplate(
   return { mapped, needsManual };
 }
 
-function mapEntityFreeTemplate(
-  repoRoot: string,
-  kind: MapperEntryKind,
-  template: string,
-  pattern: RegExp,
-  insideGitWorkTree: boolean,
-): { mapped: MapperMappedEntry[]; needsManual: MapperNeedsManualEntry[] } {
-  const matches = findMatchingFiles(repoRoot, pattern, insideGitWorkTree);
+function mapEntityFreeTemplate(kind: MapperEntryKind, template: string, matches: string[]): { mapped: MapperMappedEntry[]; needsManual: MapperNeedsManualEntry[] } {
   if (matches.length === 0) return { mapped: [], needsManual: [] }; // no candidate at all is not actionable — same as bootstrap-markers treating a target-less group as nothing to report
   if (matches.length === 1) return { mapped: [{ kind, template, file: matches[0] }], needsManual: [] };
   return {
     mapped: [],
     needsManual: [{ kind, template, reason: `${matches.length} files matched "${template}": ${matches.join(', ')} — expected exactly one` }],
   };
+}
+
+interface ResolvedEntry {
+  kind: MapperEntryKind;
+  template: string;
+  pattern: RegExp;
+  literalLen: number;
+  matches: string[];
 }
 
 /**
@@ -135,21 +139,51 @@ function mapEntityFreeTemplate(
  * be mapped, once that layout is known. Never guesses: an entry with zero or
  * multiple candidate matches (or whose only candidates are dirty/untracked)
  * is reported under `needsManual`, not silently mapped or dropped.
+ *
+ * Before per-template consolidation, a specificity pre-pass resolves cross-
+ * template collisions: a bare `{{entity}}` capture is greedy ([^/]+), so a
+ * more specific template like `I{{entity}}Repository.cs` and a less specific
+ * sibling like `{{entity}}Repository.cs` can both match the same file (e.g.
+ * "IAisleRepository.cs" matching the latter with entity "IAisle"). A file
+ * claimed by more than one entry's raw match set is kept only for the
+ * entry(ies) with the most literal (non-placeholder) template text — the
+ * less specific entry loses that file before its own single-match
+ * consolidation ever sees it. A genuine tie is left alone, since that's real
+ * ambiguity for the existing multi-match `needsManual` path to report.
  */
 export function mapDescriptorToRepo(repoRoot: string, descriptor: TemplateDescriptor, context: TemplateResolutionContext, insideGitWorkTree: boolean): MapperResult {
-  const mapped: MapperMappedEntry[] = [];
-  const needsManual: MapperNeedsManualEntry[] = [];
-
   const entries: { kind: MapperEntryKind; template: string }[] = [
     ...descriptor.targets.map((t) => ({ kind: 'target' as const, template: t.output })),
     ...descriptor.injections.map((i) => ({ kind: 'injection' as const, template: i.file })),
   ];
 
-  for (const { kind, template } of entries) {
-    const pattern = resolveTemplatePattern(template, context);
-    const result = isEntityTemplate(template)
-      ? mapEntityTemplate(repoRoot, kind, template, pattern, insideGitWorkTree)
-      : mapEntityFreeTemplate(repoRoot, kind, template, pattern, insideGitWorkTree);
+  const resolved: ResolvedEntry[] = entries.map((e) => {
+    const pattern = resolveTemplatePattern(e.template, context);
+    return { ...e, pattern, literalLen: literalLength(e.template), matches: findMatchingFiles(repoRoot, pattern, insideGitWorkTree) };
+  });
+
+  const claimsByFile = new Map<string, ResolvedEntry[]>();
+  for (const entry of resolved) {
+    for (const file of entry.matches) {
+      const claimants = claimsByFile.get(file) ?? [];
+      claimants.push(entry);
+      claimsByFile.set(file, claimants);
+    }
+  }
+  for (const [file, claimants] of claimsByFile) {
+    if (claimants.length < 2) continue;
+    const maxLen = Math.max(...claimants.map((c) => c.literalLen));
+    for (const loser of claimants.filter((c) => c.literalLen < maxLen)) {
+      loser.matches = loser.matches.filter((f) => f !== file);
+    }
+  }
+
+  const mapped: MapperMappedEntry[] = [];
+  const needsManual: MapperNeedsManualEntry[] = [];
+  for (const entry of resolved) {
+    const result = isEntityTemplate(entry.template)
+      ? mapEntityTemplate(entry.kind, entry.template, entry.pattern, entry.matches)
+      : mapEntityFreeTemplate(entry.kind, entry.template, entry.matches);
     mapped.push(...result.mapped);
     needsManual.push(...result.needsManual);
   }

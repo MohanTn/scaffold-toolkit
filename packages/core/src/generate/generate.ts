@@ -318,13 +318,24 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRep
   if (dryRun) return report;
 
   // --- Write phase: only reached for a real run --------------------------------
-  const changeEntries: ChangeEntry[] = [];
+  // Keyed by absPath so a file that is both created and injected into within
+  // this same run gets exactly one ChangeEntry, with writtenHash reflecting
+  // the FINAL post-injection content — otherwise undo would see a stale
+  // create-time hash for a file injection later mutated, and would replay
+  // two actions (delete, then rewrite with pre-injection content) instead of
+  // one, leaving the file behind.
+  const changeEntryByPath = new Map<string, ChangeEntry>();
 
   for (const c of plannedCreates) {
     if (c.skip) continue;
     mkdirSync(path.dirname(c.absPath), { recursive: true });
     writeFileSync(c.absPath, c.content, 'utf8');
-    changeEntries.push({ file: c.relPath, kind: c.existedBefore ? 'modified' : 'created', priorContent: c.priorContent, writtenHash: sha256Hex(c.content) });
+    changeEntryByPath.set(c.absPath, {
+      file: c.relPath,
+      kind: c.existedBefore ? 'modified' : 'created',
+      priorContent: c.priorContent,
+      writtenHash: sha256Hex(c.content),
+    });
   }
 
   let configChanged = false;
@@ -332,8 +343,13 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRep
     writeFileSync(injectedFile.absPath, injectedFile.newContent, 'utf8');
     recordProvenance(config, injectedFile.relPath, provenanceRecord);
     configChanged = true;
-    if (injectedFile.changed) {
-      changeEntries.push({
+    if (!injectedFile.changed) continue;
+
+    const existing = changeEntryByPath.get(injectedFile.absPath);
+    if (existing) {
+      existing.writtenHash = sha256Hex(injectedFile.newContent);
+    } else {
+      changeEntryByPath.set(injectedFile.absPath, {
         file: injectedFile.relPath,
         kind: 'modified',
         priorContent: injectedFile.originalContent,
@@ -344,6 +360,7 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRep
 
   if (configChanged) saveConfig(repoRoot, config);
 
+  const changeEntries = [...changeEntryByPath.values()];
   if (changeEntries.length > 0) {
     const changesetId = nextChangesetId();
     writeChangeManifest(repoRoot, changesetId, changeEntries);

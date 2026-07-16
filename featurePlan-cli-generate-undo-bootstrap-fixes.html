@@ -1,0 +1,883 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Feature Implementation Plan – Generate/Undo/Bootstrap-Markers Reliability Fixes</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+            padding: 2rem 1.5rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            line-height: 1.5;
+        }
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 0.25rem;
+            color: #0f172a;
+        }
+        .subtitle {
+            color: #64748b;
+            margin-bottom: 2rem;
+            font-size: 0.95rem;
+        }
+        .card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+        .card h2 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #0f172a;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 0.5rem;
+        }
+        .card h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin: 1.5rem 0 0.5rem 0;
+            color: #1e293b;
+        }
+        label {
+            font-weight: 500;
+            display: block;
+            margin-bottom: 0.3rem;
+            font-size: 0.9rem;
+            color: #334155;
+        }
+        input,
+        textarea,
+        select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            background: #fff;
+        }
+        input:focus,
+        textarea:focus,
+        select:focus {
+            outline: 2px solid #2563eb;
+            outline-offset: 1px;
+        }
+        textarea {
+            resize: vertical;
+            font-family: 'Courier New', monospace;
+        }
+        .flex-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            align-items: center;
+        }
+        .mt-1 {
+            margin-top: 0.75rem;
+        }
+        .mt-2 {
+            margin-top: 1.5rem;
+        }
+        .text-muted {
+            color: #64748b;
+        }
+        .text-small {
+            font-size: 0.85rem;
+        }
+
+        .btn {
+            background: #f1f5f9;
+            border: 1px solid #d1d5db;
+            padding: 0.4rem 1rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: 0.15s;
+            color: #1e293b;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+        .btn:hover {
+            background: #e2e8f0;
+        }
+        .btn-primary {
+            background: #2563eb;
+            border-color: #2563eb;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #1d4ed8;
+        }
+        .btn-danger {
+            background: #ef4444;
+            border-color: #ef4444;
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+        .btn-success {
+            background: #16a34a;
+            border-color: #16a34a;
+            color: white;
+        }
+        .btn-success:hover {
+            background: #15803d;
+        }
+        .btn-outline {
+            background: transparent;
+            border: 1px dashed #2563eb;
+            color: #2563eb;
+        }
+        .btn-outline:hover {
+            background: #eff6ff;
+        }
+        .btn-sm {
+            padding: 0.2rem 0.6rem;
+            font-size: 0.8rem;
+        }
+        .btn-block {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .item-block {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background: #fafcfc;
+        }
+        .item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .item-header .item-title {
+            font-weight: 600;
+            font-size: 1rem;
+            flex: 1;
+        }
+        .item-fields {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+        }
+        .item-fields .full-width {
+            grid-column: 1 / -1;
+        }
+        .item-fields label {
+            font-size: 0.8rem;
+            margin-bottom: 0.1rem;
+            color: #475569;
+        }
+        .pseudo-code {
+            background: #f1f5f9;
+            padding: 0.5rem;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+            border: 1px solid #e2e8f0;
+            min-height: 3rem;
+        }
+        @media (max-width:700px) {
+            .item-fields {
+                grid-template-columns: 1fr;
+            }
+            .item-fields .full-width {
+                grid-column: 1;
+            }
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        th {
+            background: #f1f5f9;
+            text-align: left;
+            padding: 0.5rem 0.8rem;
+            font-weight: 600;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        td {
+            padding: 0.5rem 0.8rem;
+            border-bottom: 1px solid #e2e8f0;
+            vertical-align: middle;
+        }
+
+        .approval-gate {
+            background: #f0fdf4;
+            border-left: 4px solid #16a34a;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            color: #166534;
+            font-weight: 500;
+        }
+
+        #copy-btn {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: 0.15s;
+        }
+        #copy-btn:hover {
+            opacity: 0.9;
+        }
+        #copy-btn.copied {
+            background: #16a34a;
+        }
+        .badge {
+            display: inline-block;
+            padding: 0.1rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .badge-create {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+        .badge-update {
+            background: #fef3c7;
+            color: #b45309;
+        }
+        .badge-delete {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>⚙️ Feature Implementation Plan – Generate/Undo/Bootstrap-Markers Reliability Fixes</h1>
+    <p class="subtitle">Ultra-detailed, file-by-file plan for building a feature inside an existing codebase. <br>Edit every detail, then copy the plan to feed into an AI or hand off to a developer.</p>
+
+    <!-- OVERVIEW -->
+    <div class="card">
+        <h2>📌 Feature Overview</h2>
+        <div class="flex-row">
+            <div style="flex:2;"><label>Feature Title</label><input id="feature-title" placeholder="e.g. Add two-factor authentication" /></div>
+            <div style="flex:1;"><label>Target Module / Context</label><input id="feature-module" placeholder="e.g. User Service" /></div>
+        </div>
+        <div class="mt-1"><label>User Story / Goal</label><textarea id="feature-goal" rows="2" placeholder="As a user, I want to ... so that ..."></textarea></div>
+        <div class="mt-1"><label>Existing Codebase Context (files, classes, DB schemas that already exist)</label><textarea id="feature-context" rows="2" placeholder="e.g. We already have User.php, AuthService.php, and a 'users' table with columns..."></textarea></div>
+    </div>
+
+    <!-- DESIGN PATTERNS & OVERRIDES (Crucial for tweaking) -->
+    <div class="card">
+        <h2>🧩 Design Patterns & Architectural Overrides</h2>
+        <p class="text-muted text-small">Explicitly state which patterns to use. <strong>Change these to alter the architecture</strong> (e.g., switch from Repository to Service Layer).</p>
+        <div class="flex-row">
+            <div style="flex:1;"><label>Core Pattern</label><input id="pattern-core" placeholder="e.g. MVC, Layered Architecture" value="Layered (Controller -> Service -> Repository)" /></div>
+            <div style="flex:1;"><label>Business Logic Pattern</label><input id="pattern-business" placeholder="e.g. Transaction Script, Domain Model" value="Transaction Script" /></div>
+        </div>
+        <div class="mt-1"><label>Specific Pattern Implementations (e.g., Factory vs Builder, Repository vs DAO)</label>
+            <textarea id="pattern-specific" rows="2" placeholder="e.g. Use Repository pattern for User data. Use Factory pattern to create complex DTOs."></textarea>
+        </div>
+        <div class="mt-1"><label>Explicit Overrides / Constraints (Change these to deviate from standard patterns)</label>
+            <textarea id="pattern-overrides" rows="2" placeholder="e.g. Do NOT create a separate Repository for this; put logic directly in Service. Use Singleton for CacheManager."></textarea>
+        </div>
+    </div>
+
+    <!-- FILE MANIFEST (ORDERED) -->
+    <div class="card">
+        <h2>📂 File Change Manifest (In Order of Execution)</h2>
+        <p class="text-muted text-small">List every file that needs to be created, updated, or deleted. Order them by build sequence. Add pseudo-code for each.</p>
+        <div id="files-container"></div>
+        <button id="add-file-btn" class="btn btn-outline btn-block mt-1">＋ Add file to manifest</button>
+    </div>
+
+    <!-- CORE BUSINESS LOGIC (PSEUDO-CODE) -->
+    <div class="card">
+        <h2>🧠 Core Business Logic (Detailed Pseudo-Code)</h2>
+        <p class="text-muted text-small">The main algorithm or orchestration of the feature. Write this in plain English + pseudo-code so an AI can translate it into actual code.</p>
+        <div id="logic-container"></div>
+        <button id="add-logic-btn" class="btn btn-outline btn-block mt-1">＋ Add logic step</button>
+    </div>
+
+    <!-- API / FUNCTION CONTRACTS -->
+    <div class="card">
+        <h2>📡 Function / API Contracts</h2>
+        <p class="text-muted text-small">Inputs, outputs, signatures for the main entry points (Controllers, Event Handlers, CLI commands).</p>
+        <div id="contracts-container"></div>
+        <button id="add-contract-btn" class="btn btn-outline btn-block mt-1">＋ Add contract</button>
+    </div>
+
+    <!-- EDGE CASES & ERROR HANDLING -->
+    <div class="card">
+        <h2>🚨 Edge Cases & Error Handling</h2>
+        <p class="text-muted text-small">What happens when things go wrong? Specify validation rules, exceptions, and fallbacks.</p>
+        <div id="edges-container"></div>
+        <button id="add-edge-btn" class="btn btn-outline btn-block mt-1">＋ Add edge case</button>
+    </div>
+
+    <!-- TESTING STRATEGY -->
+    <div class="card">
+        <h2>🧪 Testing Strategy</h2>
+        <p class="text-muted text-small">Specific test scenarios per file or logic unit.</p>
+        <div id="tests-container"></div>
+        <button id="add-test-btn" class="btn btn-outline btn-block mt-1">＋ Add test scenario</button>
+    </div>
+
+    <!-- EXPORT -->
+    <div class="card">
+        <h2>📋 Export & Execution</h2>
+        <div class="approval-gate">
+            <strong>✅ Ready to generate code when:</strong> File manifest is ordered, logic is pseudo-coded, and patterns are defined.
+        </div>
+        <div class="flex-row mt-1">
+            <button id="copy-btn">📋 Copy AI-Ready Plan</button>
+            <button id="reset-btn" class="btn btn-danger">Reset all data</button>
+        </div>
+        <p class="text-muted text-small mt-1">The copied text is a structured prompt perfect for ChatGPT, Claude, or any coding AI.</p>
+    </div>
+
+    <script>
+        // Filled by featurePlan-inject.js from the AI's plan. Falls back to an
+        // empty plan when opened without injection (e.g. developing the template).
+        const INITIAL_DATA = {"title":"Generate/Undo/Bootstrap-Markers Reliability Fixes","module":"scaffold-core (packages/core)","goal":"As a scaffold-toolkit maintainer, I want scaffold generate/undo/bootstrap-markers to behave correctly on brownfield repos with in-tree vendored packs, so adopting scaffold onto an existing repo (like this monorepo's own dotnet host) never needs the manual workarounds (moving tools/harness aside, --force undo, deleting leftover files) noted in the last adoption run.","context":"packages/core/src/generate/generate.ts's write-phase builds ChangeEntry[] for changeManifest.ts; packages/core/src/undo/undo.ts's undoChangeset() reads that manifest to restore/delete files; packages/core/src/bootstrapMarkers/repoWalk.ts's findCandidateFiles()/walkAllFiles() scan the whole repo except a small IGNORED_DIRS basename set; packages/core/src/bootstrapMarkers/bootstrapMarkers.ts's runBootstrapMarkers()/processSlot() drive that scan per configured pack slot; packages/core/src/bootstrapMarkers/descriptorMapper.ts's mapDescriptorToRepo() reverse-matches descriptor targets[]/injections[] templates against real files using checkEdit/pathTemplateMatch.ts's resolveTemplatePattern(), whose bare {{entity}} placeholder compiles to a greedy (?\u003centity>[^/]+) capture.","patternCore":"Module-per-command CLI: each command (generate, undo, bootstrap-markers) is a pure orchestration function over repoRoot + fs, no shared framework layer.","patternBusiness":"Transaction Script: runGenerate/undoChangeset/runBootstrapMarkers are each one top-to-bottom procedure composed of small pure helpers (render, injectMarkers, findCandidateFiles, mapDescriptorToRepo); no domain model objects.","patternSpecific":"Fixes stay inside the four existing modules already responsible for each behavior; no new abstractions, classes, or dependencies — matches this repo's hand-rolled-over-dependency convention (see repoWalk.ts's own doc comment).","patternOverrides":"None — every fix is a surgical change to an existing function's body, not a new pattern.","files":[{"order":1,"action":"update","path":"packages/core/src/generate/generate.ts","description":"Write-phase: merge changeEntries by file so a file that is both created and injected into within the same run gets exactly one ChangeEntry, with writtenHash reflecting the FINAL post-injection content (not the pre-injection create-time content). Fixes both the undo hash-mismatch (gap #2) and the undo --force leftover-file bug (gap #3), since the latter is caused by two entries for the same file (created-then-modified) being replayed in order during undo: rm (from the created entry) followed by a re-write (from the modified entry's priorContent), which leaves the file on disk instead of deleted.","pseudoCode":"// --- Write phase: only reached for a real run --------------------------------\nconst changeEntryByPath = new Map\u003cstring, ChangeEntry>();\n\nfor (const c of plannedCreates) {\n  if (c.skip) continue;\n  mkdirSync(path.dirname(c.absPath), { recursive: true });\n  writeFileSync(c.absPath, c.content, 'utf8');\n  changeEntryByPath.set(c.absPath, {\n    file: c.relPath,\n    kind: c.existedBefore ? 'modified' : 'created',\n    priorContent: c.priorContent,\n    writtenHash: sha256Hex(c.content), // provisional — overwritten below if this same file is also injected into in this run\n  });\n}\n\nlet configChanged = false;\nfor (const injectedFile of injectedFiles) {\n  writeFileSync(injectedFile.absPath, injectedFile.newContent, 'utf8');\n  recordProvenance(config, injectedFile.relPath, provenanceRecord);\n  configChanged = true;\n  if (!injectedFile.changed) continue;\n\n  const existing = changeEntryByPath.get(injectedFile.absPath);\n  if (existing) {\n    // Same file already has a create-phase entry — update its hash to the\n    // POST-injection content instead of adding a second entry. undo must see\n    // exactly one action per file, and the hash it checks against disk must\n    // be the content the file actually ends this run with.\n    existing.writtenHash = sha256Hex(injectedFile.newContent);\n  } else {\n    changeEntryByPath.set(injectedFile.absPath, {\n      file: injectedFile.relPath,\n      kind: 'modified',\n      priorContent: injectedFile.originalContent,\n      writtenHash: sha256Hex(injectedFile.newContent),\n    });\n  }\n}\n\nif (configChanged) saveConfig(repoRoot, config);\n\nconst changeEntries = [...changeEntryByPath.values()];\n// ... rest (changesetId, writeChangeManifest, writePending, appendHistoryEntry) unchanged","id":"f-1"},{"order":2,"action":"update","path":"packages/core/test/integration/undo.test.ts","description":"New test proving the merged-entry fix: a controller created and then injected into by five marker groups in the SAME generate run undoes cleanly with a plain (no --force) undo, and a re-generate right after does not throw \"already exists and its target mode is create\".","pseudoCode":"test('scaffold undo: a file created and injected into in the same run undoes without --force and leaves nothing behind', async () => {\n  const { targetRepo } = await setup();\n  const manifestFile = writeManifestFile(targetRepo, 'Invoice'); // fixture pack's controller target also receives its own marker injections in one run\n  const report = await runGenerate({ repoRoot: targetRepo, manifestPath: manifestFile, dryRun: false, force: false });\n  const controllerPath = path.join(targetRepo, 'src/Controllers/InvoiceController.cs');\n  assert.ok(existsSync(controllerPath));\n\n  undoChangeset(targetRepo, report.changesetId!, false); // must NOT throw UndoHashMismatchError\n  assert.equal(existsSync(controllerPath), false, 'created+injected file must be fully removed, not left with pre-injection content');\n\n  // Re-generate must succeed — no leftover create-mode file blocking it.\n  const secondManifest = writeManifestFile(targetRepo, 'Invoice');\n  await assert.doesNotReject(() => runGenerate({ repoRoot: targetRepo, manifestPath: secondManifest, dryRun: false, force: false }));\n});","id":"f-2"},{"order":3,"action":"update","path":"packages/core/src/bootstrapMarkers/repoWalk.ts","description":"Add an optional excludeDirs parameter to walkAllFiles()/findCandidateFiles(), skipping any directory whose repo-relative POSIX path is in the set, on top of the existing IGNORED_DIRS basename check.","pseudoCode":"export function walkAllFiles(repoRoot: string, onFile: (relPath: string) => void, excludeDirs: string[] = []): void {\n  const excludeSet = new Set(excludeDirs);\n  function walk(dir: string): void {\n    let entries;\n    try {\n      entries = readdirSync(dir, { withFileTypes: true });\n    } catch {\n      return;\n    }\n    for (const entry of entries) {\n      const relPath = path.relative(repoRoot, path.join(dir, entry.name)).split(path.sep).join('/');\n      if (entry.isDirectory()) {\n        if (IGNORED_DIRS.has(entry.name) || excludeSet.has(relPath)) continue;\n        walk(path.join(dir, entry.name));\n      } else if (entry.isFile()) {\n        onFile(relPath);\n      }\n    }\n  }\n  walk(repoRoot);\n}\n\nexport function findCandidateFiles(repoRoot: string, filenames: string[], excludeDirs: string[] = []): string[] {\n  const wanted = new Set(filenames);\n  const results: string[] = [];\n  walkAllFiles(repoRoot, (relPath) => {\n    if (wanted.has(path.basename(relPath))) results.push(relPath.split('/').join(path.sep));\n  }, excludeDirs);\n  return results;\n}","id":"f-3"},{"order":4,"action":"update","path":"packages/core/src/bootstrapMarkers/bootstrapMarkers.ts","description":"runBootstrapMarkers: resolve every configured path-based pack's own on-disk directory to a repo-relative POSIX path once, and pass that list as excludeDirs into the anchor-group findCandidateFiles() call — this is the fix for the harness false-positive (gap #1): tools/harness/ copies inside the pack's own vendored directory can no longer match the candidate scan and report the real host file's markers as alreadyPresent.","pseudoCode":"// Every configured path-based pack's own directory is off-limits as a\n// candidate location — its tools/harness, test_data, etc. may ship files\n// with the same basenames as the real host files but are never the real\n// host file.\nconst packPathExcludeDirs = configuredSlots\n  .map((slot) => slot.packPath)\n  .filter((p): p is string => p !== undefined)\n  .map((p) => path.relative(repoRoot, path.resolve(repoRoot, p)).split(path.sep).join('/'));\n\n// ... inside processSlot's group loop:\nfor (const group of groups) {\n  const candidates = findCandidateFiles(repoRoot, group.candidateFilenames, packPathExcludeDirs);\n  // ... unchanged from here\n}","id":"f-4"},{"order":5,"action":"update","path":"packages/core/test/unit/repoWalk.test.ts","description":"New test: excludeDirs skips a directory even though its name is not in IGNORED_DIRS (proves the new parameter, independent of bootstrap-markers wiring).","pseudoCode":"test('findCandidateFiles excludes a directory passed in excludeDirs even though its name is not in IGNORED_DIRS', () => {\n  const root = mkdtempSync(path.join(tmpdir(), 'scaffold-repowalk-exclude-'));\n  mkdirSync(path.join(root, 'src'), { recursive: true });\n  writeFileSync(path.join(root, 'src', 'AppDbContext.cs'), 'real');\n  mkdirSync(path.join(root, 'packages', 'templates-dotnet', 'tools', 'harness'), { recursive: true });\n  writeFileSync(path.join(root, 'packages', 'templates-dotnet', 'tools', 'harness', 'AppDbContext.cs'), 'harness decoy');\n\n  const results = findCandidateFiles(root, ['AppDbContext.cs'], ['packages/templates-dotnet']);\n  assert.deepEqual(results, [path.join('src', 'AppDbContext.cs')]);\n});","id":"f-5"},{"order":6,"action":"update","path":"packages/core/test/integration/bootstrapMarkers.test.ts","description":"New test: a path-based pack's own directory contains a decoy file matching a bootstrapAnchors candidateFilename (mirrors tools/harness/StoreMediaDbContext.cs); bootstrap-markers must place the marker in the real host file, not report it alreadyPresent from the decoy.","pseudoCode":"test('bootstrap-markers: a decoy file inside a path-based pack's own directory is never treated as the real candidate', () => {\n  const { repoRoot, packDir } = /* existing path-based-pack fixture setup from the test at line 260 */;\n  writeFileSync(path.join(repoRoot, 'Program.cs'), 'var builder = WebApplication.CreateBuilder(args);\\n');\n  // Decoy inside the pack's own vendored directory, same basename the anchor group looks for.\n  mkdirSync(path.join(packDir, 'tools', 'harness'), { recursive: true });\n  writeFileSync(path.join(packDir, 'tools', 'harness', 'Program.cs'), '// CUSTOM_SLOT already placed here, harness copy');\n\n  const report = runBootstrapMarkers({ repoRoot, dryRun: false });\n  assert.equal(report.alreadyPresent.length, 0, 'must not treat the harness decoy as already carrying the marker');\n  assert.equal(report.placed.length, 1);\n  assert.equal(readFileSync(path.join(repoRoot, 'Program.cs'), 'utf8').includes('CUSTOM_SLOT'), true);\n});","id":"f-6"},{"order":7,"action":"update","path":"packages/core/src/bootstrapMarkers/descriptorMapper.ts","description":"mapDescriptorToRepo: run a specificity pre-pass across every targets[]/injections[] entry's raw match set before per-template consolidation, so a file matched by more than one template's pattern (e.g. IAisleRepository.cs matching both I{{entity}}Repository.cs and the less-specific {{entity}}Repository.cs, since {{entity}}'s [^/]+ capture is greedy) is attributed only to the most literal-specific template. Fixes gap #4. mapEntityTemplate/mapEntityFreeTemplate now take a pre-filtered matches list instead of re-walking the repo themselves.","pseudoCode":"function literalLength(template: string): number {\n  return template.replace(PLACEHOLDER_RE, '').length;\n}\n\nfunction mapEntityTemplate(kind: MapperEntryKind, template: string, pattern: RegExp, matches: string[]): { mapped: MapperMappedEntry[]; needsManual: MapperNeedsManualEntry[] } {\n  const byEntity = new Map\u003cstring, string[]>();\n  for (const file of matches) {\n    const entity = pattern.exec(file)?.groups?.entity;\n    if (entity === undefined) continue;\n    const list = byEntity.get(entity) ?? [];\n    list.push(file);\n    byEntity.set(entity, list);\n  }\n  const mapped: MapperMappedEntry[] = [];\n  const needsManual: MapperNeedsManualEntry[] = [];\n  for (const [entity, files] of byEntity) {\n    if (files.length === 1) mapped.push({ kind, template, entity, file: files[0] });\n    else needsManual.push({ kind, template, entity, reason: `${files.length} files matched \"${template}\" for entity \"${entity}\": ${files.join(', ')} — expected exactly one` });\n  }\n  return { mapped, needsManual };\n}\n\nfunction mapEntityFreeTemplate(kind: MapperEntryKind, template: string, matches: string[]): { mapped: MapperMappedEntry[]; needsManual: MapperNeedsManualEntry[] } {\n  if (matches.length === 0) return { mapped: [], needsManual: [] };\n  if (matches.length === 1) return { mapped: [{ kind, template, file: matches[0] }], needsManual: [] };\n  return { mapped: [], needsManual: [{ kind, template, reason: `${matches.length} files matched \"${template}\": ${matches.join(', ')} — expected exactly one` }] };\n}\n\nexport function mapDescriptorToRepo(repoRoot: string, descriptor: TemplateDescriptor, context: TemplateResolutionContext, insideGitWorkTree: boolean): MapperResult {\n  const entries = [\n    ...descriptor.targets.map((t) => ({ kind: 'target' as const, template: t.output })),\n    ...descriptor.injections.map((i) => ({ kind: 'injection' as const, template: i.file })),\n  ];\n\n  // Resolve every entry's pattern + raw match set up front, so a file matched\n  // by more than one template's pattern can be arbitrated by specificity\n  // instead of silently double-mapped (or double-flagged needsManual).\n  const resolved = entries.map((e) => ({\n    ...e,\n    pattern: resolveTemplatePattern(e.template, context),\n    literalLen: literalLength(e.template),\n    matches: findMatchingFiles(repoRoot, resolveTemplatePattern(e.template, context), insideGitWorkTree),\n  }));\n\n  const claimsByFile = new Map\u003cstring, typeof resolved>();\n  for (const entry of resolved) {\n    for (const file of entry.matches) {\n      const list = claimsByFile.get(file) ?? [];\n      list.push(entry);\n      claimsByFile.set(file, list);\n    }\n  }\n  for (const [file, claimants] of claimsByFile) {\n    if (claimants.length \u003c 2) continue;\n    const maxLen = Math.max(...claimants.map((c) => c.literalLen));\n    for (const loser of claimants.filter((c) => c.literalLen \u003c maxLen)) {\n      loser.matches = loser.matches.filter((f) => f !== file); // the contested file goes only to the most-specific claimant(s)\n    }\n  }\n\n  const mapped: MapperMappedEntry[] = [];\n  const needsManual: MapperNeedsManualEntry[] = [];\n  for (const entry of resolved) {\n    const result = isEntityTemplate(entry.template)\n      ? mapEntityTemplate(entry.kind, entry.template, entry.pattern, entry.matches)\n      : mapEntityFreeTemplate(entry.kind, entry.template, entry.matches);\n    mapped.push(...result.mapped);\n    needsManual.push(...result.needsManual);\n  }\n  return { mapped, needsManual };\n}","id":"f-7"},{"order":8,"action":"update","path":"packages/core/test/unit/descriptorMapper.test.ts","description":"New test: IAisleRepository.cs matches both an interface template and the entity-repository template's greedy capture; the fix must attribute it only to the more specific (interface) template, and the entity-repository template must map the real AisleRepository.cs only.","pseudoCode":"test('mapDescriptorToRepo: a file matching both I{{entity}}Repository.cs and {{entity}}Repository.cs is attributed only to the more specific interface template', () => {\n  const repo = mkdtempSync(path.join(tmpdir(), 'scaffold-mapper-'));\n  writeFileSync(path.join(repo, 'IAisleRepository.cs'), 'interface');\n  writeFileSync(path.join(repo, 'AisleRepository.cs'), 'impl');\n  const descriptor = baseDescriptor({\n    targets: [\n      { output: 'I{{entity}}Repository.cs', mode: 'create', template: 'irepo.hbs' },\n      { output: '{{entity}}Repository.cs', mode: 'create', template: 'repo.hbs' },\n    ],\n  });\n\n  const result = mapDescriptorToRepo(repo, descriptor, {}, false);\n  assert.equal(result.mapped.length, 2);\n  assert.ok(result.mapped.some((m) => m.template === 'I{{entity}}Repository.cs' && m.entity === 'Aisle' && m.file === 'IAisleRepository.cs'));\n  assert.ok(result.mapped.some((m) => m.template === '{{entity}}Repository.cs' && m.entity === 'Aisle' && m.file === 'AisleRepository.cs'));\n  assert.equal(result.needsManual.length, 0, 'IAisleRepository.cs must not also surface as an ambiguous/needsManual match under the less-specific template');\n});","id":"f-8"}],"logicSteps":[{"step":"generate.ts write-phase: one ChangeEntry per file, final hash","pseudo":"1. For each planned create (non-skip): write it, seed changeEntryByPath[absPath] with kind/priorContent from BEFORE this run and a provisional writtenHash.\n2. For each injected file that actually changed: write it; if the same absPath already has an entry, overwrite ONLY its writtenHash with the post-injection hash; otherwise insert a fresh 'modified' entry.\n3. changeEntries = values of the map — exactly one entry per touched file, hash always reflecting the file's true final content.","id":"l-1"},{"step":"repoWalk.ts: directory-level exclusion by path, not just basename","pseudo":"1. walk(dir) computes each child's repo-relative POSIX path.\n2. Skip recursing if the child's basename is in IGNORED_DIRS (existing) OR its full relative path is in the caller-supplied excludeDirs set (new).\n3. findCandidateFiles forwards excludeDirs through unchanged otherwise.","id":"l-2"},{"step":"bootstrapMarkers.ts: derive excludeDirs from configured pack paths","pseudo":"1. Map configuredSlots to their packPath (path-based packs only), resolve each to an absolute path then back to a repo-relative POSIX string.\n2. Pass this list into every findCandidateFiles() call in the anchor-group loop, for every slot being processed (not just the current one) — a sibling pack's vendored directory must not leak into another slot's scan either.","id":"l-3"},{"step":"descriptorMapper.ts: specificity pre-pass before consolidation","pseudo":"1. Resolve every targets[]/injections[] entry's pattern and raw match set up front.\n2. Group matches by file; where a file is claimed by more than one entry, keep it only for the entry(ies) with the longest literal (non-placeholder) template text, drop it from the rest.\n3. Run the existing per-entity/entity-free single-match consolidation against each entry's (now-filtered) match list.","id":"l-4"}],"contracts":[{"name":"findCandidateFiles(repoRoot: string, filenames: string[], excludeDirs?: string[]): string[]","inputs":"repoRoot; list of basenames to find; optional list of repo-relative POSIX directory paths to skip entirely","outputs":"repo-relative (OS-native separator) paths of every matching file outside IGNORED_DIRS and excludeDirs","id":"c-1"},{"name":"walkAllFiles(repoRoot: string, onFile: (relPath: string) => void, excludeDirs?: string[]): void","inputs":"repoRoot; per-file callback; optional exclude list","outputs":"void — invokes onFile once per non-excluded file, POSIX-separated relPath","id":"c-2"},{"name":"mapDescriptorToRepo(repoRoot, descriptor, context, insideGitWorkTree): MapperResult (signature unchanged)","inputs":"same as today","outputs":"{ mapped: MapperMappedEntry[]; needsManual: MapperNeedsManualEntry[] } — a file contested by multiple templates now resolves to at most the most-specific template's entry instead of appearing under more than one","id":"c-3"},{"name":"runGenerate(options: GenerateOptions): Promise\u003cGenerateReport> (signature and report shape unchanged)","inputs":"same as today","outputs":"GenerateReport with the same fields; the on-disk .scaffold/changes/\u003cid>.json now has exactly one entry per touched file with the post-injection hash","id":"c-4"}],"edgeCases":[{"condition":"A file is created and injected into within the same generate run (e.g. a controller plus its own marker groups)","handling":"Exactly one ChangeEntry with writtenHash = post-injection hash; a plain undo (no --force) succeeds and deletes the file entirely.","id":"e-1"},{"condition":"A pre-existing file (overwrite/skip-if-exists target) is also injected into in the same run","handling":"Single 'modified' entry whose priorContent is the content from BEFORE this whole run (not an intermediate render), so undo restores the true original.","id":"e-2"},{"condition":"Two configured pack slots are both path-based (e.g. v8-controller and v8-controller-gcp siblings)","handling":"Both packs' own directories are excluded from every slot's candidate scan, not just the slot currently being processed.","id":"e-3"},{"condition":"descriptorMapper: two templates tie in literal specificity and both genuinely match the same file","handling":"Neither is dropped — the existing multi-match needsManual path still fires for both, since a real tie is genuine ambiguity, not something to silently arbitrate.","id":"e-4"},{"condition":"descriptorMapper: after the less-specific template loses its only match to the more-specific one","handling":"Entity-free template with zero remaining matches stays silently not-actionable (unchanged existing behavior); an entity-keyed template simply omits that entity from `mapped` rather than needsManual.","id":"e-5"}],"testScenarios":[{"target":"packages/core/test/integration/undo.test.ts — 'a file created and injected into in the same run undoes without --force and leaves nothing behind'","scenario":"runGenerate creates+injects a controller in one run; undoChangeset without --force does not throw; file no longer exists; a re-generate right after succeeds (no 'already exists and its target mode is create').","id":"t-1"},{"target":"packages/core/test/unit/repoWalk.test.ts — 'findCandidateFiles excludes a directory passed in excludeDirs even though its name is not in IGNORED_DIRS'","scenario":"A decoy file under packages/templates-dotnet/tools/harness/ is excluded when that path is passed as excludeDirs, while the real src/ file is still found.","id":"t-2"},{"target":"packages/core/test/integration/bootstrapMarkers.test.ts — 'a decoy file inside a path-based pack's own directory is never treated as the real candidate'","scenario":"A harness decoy Program.cs inside the configured pack's own directory does not get reported alreadyPresent; the real host Program.cs receives the placed marker.","id":"t-3"},{"target":"packages/core/test/unit/descriptorMapper.test.ts — 'a file matching both I{{entity}}Repository.cs and {{entity}}Repository.cs is attributed only to the more specific interface template'","scenario":"IAisleRepository.cs maps only under the interface template with entity Aisle; AisleRepository.cs maps only under the repository template with entity Aisle; needsManual stays empty.","id":"t-4"}]};
+    </script>
+    <script>
+        // ------------------------------------------------------------------
+        // Data Layer
+        // ------------------------------------------------------------------
+        const STORAGE_KEY = 'feature-impl-plan:' + document.title;
+
+        // One-time migration from the previous single-key localStorage layout
+        // used by the original pasted template ('feature-impl-plan-data'). If
+        // the per-document key is empty but the old global key has data, copy
+        // it across and clear it so the user's edits survive the upgrade.
+        function migrateLegacyStorage() {
+            try {
+                if (localStorage.getItem(STORAGE_KEY)) return;
+                const legacy = localStorage.getItem('feature-impl-plan-data');
+                if (!legacy) return;
+                localStorage.setItem(STORAGE_KEY, legacy);
+                localStorage.removeItem('feature-impl-plan-data');
+            } catch (e) { /* ignore */ }
+        }
+        migrateLegacyStorage();
+
+        let data = loadData();
+
+        function emptyData() {
+            return {
+                title: '',
+                module: '',
+                goal: '',
+                context: '',
+                patternCore: 'Layered (Controller -> Service -> Repository)',
+                patternBusiness: 'Transaction Script',
+                patternSpecific: '',
+                patternOverrides: '',
+                files: [],
+                logicSteps: [],
+                contracts: [],
+                edgeCases: [],
+                testScenarios: []
+            };
+        }
+
+        function loadData() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    return normalize(parsed);
+                }
+            } catch (e) { /* ignore */ }
+            return normalize(INITIAL_DATA || emptyData());
+        }
+
+        // Fills in any missing top-level keys so a sparse persisted or seeded
+        // payload still renders a valid page.
+        function normalize(parsed) {
+            const base = emptyData();
+            if (!parsed || typeof parsed !== 'object') parsed = {};
+            for (let key in base) {
+                if (parsed[key] === undefined) parsed[key] = base[key];
+            }
+            return parsed;
+        }
+
+        function saveData() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            } catch (e) { /* ignore */ }
+        }
+
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+        }
+
+        // ------------------------------------------------------------------
+        // Rendering Helpers
+        // ------------------------------------------------------------------
+        function renderAll() {
+            renderFiles();
+            renderLogic();
+            renderContracts();
+            renderEdges();
+            renderTests();
+
+            document.getElementById('feature-title').value = data.title || '';
+            document.getElementById('feature-module').value = data.module || '';
+            document.getElementById('feature-goal').value = data.goal || '';
+            document.getElementById('feature-context').value = data.context || '';
+            document.getElementById('pattern-core').value = data.patternCore || '';
+            document.getElementById('pattern-business').value = data.patternBusiness || '';
+            document.getElementById('pattern-specific').value = data.patternSpecific || '';
+            document.getElementById('pattern-overrides').value = data.patternOverrides || '';
+        }
+
+        // Generic render for simple item lists (logic, contracts, edges, tests)
+        function renderSimpleList(containerId, items, fields, labelSingular, btnId) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            items.forEach((item, index) => {
+                const block = document.createElement('div');
+                block.className = 'item-block';
+
+                const header = document.createElement('div');
+                header.className = 'item-header';
+                const titleSpan = document.createElement('span');
+                titleSpan.className = 'item-title';
+                titleSpan.textContent = `${labelSingular} #${index+1}`;
+                header.appendChild(titleSpan);
+
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'btn btn-danger btn-sm';
+                removeBtn.textContent = '✕ Remove';
+                removeBtn.addEventListener('click', () => {
+                    items.splice(index, 1);
+                    saveData();
+                    renderAll();
+                });
+                header.appendChild(removeBtn);
+                block.appendChild(header);
+
+                const fieldDiv = document.createElement('div');
+                fieldDiv.className = 'item-fields';
+
+                fields.forEach(f => {
+                    const wrapper = document.createElement('div');
+                    if (f.fullWidth) wrapper.className = 'full-width';
+
+                    const label = document.createElement('label');
+                    label.textContent = f.label;
+                    wrapper.appendChild(label);
+
+                    let input;
+                    if (f.type === 'textarea') {
+                        input = document.createElement('textarea');
+                        input.rows = f.rows || 3;
+                        input.placeholder = f.placeholder || '';
+                        input.value = item[f.key] || '';
+                        input.addEventListener('input', () => {
+                            item[f.key] = input.value;
+                            saveData();
+                        });
+                    } else if (f.type === 'select') {
+                        input = document.createElement('select');
+                        f.options.forEach(opt => {
+                            const option = document.createElement('option');
+                            option.value = opt.value;
+                            option.textContent = opt.label;
+                            if (item[f.key] === opt.value) option.selected = true;
+                            input.appendChild(option);
+                        });
+                        input.addEventListener('change', () => {
+                            item[f.key] = input.value;
+                            saveData();
+                        });
+                    } else {
+                        input = document.createElement('input');
+                        input.type = f.type || 'text';
+                        input.placeholder = f.placeholder || '';
+                        input.value = item[f.key] || '';
+                        input.addEventListener('input', () => {
+                            item[f.key] = input.value;
+                            saveData();
+                        });
+                    }
+                    wrapper.appendChild(input);
+                    fieldDiv.appendChild(wrapper);
+                });
+
+                block.appendChild(fieldDiv);
+                container.appendChild(block);
+            });
+        }
+
+        // ------------------------------------------------------------------
+        // Render Files (with sorting by order)
+        // ------------------------------------------------------------------
+        function renderFiles() {
+            const container = document.getElementById('files-container');
+            container.innerHTML = '';
+            // Sort by order
+            const sorted = [...data.files].sort((a, b) => (a.order || 999) - (b.order || 999));
+
+            sorted.forEach((item, idx) => {
+                // find original index for removal
+                const origIndex = data.files.indexOf(item);
+                const block = document.createElement('div');
+                block.className = 'item-block';
+
+                const header = document.createElement('div');
+                header.className = 'item-header';
+
+                const titleSpan = document.createElement('span');
+                titleSpan.className = 'item-title';
+                const badge = document.createElement('span');
+                const action = item.action || 'update';
+                badge.className = `badge badge-${action}`;
+                badge.textContent = action.toUpperCase();
+                titleSpan.appendChild(badge);
+                titleSpan.appendChild(document.createTextNode(` ${item.path || 'Untitled file'}`));
+                header.appendChild(titleSpan);
+
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'btn btn-danger btn-sm';
+                removeBtn.textContent = '✕ Remove';
+                removeBtn.addEventListener('click', () => {
+                    data.files.splice(origIndex, 1);
+                    saveData();
+                    renderAll();
+                });
+                header.appendChild(removeBtn);
+                block.appendChild(header);
+
+                const fieldDiv = document.createElement('div');
+                fieldDiv.className = 'item-fields';
+
+                // Order
+                const orderWrap = document.createElement('div');
+                const orderLabel = document.createElement('label');
+                orderLabel.textContent = 'Order';
+                orderWrap.appendChild(orderLabel);
+                const orderInput = document.createElement('input');
+                orderInput.type = 'number';
+                orderInput.min = 1;
+                orderInput.value = item.order || idx + 1;
+                orderInput.addEventListener('input', () => {
+                    item.order = parseInt(orderInput.value) || 999;
+                    saveData();
+                    renderFiles(); // re-sort
+                });
+                orderWrap.appendChild(orderInput);
+                fieldDiv.appendChild(orderWrap);
+
+                // Action
+                const actionWrap = document.createElement('div');
+                const actionLabel = document.createElement('label');
+                actionLabel.textContent = 'Action';
+                actionWrap.appendChild(actionLabel);
+                const actionSelect = document.createElement('select');
+                ['create', 'update', 'delete'].forEach(a => {
+                    const opt = document.createElement('option');
+                    opt.value = a;
+                    opt.textContent = a.charAt(0).toUpperCase() + a.slice(1);
+                    if (item.action === a) opt.selected = true;
+                    actionSelect.appendChild(opt);
+                });
+                actionSelect.addEventListener('change', () => {
+                    item.action = actionSelect.value;
+                    saveData();
+                    renderFiles();
+                });
+                actionWrap.appendChild(actionSelect);
+                fieldDiv.appendChild(actionWrap);
+
+                // Path
+                const pathWrap = document.createElement('div');
+                const pathLabel = document.createElement('label');
+                pathLabel.textContent = 'File Path';
+                pathWrap.appendChild(pathLabel);
+                const pathInput = document.createElement('input');
+                pathInput.type = 'text';
+                pathInput.placeholder = 'src/Service/NewService.php';
+                pathInput.value = item.path || '';
+                pathInput.addEventListener('input', () => {
+                    item.path = pathInput.value;
+                    saveData();
+                    renderFiles();
+                });
+                pathWrap.appendChild(pathInput);
+                fieldDiv.appendChild(pathWrap);
+
+                // Description
+                const descWrap = document.createElement('div');
+                descWrap.className = 'full-width';
+                const descLabel = document.createElement('label');
+                descLabel.textContent = 'Purpose / Description';
+                descWrap.appendChild(descLabel);
+                const descInput = document.createElement('textarea');
+                descInput.rows = 1;
+                descInput.placeholder = 'What does this file do?';
+                descInput.value = item.description || '';
+                descInput.addEventListener('input', () => {
+                    item.description = descInput.value;
+                    saveData();
+                });
+                descWrap.appendChild(descInput);
+                fieldDiv.appendChild(descWrap);
+
+                // Pseudo-code
+                const codeWrap = document.createElement('div');
+                codeWrap.className = 'full-width';
+                const codeLabel = document.createElement('label');
+                codeLabel.textContent = 'Pseudo-code / Expected Signature (write code stubs here)';
+                codeWrap.appendChild(codeLabel);
+                const codeInput = document.createElement('textarea');
+                codeInput.rows = 4;
+                codeInput.placeholder = "e.g.\nclass NewService {\n  public function execute($input) {\n    // 1. Validate input\n    // 2. Call repository\n  }\n}";
+                codeInput.value = item.pseudoCode || '';
+                codeInput.addEventListener('input', () => {
+                    item.pseudoCode = codeInput.value;
+                    saveData();
+                });
+                codeWrap.appendChild(codeInput);
+                fieldDiv.appendChild(codeWrap);
+
+                block.appendChild(fieldDiv);
+                container.appendChild(block);
+            });
+        }
+
+        // ------------------------------------------------------------------
+        // Render specific sections
+        // ------------------------------------------------------------------
+        function renderLogic() {
+            const fields = [
+                { key: 'step', label: 'Step Title', type: 'text', placeholder: 'e.g. Validate user input' },
+                { key: 'pseudo', label: 'Detailed Pseudo-code / Logic', type: 'textarea', rows: 4, fullWidth: true }
+            ];
+            renderSimpleList('logic-container', data.logicSteps, fields, 'Logic Step', 'add-logic-btn');
+        }
+
+        function renderContracts() {
+            const fields = [
+                { key: 'name', label: 'Function / Endpoint Name', type: 'text', placeholder: 'POST /api/v2/verify-2fa' },
+                { key: 'inputs', label: 'Inputs / Parameters', type: 'textarea', rows: 2, fullWidth: true },
+                { key: 'outputs', label: 'Outputs / Returns', type: 'textarea', rows: 2, fullWidth: true }
+            ];
+            renderSimpleList('contracts-container', data.contracts, fields, 'Contract', 'add-contract-btn');
+        }
+
+        function renderEdges() {
+            const fields = [
+                { key: 'condition', label: 'Condition / Scenario', type: 'text', placeholder: 'e.g. User enters wrong OTP' },
+                { key: 'handling', label: 'Expected Handling', type: 'textarea', rows: 2, fullWidth: true }
+            ];
+            renderSimpleList('edges-container', data.edgeCases, fields, 'Edge Case', 'add-edge-btn');
+        }
+
+        function renderTests() {
+            const fields = [
+                { key: 'target', label: 'Target File / Method', type: 'text', placeholder: 'NewService::execute()' },
+                { key: 'scenario', label: 'Test Scenario', type: 'textarea', rows: 2, fullWidth: true }
+            ];
+            renderSimpleList('tests-container', data.testScenarios, fields, 'Test', 'add-test-btn');
+        }
+
+        // ------------------------------------------------------------------
+        // Event Bindings for Add Buttons
+        //
+        // NOTE: The inline default items below MUST stay in sync with the
+        // ITEM_FIELD_DEFAULTS table in agents/skills/featurePlan/featurePlan-inject.js
+        // — both describe the same per-section field schema, and adding or
+        // renaming a field requires changes in both places.
+        // ------------------------------------------------------------------
+        function bindAdd(btnId, arrayKey, defaultItem) {
+            document.getElementById(btnId).addEventListener('click', () => {
+                data[arrayKey].push({ ...defaultItem, id: generateId() });
+                saveData();
+                renderAll();
+            });
+        }
+
+        bindAdd('add-file-btn', 'files', { order: data.files.length + 1, action: 'create', path: '', description: '',
+            pseudoCode: '' });
+        bindAdd('add-logic-btn', 'logicSteps', { step: '', pseudo: '' });
+        bindAdd('add-contract-btn', 'contracts', { name: '', inputs: '', outputs: '' });
+        bindAdd('add-edge-btn', 'edgeCases', { condition: '', handling: '' });
+        bindAdd('add-test-btn', 'testScenarios', { target: '', scenario: '' });
+
+        // Input bindings for top-level fields
+        document.getElementById('feature-title').addEventListener('input', (e) => { data.title = e.target.value;
+            saveData(); });
+        document.getElementById('feature-module').addEventListener('input', (e) => { data.module = e.target.value;
+            saveData(); });
+        document.getElementById('feature-goal').addEventListener('input', (e) => { data.goal = e.target.value;
+            saveData(); });
+        document.getElementById('feature-context').addEventListener('input', (e) => { data.context = e.target.value;
+            saveData(); });
+        document.getElementById('pattern-core').addEventListener('input', (e) => { data.patternCore = e.target.value;
+            saveData(); });
+        document.getElementById('pattern-business').addEventListener('input', (e) => { data.patternBusiness = e.target.value;
+            saveData(); });
+        document.getElementById('pattern-specific').addEventListener('input', (e) => { data.patternSpecific = e.target.value;
+            saveData(); });
+        document.getElementById('pattern-overrides').addEventListener('input', (e) => { data.patternOverrides = e.target.value;
+            saveData(); });
+
+        // ------------------------------------------------------------------
+        // Export
+        // ------------------------------------------------------------------
+        function buildExportText() {
+            const lines = [];
+            lines.push('FEATURE IMPLEMENTATION PLAN (AI-READY PROMPT)');
+            lines.push('==============================================');
+            lines.push('');
+            lines.push(`FEATURE TITLE: ${data.title || 'Not set'}`);
+            lines.push(`TARGET MODULE: ${data.module || 'Not set'}`);
+            lines.push(`USER STORY: ${data.goal || 'Not set'}`);
+            lines.push(`EXISTING CONTEXT: ${data.context || 'Not set'}`);
+            lines.push('');
+
+            lines.push('--- DESIGN PATTERNS & OVERRIDES ---');
+            lines.push(`Core Pattern: ${data.patternCore || 'Not set'}`);
+            lines.push(`Business Logic Pattern: ${data.patternBusiness || 'Not set'}`);
+            lines.push(`Specific Implementations: ${data.patternSpecific || 'None'}`);
+            lines.push(`Explicit Overrides: ${data.patternOverrides || 'None'}`);
+            lines.push('');
+
+            // Files
+            lines.push('--- FILE CHANGE MANIFEST (IN ORDER) ---');
+            const sortedFiles = [...data.files].sort((a, b) => (a.order || 999) - (b.order || 999));
+            if (sortedFiles.length === 0) {
+                lines.push('(No files defined)');
+            } else {
+                sortedFiles.forEach((f, idx) => {
+                    lines.push(`[${idx+1}] ${f.action.toUpperCase()} | ${f.path || 'Untitled'}`);
+                    if (f.description) lines.push(`    Description: ${f.description}`);
+                    if (f.pseudoCode) {
+                        lines.push(`    Pseudo-code:`);
+                        f.pseudoCode.split('\n').forEach(line => {
+                            lines.push(`      ${line}`);
+                        });
+                    }
+                    lines.push('');
+                });
+            }
+
+            // Logic
+            lines.push('--- CORE BUSINESS LOGIC (PSEUDO-CODE) ---');
+            if (data.logicSteps.length === 0) {
+                lines.push('(No logic steps defined)');
+            } else {
+                data.logicSteps.forEach((l, idx) => {
+                    lines.push(`Step ${idx+1}: ${l.step || 'Untitled'}`);
+                    if (l.pseudo) {
+                        l.pseudo.split('\n').forEach(line => {
+                            lines.push(`  ${line}`);
+                        });
+                    }
+                    lines.push('');
+                });
+            }
+
+            // Contracts
+            lines.push('--- FUNCTION / API CONTRACTS ---');
+            if (data.contracts.length === 0) {
+                lines.push('(No contracts defined)');
+            } else {
+                data.contracts.forEach(c => {
+                    lines.push(`Signature: ${c.name || 'Unnamed'}`);
+                    if (c.inputs) lines.push(`  Inputs: ${c.inputs}`);
+                    if (c.outputs) lines.push(`  Outputs: ${c.outputs}`);
+                    lines.push('');
+                });
+            }
+
+            // Edge Cases
+            lines.push('--- EDGE CASES & ERROR HANDLING ---');
+            if (data.edgeCases.length === 0) {
+                lines.push('(No edge cases defined)');
+            } else {
+                data.edgeCases.forEach(e => {
+                    lines.push(`Condition: ${e.condition || 'Untitled'}`);
+                    if (e.handling) lines.push(`  Handling: ${e.handling}`);
+                    lines.push('');
+                });
+            }
+
+            // Tests
+            lines.push('--- TESTING STRATEGY ---');
+            if (data.testScenarios.length === 0) {
+                lines.push('(No tests defined)');
+            } else {
+                data.testScenarios.forEach(t => {
+                    lines.push(`Target: ${t.target || 'Untitled'}`);
+                    if (t.scenario) lines.push(`  Scenario: ${t.scenario}`);
+                    lines.push('');
+                });
+            }
+
+            lines.push('--- END OF PLAN ---');
+            lines.push('Generate the actual code based strictly on the above plan.');
+            return lines.join('\n');
+        }
+
+        document.getElementById('copy-btn').addEventListener('click', () => {
+            const text = buildExportText();
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = document.getElementById('copy-btn');
+                btn.textContent = '✓ Copied!';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.textContent = '📋 Copy AI-Ready Plan';
+                    btn.classList.remove('copied');
+                }, 2500);
+            }).catch(() => {
+                alert('Could not copy. Please select and copy manually.');
+            });
+        });
+
+        document.getElementById('reset-btn').addEventListener('click', () => {
+            if (confirm('Reset all data? This cannot be undone.')) {
+                data = emptyData();
+                saveData();
+                renderAll();
+            }
+        });
+
+        // ------------------------------------------------------------------
+        // Initial Render
+        // ------------------------------------------------------------------
+        renderAll();
+    </script>
+
+</body>
+</html>
