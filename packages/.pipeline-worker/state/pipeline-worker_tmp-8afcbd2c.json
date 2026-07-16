@@ -1,0 +1,24 @@
+{
+  "branch": "pipeline-worker/tmp-8afcbd2c",
+  "targetBranch": "main",
+  "worktreePath": "/tmp/pipeline-worker-1SBmEg/worktree",
+  "ciFixAttempt": 0,
+  "conflictAttempt": 0,
+  "phase": "diff",
+  "startedAt": "2026-07-16T09:26:11.771Z",
+  "updatedAt": "2026-07-16T09:26:13.658Z",
+  "history": [
+    {
+      "at": "2026-07-16T09:26:11.771Z",
+      "phase": "diff",
+      "level": "info",
+      "message": "Created worktree at /tmp/pipeline-worker-1SBmEg/worktree (temp branch pipeline-worker/tmp-8afcbd2c)"
+    },
+    {
+      "at": "2026-07-16T09:26:13.658Z",
+      "phase": "diff",
+      "level": "error",
+      "message": "Run failed: ENOENT: no such file or directory, lstat '/run/media/mohan/M/REPO/scaffold-toolkit/packages/packages/.pipeline-worker/'"
+    }
+  ]
+}

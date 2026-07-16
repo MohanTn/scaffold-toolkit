@@ -21,10 +21,17 @@ test('buildDecision returns an empty object when no config is present', () => {
   assert.deepEqual(buildDecision(false), {});
 });
 
-test('buildDecision injects a standing instruction via hookSpecificOutput.additionalContext when config is present', () => {
+test('buildDecision injects a standing instruction via hookSpecificOutput.additionalContext when config is present (gate mode, the default)', () => {
   const decision = buildDecision(true);
   assert.equal(decision.hookSpecificOutput.hookEventName, 'UserPromptSubmit');
   assert.match(decision.hookSpecificOutput.additionalContext, /scaffold generate/);
   assert.match(decision.hookSpecificOutput.additionalContext, /AI_IMPLEMENTATION/);
+  assert.match(decision.hookSpecificOutput.additionalContext, /will block/);
   assert.equal(Object.prototype.hasOwnProperty.call(decision, 'decision'), false, 'this hook only injects context — it must never block the prompt itself');
+});
+
+test('buildDecision describes nudge mode instead of blocking language when mode is "nudge"', () => {
+  const decision = buildDecision(true, 'nudge');
+  assert.match(decision.hookSpecificOutput.additionalContext, /nudge/);
+  assert.doesNotMatch(decision.hookSpecificOutput.additionalContext, /will block/);
 });

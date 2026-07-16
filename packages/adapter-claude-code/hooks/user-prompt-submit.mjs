@@ -26,26 +26,39 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { isMainModule } from './isMainModule.mjs';
+import { getEnforcementMode } from './packManifestReader.mjs';
 
-const STANDING_INSTRUCTION =
+const OWNERSHIP_PREAMBLE =
   'scaffold-toolkit is configured in this repo (.scaffold/config.json exists). Any file a configured template ' +
   'pack declares ownership of (its targets[].output or injections[].file patterns) must be created or updated via ' +
-  '"scaffold generate", never by a direct Write or Edit — a PreToolUse hook will block a raw Write to such a file, ' +
-  'and will block an Edit unless it lands entirely inside an AI_IMPLEMENTATION marker interior (never inside a ' +
-  'SCAFFOLD:<marker> injection region). Files outside any configured pack\'s declared patterns are unaffected.';
+  '"scaffold generate", never by a direct Write or Edit — ';
+
+const GATE_STANDING_INSTRUCTION =
+  OWNERSHIP_PREAMBLE +
+  'a PreToolUse hook will block a raw Write to such a file, and will block an Edit unless it lands entirely ' +
+  'inside an AI_IMPLEMENTATION marker interior (never inside a SCAFFOLD:<marker> injection region). Files ' +
+  'outside any configured pack\'s declared patterns are unaffected.';
+
+const NUDGE_STANDING_INSTRUCTION =
+  OWNERSHIP_PREAMBLE +
+  'this repo runs in "nudge" mode (.scaffold/conf.json editEnforcement: "nudge"), so a PreToolUse hook will ' +
+  'surface a warning via additionalContext rather than blocking, but the underlying rule still applies: prefer ' +
+  '"scaffold generate" over a direct Write/Edit outside an AI_IMPLEMENTATION marker interior. Files outside any ' +
+  'configured pack\'s declared patterns are unaffected.';
 
 /** True whenever this repo is scaffold-managed — unconditional on the prompt's own text, per the plan's no-content-detection decision. */
 export function shouldInjectStandingInstruction(cwd) {
   return existsSync(path.join(cwd, '.scaffold', 'config.json'));
 }
 
-/** Pure decision function, unit-tested directly: the hook's stdout JSON for a given cwd's config presence. */
-export function buildDecision(configPresent) {
+/** Pure decision function, unit-tested directly: the hook's stdout JSON for a given cwd's config presence and enforcement mode. */
+export function buildDecision(configPresent, mode = 'gate') {
   if (!configPresent) return {};
   return {
     hookSpecificOutput: {
       hookEventName: 'UserPromptSubmit',
-      additionalContext: STANDING_INSTRUCTION,
+      additionalContext: mode === 'nudge' ? NUDGE_STANDING_INSTRUCTION : GATE_STANDING_INSTRUCTION,
     },
   };
 }
@@ -55,9 +68,9 @@ function main() {
   const hookInput = raw.trim() ? JSON.parse(raw) : {};
   const cwd = hookInput.cwd || process.cwd();
 
-  process.stdout.write(JSON.stringify(buildDecision(shouldInjectStandingInstruction(cwd))));
+  process.stdout.write(JSON.stringify(buildDecision(shouldInjectStandingInstruction(cwd), getEnforcementMode(cwd))));
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMainModule(import.meta.url)) {
   main();
 }
