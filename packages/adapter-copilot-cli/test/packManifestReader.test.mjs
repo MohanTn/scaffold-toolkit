@@ -1,43 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
 import {
   mapFileToTemplate,
   getStandardsForFile,
   formatStandardsGuidance,
-  getEnforcementMode,
 } from '../hooks/packManifestReader.mjs';
-
-function tmpRepo() {
-  return mkdtempSync(path.join(tmpdir(), 'scaffold-cc-conf-'));
-}
-
-test('getEnforcementMode: defaults to "gate" when .scaffold/conf.json is absent', () => {
-  assert.strictEqual(getEnforcementMode(tmpRepo()), 'gate');
-});
-
-test('getEnforcementMode: "nudge" when explicitly configured', () => {
-  const dir = tmpRepo();
-  mkdirSync(path.join(dir, '.scaffold'), { recursive: true });
-  writeFileSync(path.join(dir, '.scaffold', 'conf.json'), JSON.stringify({ editEnforcement: 'nudge' }));
-  assert.strictEqual(getEnforcementMode(dir), 'nudge');
-});
-
-test('getEnforcementMode: falls back to "gate" for an unrecognized value', () => {
-  const dir = tmpRepo();
-  mkdirSync(path.join(dir, '.scaffold'), { recursive: true });
-  writeFileSync(path.join(dir, '.scaffold', 'conf.json'), JSON.stringify({ editEnforcement: 'yolo' }));
-  assert.strictEqual(getEnforcementMode(dir), 'gate');
-});
-
-test('getEnforcementMode: falls back to "gate" on malformed JSON', () => {
-  const dir = tmpRepo();
-  mkdirSync(path.join(dir, '.scaffold'), { recursive: true });
-  writeFileSync(path.join(dir, '.scaffold', 'conf.json'), '{ not json');
-  assert.strictEqual(getEnforcementMode(dir), 'gate');
-});
 
 test('mapFileToTemplate: exact pattern match', () => {
   const manifest = {

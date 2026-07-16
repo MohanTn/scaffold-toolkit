@@ -1,25 +1,24 @@
 #!/usr/bin/env node
 /**
- * Stop hook: fires when Claude is about to end its turn. Runs `scaffold
- * status --json` in the session's cwd; if any AI_IMPLEMENTATION block is
- * still pending, it returns a blocking decision so Claude cannot end the
- * turn — chosen deliberately over a soft warning, since a soft nudge just
- * reintroduces the non-determinism this feature exists to remove. If status
- * exits 0 (nothing pending), the turn is allowed to end normally.
+ * agentStop hook for GitHub Copilot CLI (schema per
+ * https://docs.github.com/en/copilot/reference/hooks-reference, fetched
+ * 2026-07-15): fires when the agent is about to end its turn/session. Runs
+ * `scaffold status --json` in the session's cwd; if any AI_IMPLEMENTATION
+ * block is still pending, returns a blocking decision so the agent cannot
+ * end the turn — chosen deliberately over a soft warning, mirroring the
+ * Claude Code adapter's Stop hook (stop.mjs) and its own reasoning: a soft
+ * nudge just reintroduces the non-determinism this feature exists to
+ * remove. If status exits 0 (nothing pending), the turn is allowed to end.
  *
- * Contract (verified against https://code.claude.com/docs/en/hooks, fetched
- * 2026-07 — see this repo's BUILT handoff for the exact fields verified and
- * what could not be independently confirmed): the Stop hook's stdin JSON
- * does not include tool details (it isn't a tool-use event), just session
- * metadata plus `last_assistant_message`; this script only needs `cwd` from
- * that payload. Output is JSON on stdout with `decision: "block"` plus
- * `reason` to prevent the stop and feed Claude the reason to act on; an
- * empty object (or a JSON with no `decision`) allows the stop.
+ * Output shape (per the hooks reference): `{ decision: "block" | "allow",
+ * reason? }` — unlike Claude Code's Stop hook, where omitting `decision`
+ * implicitly allows the stop, Copilot's schema documents `decision` as
+ * required, so this script always sets it explicitly rather than relying
+ * on an undocumented default.
  */
 
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { isMainModule } from './isMainModule.mjs';
 
 function summarizeUnresolved(statusStdout) {
   try {
@@ -36,17 +35,17 @@ function summarizeUnresolved(statusStdout) {
  * Pure decision function, unit-tested directly: given `scaffold status
  * --json`'s real exit code and stdout, returns the JSON this hook should
  * print. Exit 0 means every previously-pending block now has real content,
- * so the turn is allowed to end (empty object, no `decision`).
+ * so the turn is allowed to end.
  */
 export function buildStopDecision(statusExitCode, statusStdout) {
-  if (statusExitCode === 0) return {};
+  if (statusExitCode === 0) return { decision: 'allow' };
   const summary = summarizeUnresolved(statusStdout);
   const detail = summary ? `: ${summary}` : ' (see scaffold status --json for detail).';
   return {
     decision: 'block',
     reason:
       `scaffold status still reports unfilled AI_IMPLEMENTATION block(s)${detail} ` +
-      'Fill each one with your Edit tool (use the current-content field from the generate report so an already-completed block is never re-filled), then try to stop again.',
+      'Fill each one with your file-editing tool (use the current-content field from the generate report so an already-completed block is never re-filled), then try to stop again.',
   };
 }
 
@@ -68,6 +67,6 @@ function main() {
   process.stdout.write(JSON.stringify(buildStopDecision(exitCode, stdout)));
 }
 
-if (isMainModule(import.meta.url)) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   main();
 }

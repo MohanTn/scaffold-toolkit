@@ -21,6 +21,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { isMainModule } from './isMainModule.mjs';
 
 // Matches a real `scaffold generate` invocation whether run as the bare
 // `scaffold` binary or via `npx @mohantn/scaffold-core` (which puts the
@@ -94,6 +95,6 @@ function main() {
 }
 
 // Only run as a script (not when imported by tests for its pure functions).
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMainModule(import.meta.url)) {
   main();
 }

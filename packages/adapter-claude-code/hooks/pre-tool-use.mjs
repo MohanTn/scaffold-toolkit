@@ -8,22 +8,30 @@
  * exactly once, not twice).
  *
  * A `scaffold check-edit` invocation failure (binary missing, crash,
- * unparseable stdout) is treated as a block, not an allow — this mirrors
- * the existing, intentional fail-closed behavior already in
- * stop.mjs/agent-stop.mjs; don't "fix" it into a silent bypass. A hook that
- * quietly permits the tool call the moment its own gate breaks defeats the
- * entire point of a hard gate.
+ * unparseable stdout) is treated as a block, not an allow, in the default
+ * "gate" enforcement mode — this mirrors the existing, intentional
+ * fail-closed behavior already in stop.mjs/agent-stop.mjs; don't "fix" it
+ * into a silent bypass. A hook that quietly permits the tool call the
+ * moment its own gate breaks defeats the entire point of a hard gate.
+ *
+ * Per-repo `.scaffold/conf.json` (`editEnforcement: "nudge"`) switches this
+ * to a soft mode: every case that would otherwise deny — a real check-edit
+ * denial, or an invocation failure — instead surfaces as `additionalContext`
+ * and the write/edit proceeds. See `getEnforcementMode` in
+ * packManifestReader.mjs for the read/default logic.
  */
 
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { isMainModule } from './isMainModule.mjs';
 import {
   resolvePack,
   loadManifest,
   getStandardsForFile,
   formatStandardsGuidance,
+  getEnforcementMode,
 } from './packManifestReader.mjs';
 
 const EDIT_TOOLS = new Set(['Write', 'Edit']);
@@ -94,20 +102,31 @@ export function extractEditRequest(hookInput) {
 
 /**
  * Pure decision function, unit-tested directly: given `scaffold check-edit`'s
- * real exit code and stdout, plus optional coding standards guidance, returns the JSON this hook should print.
+ * real exit code and stdout, plus optional coding standards guidance and the
+ * repo's enforcement mode, returns the JSON this hook should print.
+ *
+ * `mode: 'gate'` (default) preserves the original hard-block behavior. In
+ * `mode: 'nudge'`, every case that would otherwise deny — an unparseable
+ * check-edit result, or a real denial — instead returns `additionalContext`
+ * describing what was flagged, and the tool call proceeds.
  */
-export function buildDecision(checkEditExitCode, checkEditStdout, standardsGuidance = null) {
+export function buildDecision(checkEditExitCode, checkEditStdout, standardsGuidance = null, mode = 'gate') {
   let result;
   try {
     result = JSON.parse(checkEditStdout);
   } catch {
+    const reason =
+      `scaffold check-edit did not return a parseable decision (exit ${checkEditExitCode}) — ` +
+      `${mode === 'nudge' ? 'nudge mode, not blocking' : 'blocking, fail-closed'}. ` +
+      `Raw output: ${checkEditStdout.trim().slice(0, 500) || '(empty)'}`;
+    if (mode === 'nudge') {
+      return { hookSpecificOutput: { hookEventName: 'PreToolUse', additionalContext: reason } };
+    }
     return {
       hookSpecificOutput: {
         hookEventName: 'PreToolUse',
         permissionDecision: 'deny',
-        permissionDecisionReason:
-          `scaffold check-edit did not return a parseable decision (exit ${checkEditExitCode}) — blocking, fail-closed. ` +
-          `Raw output: ${checkEditStdout.trim().slice(0, 500) || '(empty)'}`,
+        permissionDecisionReason: reason,
       },
     };
   }
@@ -125,11 +144,20 @@ export function buildDecision(checkEditExitCode, checkEditStdout, standardsGuida
     return {};
   }
 
+  const reason = result.detail || 'scaffold check-edit refused this write/edit.';
+  if (mode === 'nudge') {
+    return {
+      hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        additionalContext: `scaffold check-edit flagged this write/edit (nudge mode — not blocking): ${reason}`,
+      },
+    };
+  }
   return {
     hookSpecificOutput: {
       hookEventName: 'PreToolUse',
       permissionDecision: 'deny',
-      permissionDecisionReason: result.detail || 'scaffold check-edit refused this write/edit.',
+      permissionDecisionReason: reason,
     },
   };
 }
@@ -181,6 +209,7 @@ function main() {
     return;
   }
 
+  const mode = getEnforcementMode(cwd);
   const { exitCode, stdout } = runCheckEdit(cwd, editRequest.file, editRequest.tool, editRequest.oldString);
 
   // Try to inject coding standards if this is an AI_IMPLEMENTATION block edit
@@ -203,9 +232,9 @@ function main() {
     }
   }
 
-  process.stdout.write(JSON.stringify(buildDecision(exitCode, stdout, standardsGuidance)));
+  process.stdout.write(JSON.stringify(buildDecision(exitCode, stdout, standardsGuidance, mode)));
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMainModule(import.meta.url)) {
   main();
 }

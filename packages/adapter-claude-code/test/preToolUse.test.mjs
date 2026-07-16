@@ -1,6 +1,6 @@
 import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { shouldCheckEdit, extractEditRequest, buildDecision, shouldUseOldStringFile } from '../hooks/pre-tool-use.mjs';
 import {
@@ -62,6 +62,35 @@ test('buildDecision fails closed (deny) when check-edit stdout is not parseable 
   const decision = buildDecision(127, 'scaffold: command not found');
   assert.equal(decision.hookSpecificOutput.permissionDecision, 'deny');
   assert.match(decision.hookSpecificOutput.permissionDecisionReason, /command not found/);
+});
+
+test('buildDecision in "nudge" mode surfaces a check-edit denial as additionalContext instead of blocking', () => {
+  const decision = buildDecision(
+    1,
+    JSON.stringify({ allow: false, reason: 'write-blocked', detail: 'go run scaffold generate', packOwned: true, packSlot: 'backend' }),
+    null,
+    'nudge',
+  );
+  assert.equal(decision.hookSpecificOutput.hookEventName, 'PreToolUse');
+  assert.equal(decision.hookSpecificOutput.permissionDecision, undefined, 'nudge mode must never set permissionDecision');
+  assert.match(decision.hookSpecificOutput.additionalContext, /go run scaffold generate/);
+});
+
+test('buildDecision in "nudge" mode surfaces an unparseable check-edit result as additionalContext instead of blocking', () => {
+  const decision = buildDecision(127, 'scaffold: command not found', null, 'nudge');
+  assert.equal(decision.hookSpecificOutput.permissionDecision, undefined);
+  assert.match(decision.hookSpecificOutput.additionalContext, /command not found/);
+});
+
+test('buildDecision in "nudge" mode leaves an allow untouched (still empty decision, still injects standards guidance)', () => {
+  assert.deepEqual(buildDecision(0, JSON.stringify({ allow: true }), null, 'nudge'), {});
+  const decision = buildDecision(0, JSON.stringify({ allow: true }), 'some guidance', 'nudge');
+  assert.equal(decision.hookSpecificOutput.additionalContext, 'some guidance');
+});
+
+test('buildDecision defaults to "gate" when mode is omitted (backward compatible)', () => {
+  const decision = buildDecision(1, JSON.stringify({ allow: false, detail: 'x' }));
+  assert.equal(decision.hookSpecificOutput.permissionDecision, 'deny');
 });
 
 test('shouldUseOldStringFile is false for a short old_string (the direct --old-string argv path)', () => {
@@ -166,6 +195,27 @@ test('pre-tool-use.mjs end to end: blocks a raw Write to a pack-owned target, th
   );
   const blockedEditDecision = JSON.parse(blockedEdit.stdout);
   assert.equal(blockedEditDecision.hookSpecificOutput.permissionDecision, 'deny');
+});
+
+test('pre-tool-use.mjs end to end: a repo with .scaffold/conf.json editEnforcement "nudge" surfaces a would-be-blocked write as additionalContext and lets it proceed', async () => {
+  const env = envFactory();
+  const packRepo = buildFixturePackRepo();
+  const targetRepo = buildFixtureTargetRepo();
+
+  await execWrapper(SCAFFOLD_CLI, ['init', '--project-type', 'dotnet', '--pack', `backend=${packRepo}@v1`], { cwd: targetRepo, env });
+  await execWrapper(SCAFFOLD_CLI, ['templates', 'sync'], { cwd: targetRepo, env });
+  mkdirSync(path.join(targetRepo, '.scaffold'), { recursive: true });
+  writeFileSync(path.join(targetRepo, '.scaffold', 'conf.json'), JSON.stringify({ editEnforcement: 'nudge' }));
+
+  const result = await runHookScript(
+    PRE_TOOL_USE_SCRIPT,
+    { tool_name: 'Write', tool_input: { file_path: 'src/Endpoints/InvoiceEndpoint.cs', content: 'public class InvoiceEndpoint {}' }, cwd: targetRepo },
+    { cwd: targetRepo, env },
+  );
+  assert.equal(result.status, 0);
+  const decision = JSON.parse(result.stdout);
+  assert.equal(decision.hookSpecificOutput.permissionDecision, undefined, 'nudge mode must not block the write');
+  assert.match(decision.hookSpecificOutput.additionalContext, /scaffold generate/);
 });
 
 test('pre-tool-use.mjs routes an old_string over the size threshold through --old-string-file instead of a literal argv element, without crashing', async () => {

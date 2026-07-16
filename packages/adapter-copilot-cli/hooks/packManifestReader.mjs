@@ -24,27 +24,6 @@ export function getConfiguredPacks(cwd) {
 }
 
 /**
- * Reads `.scaffold/conf.json`'s `editEnforcement` setting — per-repo control
- * over how pre-tool-use.mjs reacts to a `scaffold check-edit` denial:
- * "gate" (default): hard-block via `permissionDecision: "deny"`.
- * "nudge": surface the same reason as `additionalContext` and let the
- * write/edit proceed. Missing file, missing key, or an unrecognized value
- * all fall back to "gate" — must never silently weaken enforcement for a
- * repo that has no conf.json yet.
- * @param {string} cwd - working directory
- * @returns {'gate' | 'nudge'}
- */
-export function getEnforcementMode(cwd) {
-  try {
-    const confPath = path.join(cwd, '.scaffold', 'conf.json');
-    const conf = JSON.parse(readFileSync(confPath, 'utf8'));
-    return conf.editEnforcement === 'nudge' ? 'nudge' : 'gate';
-  } catch {
-    return 'gate';
-  }
-}
-
-/**
  * Resolves which configured pack owns a given file
  * Checks adoptedPaths and targets[] patterns from .scaffold/config.json
  * @param {string} cwd - working directory
