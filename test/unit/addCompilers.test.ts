@@ -201,14 +201,34 @@ test('compileAddArtifact: missing/invalid flags fail with the flag hint', () => 
   assert.throws(() => compileAddArtifact('no-such-kind', { targetStack: 'backend' }), /unknown artifact kind/);
 });
 
-test('ARTIFACT_KINDS: table covers exactly the seven single-artifact kinds', () => {
+test('ARTIFACT_KINDS: table covers exactly the twelve single-artifact kinds', () => {
   assert.deepEqual(Object.keys(ARTIFACT_KINDS).sort(), [
+    'api-client',
     'cloud-provider',
+    'component',
+    'context',
     'domain-event',
     'factory',
     'health-check',
     'helper',
+    'hook',
     'outbox-processor',
+    'page',
     'scheduler-job',
   ]);
+});
+
+test('compileAddArtifact: React artifact kinds produce their tag and name input, plus base', () => {
+  assert.deepEqual(compileAddArtifact('component', { targetStack: 'frontend', name: 'Button' }), {
+    manifestSchemaVersion: 1,
+    targetStack: 'frontend',
+    artifacts: ['base', 'component'],
+    componentName: 'Button',
+  });
+  assert.deepEqual(compileAddArtifact('hook', { targetStack: 'frontend', name: 'UseToggle' }).hookName, 'UseToggle');
+  assert.deepEqual(compileAddArtifact('page', { targetStack: 'frontend', name: 'ProductsPage' }).pageName, 'ProductsPage');
+  assert.deepEqual(compileAddArtifact('context', { targetStack: 'frontend', name: 'Auth' }).contextName, 'Auth');
+  assert.deepEqual(compileAddArtifact('api-client', { targetStack: 'frontend', name: 'Products' }).apiName, 'Products');
+  assert.throws(() => compileAddArtifact('component', { targetStack: 'frontend' }), /--name <ComponentName>/);
+  assert.throws(() => compileAddArtifact('hook', { targetStack: 'frontend', name: 'useToggle' }), /PascalCase/);
 });

@@ -1,0 +1,56 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { create, getAll, getById, remove, update } from './{{camel apiName}}Api.js';
+
+describe('{{camel apiName}}Api', () => {
+  beforeEach(() => {
+    globalThis.fetch = vi.fn();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('getAll fetches the collection endpoint', async () => {
+    globalThis.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => [] });
+    await getAll();
+    expect(globalThis.fetch).toHaveBeenCalledWith('/api/{{kebab apiName}}');
+  });
+
+  it('getById fetches a single resource', async () => {
+    globalThis.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({}) });
+    await getById('1');
+    expect(globalThis.fetch).toHaveBeenCalledWith('/api/{{kebab apiName}}/1');
+  });
+
+  it('create posts JSON', async () => {
+    globalThis.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({}) });
+    await create({ name: 'x' });
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      '/api/{{kebab apiName}}',
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  it('update puts JSON', async () => {
+    globalThis.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({}) });
+    await update('1', { name: 'x' });
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      '/api/{{kebab apiName}}/1',
+      expect.objectContaining({ method: 'PUT' }),
+    );
+  });
+
+  it('remove deletes the resource', async () => {
+    globalThis.fetch.mockResolvedValue({ ok: true, status: 204 });
+    await remove('1');
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      '/api/{{kebab apiName}}/1',
+      expect.objectContaining({ method: 'DELETE' }),
+    );
+  });
+
+  it('throws on a non-ok response', async () => {
+    globalThis.fetch.mockResolvedValue({ ok: false, status: 500, statusText: 'Server Error' });
+    await expect(getAll()).rejects.toThrow();
+  });
+});
