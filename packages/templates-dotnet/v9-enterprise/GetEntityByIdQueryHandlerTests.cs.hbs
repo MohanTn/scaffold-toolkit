@@ -1,0 +1,41 @@
+namespace {{ns}}.UnitTests.Features.{{plural entity}};
+
+public class Get{{entity}}ByIdQueryHandlerTests
+{
+    private readonly Mock<{{ns}}.Application.Common.Interfaces.I{{entity}}Repository> _repository = new();
+
+    private {{ns}}.Application.Features.{{plural entity}}.Queries.Get{{entity}}ById.Get{{entity}}ByIdQueryHandler CreateHandler() =>
+        new(_repository.Object);
+
+    [Fact]
+    public async Task Handle_ShouldReturnDto_WhenEntityExists()
+    {
+        // Arrange
+        var entity = new {{ns}}.Domain.Entities.{{entity}} { Id = Guid.NewGuid() };
+        _repository.Setup(r => r.GetByIdAsync(entity.Id, It.IsAny<CancellationToken>())).ReturnsAsync(entity);
+        var query = new {{ns}}.Application.Features.{{plural entity}}.Queries.Get{{entity}}ById.Get{{entity}}ByIdQuery(entity.Id);
+
+        // Act
+        var result = await CreateHandler().Handle(query, CancellationToken.None);
+
+        // Assert
+        // SCAFFOLD:AI_IMPLEMENTATION:START
+        result.Should().NotBeNull();
+        // SCAFFOLD:AI_IMPLEMENTATION:END
+    }
+
+    [Fact]
+    public async Task Handle_ShouldReturnNull_WhenEntityDoesNotExist()
+    {
+        // Arrange
+        var query = new {{ns}}.Application.Features.{{plural entity}}.Queries.Get{{entity}}ById.Get{{entity}}ByIdQuery(Guid.NewGuid());
+
+        // Act
+        var result = await CreateHandler().Handle(query, CancellationToken.None);
+
+        // Assert
+        // SCAFFOLD:AI_IMPLEMENTATION:START
+        result.Should().BeNull();
+        // SCAFFOLD:AI_IMPLEMENTATION:END
+    }
+}

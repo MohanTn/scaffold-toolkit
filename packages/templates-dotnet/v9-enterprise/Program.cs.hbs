@@ -1,0 +1,20 @@
+using {{ns}}.Api;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// SCAFFOLD:DI:START
+{{ns}}.Application.DependencyInjection.AddApplication(builder.Services);
+{{ns}}.Infrastructure.DependencyInjection.AddInfrastructure(builder.Services, builder.Configuration);
+{{ns}}.Api.DependencyInjection.AddApi(builder.Services);
+// SCAFFOLD:DI:END
+
+// SCAFFOLD:HEALTH_CHECKS:START
+// SCAFFOLD:HEALTH_CHECKS:END
+
+var app = builder.Build();
+
+app.UseApiMiddleware();
+
+app.MapHealthChecks("/health");
+
+app.Run();

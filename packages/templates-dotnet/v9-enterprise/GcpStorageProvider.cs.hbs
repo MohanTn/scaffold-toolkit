@@ -1,0 +1,52 @@
+using System.IO;
+using Google.Cloud.Storage.V1;
+
+namespace {{ns}}.Infrastructure.Cloud;
+
+/// <summary>Google Cloud Storage implementation of ICloudStorageProvider. Bucket name comes from configuration key "CloudStorage:Bucket".</summary>
+public class GcpStorageProvider : {{ns}}.Application.Common.Interfaces.ICloudStorageProvider
+{
+    private readonly StorageClient _client;
+    private readonly string _bucket;
+
+    public GcpStorageProvider(StorageClient client, IConfiguration configuration)
+    {
+        _client = client;
+        _bucket = configuration["CloudStorage:Bucket"] ?? throw new InvalidOperationException("CloudStorage:Bucket is not configured");
+    }
+
+    public async Task UploadAsync(string key, Stream content, CancellationToken cancellationToken = default)
+    {
+        await _client.UploadObjectAsync(_bucket, key, contentType: null, source: content, cancellationToken: cancellationToken);
+    }
+
+    public async Task<Stream> DownloadAsync(string key, CancellationToken cancellationToken = default)
+    {
+        var stream = new MemoryStream();
+        await _client.DownloadObjectAsync(_bucket, key, stream, cancellationToken: cancellationToken);
+        stream.Position = 0;
+        return stream;
+    }
+
+    public async Task DeleteAsync(string key, CancellationToken cancellationToken = default)
+    {
+        await _client.DeleteObjectAsync(_bucket, key, cancellationToken: cancellationToken);
+    }
+
+    public async Task<bool> ExistsAsync(string key, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await _client.GetObjectAsync(_bucket, key, cancellationToken: cancellationToken);
+            return true;
+        }
+        catch (Google.GoogleApiException e) when (e.HttpStatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return false;
+        }
+    }
+
+    // SCAFFOLD:AI_IMPLEMENTATION:START
+    // Project-specific GCS operations (signed URLs, lifecycle, ACLs) go here.
+    // SCAFFOLD:AI_IMPLEMENTATION:END
+}

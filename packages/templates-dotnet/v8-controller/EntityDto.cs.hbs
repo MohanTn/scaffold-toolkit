@@ -1,5 +1,0 @@
-namespace {{ns}}.Application.Features.{{plural entity}};
-
-public record {{entity}}Dto(
-{{#each fields}}    {{type}} {{pascal name}}{{#unless @last}},{{/unless}}
-{{/each}});

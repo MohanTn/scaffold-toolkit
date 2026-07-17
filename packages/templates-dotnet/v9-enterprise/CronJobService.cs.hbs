@@ -1,0 +1,47 @@
+namespace {{ns}}.Infrastructure.Jobs;
+
+/// <summary>
+/// Base class for scheduled background jobs: a BackgroundService driving a
+/// PeriodicTimer, interval read from configuration key "Jobs:{JobName}:IntervalSeconds"
+/// (default 3600). BCL-only on purpose — swapping to Quartz or Hangfire is a
+/// config-level change inside each job's registration, not a rewrite of the
+/// job classes deriving from this.
+/// </summary>
+public abstract class CronJobService : BackgroundService
+{
+    private readonly TimeSpan _interval;
+    private readonly ILogger _logger;
+
+    protected CronJobService(IConfiguration configuration, ILogger logger, string jobName)
+    {
+        var seconds = configuration.GetValue<int?>($"Jobs:{jobName}:IntervalSeconds") ?? 3600;
+        _interval = TimeSpan.FromSeconds(seconds);
+        _logger = logger;
+        JobName = jobName;
+    }
+
+    protected string JobName { get; }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        using var timer = new PeriodicTimer(_interval);
+        while (!stoppingToken.IsCancellationRequested && await timer.WaitForNextTickAsync(stoppingToken))
+        {
+            try
+            {
+                await RunAsync(stoppingToken);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Scheduled job {JobName} failed; will retry on next tick", JobName);
+            }
+        }
+    }
+
+    /// <summary>One scheduled run. Exceptions are logged and the schedule keeps ticking.</summary>
+    protected abstract Task RunAsync(CancellationToken cancellationToken);
+}

@@ -1,35 +1,61 @@
 {
-  "name": "scaffold-toolkit",
-  "private": true,
-  "version": "0.0.0",
+  "name": "@mohantn/scaffold-core",
+  "version": "0.3.0",
+  "description": "Deterministic, LLM-agnostic scaffolding CLI: renders Handlebars templates and injects marker-based boilerplate into existing files for any coding agent to drive.",
   "license": "MIT",
-  "type": "module",
-  "description": "Deterministic, LLM-agnostic scaffolding CLI plus host adapters (Claude Code, GitHub Copilot CLI) that coding agents shell out to for boilerplate generation.",
+  "author": "Mohan TN <mohan.tn100@gmail.com>",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/MohanTn/scaffold-toolkit.git"
   },
-  "workspaces": [
-    "packages/core",
-    "packages/adapter-claude-code",
-    "packages/adapter-copilot-cli"
+  "bugs": "https://github.com/MohanTn/scaffold-toolkit/issues",
+  "homepage": "https://github.com/MohanTn/scaffold-toolkit#readme",
+  "keywords": [
+    "scaffolding",
+    "codegen",
+    "handlebars",
+    "claude",
+    "copilot",
+    "agent"
+  ],
+  "type": "module",
+  "bin": {
+    "scaffold": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "hooks",
+    "README.md",
+    "LICENSE"
   ],
   "engines": {
     "node": ">=20.12"
   },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
-    "build": "npm run build --workspaces --if-present",
-    "lint": "npm run lint --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present",
-    "validate:templates-dotnet": "node packages/templates-dotnet/tools/validate-build.mjs",
-    "validate:templates-dotnet-storemedia-v2": "node packages/templates-dotnet/v8-controller-storemedia-v2/tools/validate-build.mjs",
-    "check:guardrails:templates-dotnet": "node packages/templates-dotnet/tools/check-guardrails.mjs",
-    "validate:templates-node": "node packages/templates-node/tools/validate-build.mjs",
-    "check:guardrails:templates-node": "node packages/templates-node/tools/check-guardrails.mjs"
+    "build": "tsc -p tsconfig.json",
+    "postbuild": "chmod +x dist/cli.js",
+    "lint": "eslint . --ext .ts",
+    "test": "node --import tsx --test \"test/**/*.test.ts\" \"test/**/*.test.mjs\"",
+    "prepublishOnly": "npm run build",
+    "validate:templates-dotnet": "node packages/templates-dotnet/tools/validate-build-v9.mjs",
+    "check:guardrails:templates-dotnet": "node packages/templates-dotnet/tools/check-guardrails-v9.mjs"
+  },
+  "dependencies": {
+    "@toon-format/toon": "^2.3.0",
+    "ajv": "^8.17.0",
+    "commander": "^12.0.0",
+    "handlebars": "^4.7.8",
+    "semver": "^7.6.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
-    "ajv": "^8.17.0",
+    "@types/node": "^22.0.0",
+    "@types/semver": "^7.5.0",
+    "tsx": "^4.0.0",
     "typescript": "^5.5.0",
     "typescript-eslint": "^8.0.0"
   }

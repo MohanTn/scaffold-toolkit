@@ -1,0 +1,18 @@
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+
+namespace {{ns}}.Infrastructure.HealthChecks;
+
+/// <summary>Health check "{{kebab checkName}}", surfaced at /health.</summary>
+public class {{checkName}}HealthCheck : IHealthCheck
+{
+    /// SCAFFOLD:AI_IMPLEMENTATION:START:required
+    public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
+    {
+        // Probe the dependency this check guards (database ping, queue depth,
+        // external API reachability) and return Healthy/Degraded/Unhealthy.
+        return Task.FromResult(HealthCheckResult.Healthy("{{checkName}} is healthy"));
+    }
+
+    // Add private helper methods as needed
+    /// SCAFFOLD:AI_IMPLEMENTATION:END
+}

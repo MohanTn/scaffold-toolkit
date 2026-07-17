@@ -1,0 +1,242 @@
+#!/usr/bin/env node
+/**
+ * Only acts on `Write` and `Edit` tool calls; every other tool is a silent
+ * no-op. Checks `.scaffold/config.json` existence itself, via plain
+ * `existsSync`, before spawning anything — the zero-added-cost requirement
+ * for a repo that isn't scaffold-managed at all (this mirrors `scaffold
+ * check-edit`'s own fast path, so an unconfigured repo pays for the check
+ * exactly once, not twice).
+ *
+ * A `scaffold check-edit` invocation failure (binary missing, crash,
+ * unparseable stdout) is treated as a block, not an allow, in the default
+ * "gate" enforcement mode — this mirrors the existing, intentional
+ * fail-closed behavior already in stop.mjs/agent-stop.mjs; don't "fix" it
+ * into a silent bypass. A hook that quietly permits the tool call the
+ * moment its own gate breaks defeats the entire point of a hard gate.
+ *
+ * Per-repo `.scaffold/conf.json` (`editEnforcement: "nudge"`) switches this
+ * to a soft mode: every case that would otherwise deny — a real check-edit
+ * denial, or an invocation failure — instead surfaces as `additionalContext`
+ * and the write/edit proceeds. See `getEnforcementMode` in
+ * packManifestReader.mjs for the read/default logic.
+ */
+
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { isMainModule } from './isMainModule.mjs';
+import {
+  resolvePack,
+  loadManifest,
+  getStandardsForFile,
+  formatStandardsGuidance,
+  getEnforcementMode,
+  resolveScaffoldInvocation,
+} from './packManifestReader.mjs';
+
+const EDIT_TOOLS = new Set(['Write', 'Edit']);
+
+// Conservative threshold, well under Windows' CreateProcess ~32KB single
+// command-line cap (the binding constraint across platforms — Linux's own
+// ARG_MAX is much larger). An old_string longer than this rides along via a
+// temp file and --old-string-file instead of a literal execFileSync argv
+// element, so a large AI_IMPLEMENTATION interior body being edited can never
+// make the spawn itself fail — which, before this threshold existed, made
+// runCheckEdit's catch path deny a perfectly valid edit as if check-edit
+// itself had rejected it, when really the process never started at all.
+const OLD_STRING_ARG_THRESHOLD = 8000;
+
+/** Pure predicate, unit-tested directly: whether old_string needs the --old-string-file fallback instead of a literal argv element. */
+export function shouldUseOldStringFile(oldString) {
+  return typeof oldString === 'string' && oldString.length > OLD_STRING_ARG_THRESHOLD;
+}
+
+/** True only for the two tool calls that can put unreviewed content on disk: Write and Edit. */
+export function shouldCheckEdit(hookInput) {
+  if (!hookInput) return false;
+  return EDIT_TOOLS.has(hookInput.tool_name);
+}
+
+/**
+ * True when: Edit tool, oldString contains AI_IMPLEMENTATION_START marker, repo is scaffold-managed.
+ * These are the cases where we want to inject coding standards guidance.
+ */
+export function shouldInjectStandards(hookInput, cwd) {
+  if (!hookInput || hookInput.tool_name !== 'Edit') return false;
+
+  const toolInput = (hookInput && hookInput.tool_input) || {};
+  const oldString = toolInput.old_string;
+  if (typeof oldString !== 'string') return false;
+
+  // Check for AI_IMPLEMENTATION marker (both syntaxes: _START and :START)
+  if (!/AI_IMPLEMENTATION[_:]START/.test(oldString)) return false;
+
+  // Check that repo is scaffold-managed
+  if (!existsSync(path.join(cwd, '.scaffold', 'config.json'))) return false;
+
+  return true;
+}
+
+/**
+ * Pulls the {file, tool, oldString} triple `scaffold check-edit` needs out
+ * of a PreToolUse hook's `tool_input`, per Claude Code's documented
+ * Write/Edit tool schemas (`file_path` on both; `old_string` on Edit only).
+ * A missing/malformed `file_path` returns undefined (nothing to check —
+ * main() then falls through to the silent no-op, same as a non-edit tool).
+ * A missing `old_string` on an Edit call is passed through as undefined
+ * rather than skipping the check — check-edit's own ambiguous-old-string
+ * path blocks that case, fail-closed, instead of this hook silently
+ * skipping enforcement over a shape it didn't expect.
+ */
+export function extractEditRequest(hookInput) {
+  const toolInput = (hookInput && hookInput.tool_input) || {};
+  const filePath = toolInput.file_path;
+  if (typeof filePath !== 'string' || filePath.length === 0) return undefined;
+
+  if (hookInput.tool_name === 'Write') {
+    return { file: filePath, tool: 'write' };
+  }
+  const oldString = typeof toolInput.old_string === 'string' ? toolInput.old_string : undefined;
+  return { file: filePath, tool: 'edit', oldString };
+}
+
+/**
+ * Pure decision function, unit-tested directly: given `scaffold check-edit`'s
+ * real exit code and stdout, plus optional coding standards guidance and the
+ * repo's enforcement mode, returns the JSON this hook should print.
+ *
+ * `mode: 'gate'` (default) preserves the original hard-block behavior. In
+ * `mode: 'nudge'`, every case that would otherwise deny — an unparseable
+ * check-edit result, or a real denial — instead returns `additionalContext`
+ * describing what was flagged, and the tool call proceeds.
+ */
+export function buildDecision(checkEditExitCode, checkEditStdout, standardsGuidance = null, mode = 'gate') {
+  let result;
+  try {
+    result = JSON.parse(checkEditStdout);
+  } catch {
+    const reason =
+      `scaffold check-edit did not return a parseable decision (exit ${checkEditExitCode}) — ` +
+      `${mode === 'nudge' ? 'nudge mode, not blocking' : 'blocking, fail-closed'}. ` +
+      `Raw output: ${checkEditStdout.trim().slice(0, 500) || '(empty)'}`;
+    if (mode === 'nudge') {
+      return { hookSpecificOutput: { hookEventName: 'PreToolUse', additionalContext: reason } };
+    }
+    return {
+      hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        permissionDecision: 'deny',
+        permissionDecisionReason: reason,
+      },
+    };
+  }
+
+  if (result.allow) {
+    // If allowed and we have standards guidance, inject it as additionalContext
+    if (standardsGuidance) {
+      return {
+        hookSpecificOutput: {
+          hookEventName: 'PreToolUse',
+          additionalContext: standardsGuidance,
+        },
+      };
+    }
+    return {};
+  }
+
+  const reason = result.detail || 'scaffold check-edit refused this write/edit.';
+  if (mode === 'nudge') {
+    return {
+      hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        additionalContext: `scaffold check-edit flagged this write/edit (nudge mode — not blocking): ${reason}`,
+      },
+    };
+  }
+  return {
+    hookSpecificOutput: {
+      hookEventName: 'PreToolUse',
+      permissionDecision: 'deny',
+      permissionDecisionReason: reason,
+    },
+  };
+}
+
+function runCheckEdit(cwd, file, tool, oldString) {
+  const args = ['check-edit', '--file', file, '--tool', tool];
+  let tempDir;
+  if (oldString !== undefined) {
+    if (shouldUseOldStringFile(oldString)) {
+      tempDir = mkdtempSync(path.join(tmpdir(), 'scaffold-check-edit-'));
+      const tempFile = path.join(tempDir, 'old-string.txt');
+      writeFileSync(tempFile, oldString, 'utf8');
+      args.push('--old-string-file', tempFile);
+    } else {
+      args.push('--old-string', oldString);
+    }
+  }
+  try {
+    const { command, prefixArgs } = resolveScaffoldInvocation();
+    const stdout = execFileSync(command, [...prefixArgs, ...args], { cwd, encoding: 'utf8' });
+    return { exitCode: 0, stdout };
+  } catch (error) {
+    return { exitCode: error.status ?? 1, stdout: error.stdout ?? '' };
+  } finally {
+    if (tempDir) rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
+function main() {
+  const raw = readFileSync(0, 'utf8');
+  const hookInput = raw.trim() ? JSON.parse(raw) : {};
+  const cwd = hookInput.cwd || process.cwd();
+
+  // Zero-added-cost fast path: a repo with no .scaffold/config.json never
+  // spawns `scaffold` at all, matching check-edit's own fast path one layer
+  // up so an unconfigured repo never even pays for a process spawn.
+  if (!existsSync(path.join(cwd, '.scaffold', 'config.json'))) {
+    process.stdout.write('{}');
+    return;
+  }
+
+  if (!shouldCheckEdit(hookInput)) {
+    process.stdout.write('{}');
+    return;
+  }
+
+  const editRequest = extractEditRequest(hookInput);
+  if (!editRequest) {
+    process.stdout.write('{}');
+    return;
+  }
+
+  const mode = getEnforcementMode(cwd);
+  const { exitCode, stdout } = runCheckEdit(cwd, editRequest.file, editRequest.tool, editRequest.oldString);
+
+  // Try to inject coding standards if this is an AI_IMPLEMENTATION block edit
+  let standardsGuidance = null;
+  if (shouldInjectStandards(hookInput, cwd)) {
+    try {
+      const packInfo = resolvePack(cwd, editRequest.file);
+      if (packInfo) {
+        const manifest = loadManifest(packInfo.packPath);
+        if (manifest) {
+          const standards = getStandardsForFile(editRequest.file, manifest);
+          if (standards) {
+            standardsGuidance = formatStandardsGuidance(standards, editRequest.file);
+          }
+        }
+      }
+    } catch (err) {
+      // Log but don't block: fail open. Standards injection is optional; enforcement (check-edit) is not.
+      // console.error('Failed to inject standards:', err);
+    }
+  }
+
+  process.stdout.write(JSON.stringify(buildDecision(exitCode, stdout, standardsGuidance, mode)));
+}
+
+if (isMainModule(import.meta.url)) {
+  main();
+}

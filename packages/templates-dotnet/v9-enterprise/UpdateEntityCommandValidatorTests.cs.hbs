@@ -1,0 +1,24 @@
+using FluentValidation.TestHelper;
+
+namespace {{ns}}.UnitTests.Features.{{plural entity}};
+
+public class Update{{entity}}CommandValidatorTests
+{
+    private readonly {{ns}}.Application.Features.{{plural entity}}.Commands.Update{{entity}}.Update{{entity}}CommandValidator _validator = new();
+
+    [Fact]
+    public void Validate_ShouldFail_WhenRequiredFieldsAreEmpty()
+    {
+        // Arrange
+        var command = new {{ns}}.Application.Features.{{plural entity}}.Commands.Update{{entity}}.Update{{entity}}Command(Guid.Empty{{#each fields}}{{#unless (eq (pascal name) "Id")}}, default({{type}})!{{/unless}}{{/each}});
+
+        // Act
+        var result = _validator.TestValidate(command);
+
+        // Assert
+        // SCAFFOLD:AI_IMPLEMENTATION:START
+        result.ShouldHaveValidationErrorFor(x => x.Id);
+{{#each fields}}{{#unless (eq (pascal name) "Id")}}        result.ShouldHaveValidationErrorFor(x => x.{{pascal name}});
+{{/unless}}{{/each}}        // SCAFFOLD:AI_IMPLEMENTATION:END
+    }
+}

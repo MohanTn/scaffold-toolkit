@@ -1,0 +1,13 @@
+namespace {{ns}}.Infrastructure.Persistence.Configurations;
+
+public class OutboxMessageConfiguration : IEntityTypeConfiguration<{{ns}}.Domain.Entities.OutboxMessage>
+{
+    public void Configure(EntityTypeBuilder<{{ns}}.Domain.Entities.OutboxMessage> builder)
+    {
+        builder.ToTable("OutboxMessages");
+        builder.HasKey(m => m.Id);
+        builder.Property(m => m.Type).HasMaxLength(512).IsRequired();
+        builder.Property(m => m.Payload).IsRequired();
+        builder.HasIndex(m => m.ProcessedUtc);
+    }
+}

@@ -1,0 +1,12 @@
+{
+  "manifestSchemaVersion": 1,
+  "targetStack": "backend",
+  "entity": "Product",
+  "options": { "company": "Acme", "projectName": "Shop", "isCommand": true },
+  "artifacts": ["custom-endpoint"],
+  "methodName": "ArchiveStaleProducts",
+  "returnType": "int",
+  "httpMethod": "POST",
+  "targetController": "ProductsController",
+  "parameters": [ { "name": "cutoffDays", "type": "int" } ]
+}

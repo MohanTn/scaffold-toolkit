@@ -1,0 +1,8 @@
+{
+  "manifestSchemaVersion": 1,
+  "targetStack": "backend",
+  "entity": "Product",
+  "options": { "company": "Acme", "projectName": "Shop" },
+  "artifacts": ["domain-event"],
+  "eventName": "ProductCreated"
+}

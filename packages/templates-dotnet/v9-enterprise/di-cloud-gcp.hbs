@@ -1,0 +1,2 @@
+        services.AddSingleton(_ => Google.Cloud.Storage.V1.StorageClient.Create());
+        services.AddSingleton<{{ns}}.Application.Common.Interfaces.ICloudStorageProvider, {{ns}}.Infrastructure.Cloud.GcpStorageProvider>();

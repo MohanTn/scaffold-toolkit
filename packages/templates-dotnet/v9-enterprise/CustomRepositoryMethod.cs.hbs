@@ -1,0 +1,18 @@
+namespace {{ns}}.Infrastructure.Persistence.Repositories;
+
+// Partial-class extension of {{entity}}Repository: one file per custom
+// operation, so the operation's data access is a create-mode AI seam while
+// the base repository file's injected wiring stays untouched.
+public partial class {{entity}}Repository
+{
+    /// SCAFFOLD:AI_IMPLEMENTATION:START:required
+    public async Task<{{returnType}}> {{methodName}}Async({{#each parameters}}{{type}} {{camel name}}, {{/each}}CancellationToken cancellationToken = default)
+    {
+        // Implement the data access for {{methodName}} against _context.
+        await Task.CompletedTask;
+        throw new NotImplementedException("{{methodName}}Async is not implemented yet");
+    }
+
+    // Add private helper methods (query builders, projections) as needed
+    /// SCAFFOLD:AI_IMPLEMENTATION:END
+}

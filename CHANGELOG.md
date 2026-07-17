@@ -2,7 +2,35 @@
 
 All notable changes to this project are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.3.0]
+
+### Added
+
+- **`scaffold add` command family** — the entity-first enterprise surface: `add feature` (CRUD with `--operations` subsetting, `--db`, `--combine`, `--namespace`), `add custom` (custom query/command endpoints layered onto an existing controller + repository via marker injection), and `add domain-event` / `factory` / `helper` / `cloud-provider` / `scheduler-job` / `health-check` / `outbox-processor`. Each subcommand is a pure compiler from flags to an artifact-scoped intent manifest, run through the exact same deterministic generate pipeline (`manifest new` + `generate` stay fully supported as the low-level layer).
+- **Artifact scoping**: optional `artifact` tag on descriptor targets/injections plus optional `artifacts` on the intent manifest (and `--artifact` on `manifest new`). A manifest without `artifacts` renders everything — byte-identical to before; with it, only the listed tags (untagged entries are `base`) render. `validate-pack` applies the same selection.
+- **`when` conditionals** on descriptor targets/injections: dot-path equality against the render context (expected `false` also matches unset), powering config-level layout swaps like the combined repository file.
+- **Per-pack `defaults`** in `.scaffold/config.json`: free-form manifest defaults merged under every manifest for that slot (explicit manifest keys win, `options` merges one level deep) — repo-wide settings like `options.combine` without repeating flags.
+- **`hashTrailerSuffix`** on descriptor injections, so wrap-style comment syntaxes (XML `<!-- -->` in `.csproj`) get a closed, valid trailer line.
+- **Descriptor `pathConfig`** promoted to a typed field: the pack's own default layout now resolves `{{pathConfig.*}}` in generate AND in `check-edit` ownership matching (multi-segment fragments like `Api/Controllers` match literally instead of one wildcard segment) when neither the config slot nor the manifest overrides it.
+- **`v9-enterprise` template pack** (`packages/templates-dotnet/v9-enterprise`): single-project ASP.NET Core 8 with layer folders, built for `scaffold add`. Implicit `Guid Id` on entities; combined interface+implementation repository layout behind `options.combine`; custom endpoints wired as frozen injections (`CONTROLLER_ACTIONS`, `REPO_INTERFACE_METHODS`) plus a create-mode partial-class file carrying the editable AI seam; domain events, factories, Guard/Crypto helpers, real-SDK cloud storage providers (AWS/Azure/GCP) with csproj `INFRA_PACKAGES` injection, BackgroundService scheduler jobs, health checks, and an outbox processor. Own fixtures (`test_data/v9/`), build-check (`tools/validate-build-v9.mjs` — drives the real `add` commands, then `dotnet build`/`test`), and guardrails check (`tools/check-guardrails-v9.mjs`), all gating publish in CI.
+- Restored the Claude Code hook test suite at `test/hooks/` (ported from the deleted adapter package) and extended it for the new pack resolution logic.
+
+### Removed
+
+- **Legacy template packs**: `packages/templates-dotnet/v8-controller`, `v8-controller-gcp`, `v8-controller-storemedia-v2`, and `packages/templates-node`, plus their fixtures, examples, build-check/guardrails scripts, and CI jobs — superseded by `v9-enterprise` (the `cloud-provider` artifact replaces the GCP layer). All recoverable from git history and the standalone template repos. The engine's built-in `ANCHOR_CATALOG` fallback for those pack versions stays: it is engine behavior for externally-hosted legacy packs, not repo content.
+
+### Changed
+
+- **Repo flattened to a single npm package** (`@mohantn/scaffold-core` at the root): `packages/core` → `src/`, the Claude Code adapter → `hooks/` (now published with the package; hooks prefer the sibling `dist/cli.js` and fall back to PATH). CI rewritten for the single-package layout. The GitHub Copilot CLI adapter is dropped for now — it can return later as a thin wrapper over the same `check-edit`/`status`/`next` CLI contract.
+- `loadDescriptor` checks `requires.scaffoldCli` BEFORE schema validation, so an old CLI reading a newer pack reports a version mismatch instead of a schema-error wall.
+- `runGenerate` accepts an in-memory manifest (exactly one of `manifestPath`/`manifest`), the path the `add` compilers use.
+- The generate report echoes `artifacts` and per-filter skipped-entry counts when a run is scoped.
+
+### Fixed
+
+- `hooks/packManifestReader.mjs` pack resolution rewritten for the real config schema (per-slot `adoptedPaths` as exact repo-relative paths, path-based packs read straight off disk, url packs via the `.scaffold/cache` layout) — the coding-standards injection path was previously inert.
+
+## [0.2.x]
 
 ### Changed
 

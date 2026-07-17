@@ -2,10 +2,13 @@ import tseslint from 'typescript-eslint';
 import js from '@eslint/js';
 
 export default tseslint.config(
+  {
+    ignores: ['**/dist/**', '**/node_modules/**', '**/test/**', '**/test/fixtures/**', 'packages/**', 'hooks/**'],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ['**/src/**/*.ts'],
+    files: ['src/**/*.ts'],
     languageOptions: {
       parserOptions: {
         ecmaVersion: 2022,
@@ -16,8 +19,5 @@ export default tseslint.config(
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
     },
-  },
-  {
-    ignores: ['**/dist/**', '**/node_modules/**', '**/test/fixtures/**'],
   },
 );

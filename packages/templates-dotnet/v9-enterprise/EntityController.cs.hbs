@@ -1,0 +1,64 @@
+namespace {{ns}}.Api.Controllers;
+
+[ApiController]
+[Route("{{route}}")]
+public class {{plural entity}}Controller : ControllerBase
+{
+    private readonly ISender _sender;
+
+    public {{plural entity}}Controller(ISender sender)
+    {
+        _sender = sender;
+    }
+{{#if (opEnabled "read")}}
+
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<{{ns}}.Application.Features.{{plural entity}}.{{entity}}Dto>> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(new {{ns}}.Application.Features.{{plural entity}}.Queries.Get{{entity}}ById.Get{{entity}}ByIdQuery(id), cancellationToken);
+        return result is null ? NotFound() : Ok(result);
+    }
+
+    [HttpGet]
+    public async Task<ActionResult<List<{{ns}}.Application.Features.{{plural entity}}.{{entity}}Dto>>> GetListAsync(CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(new {{ns}}.Application.Features.{{plural entity}}.Queries.Get{{entity}}List.Get{{entity}}ListQuery(), cancellationToken);
+        return Ok(result);
+    }
+{{/if}}
+{{#if (opEnabled "create")}}
+
+    [HttpPost]
+    public async Task<ActionResult<{{ns}}.Application.Features.{{plural entity}}.{{entity}}Dto>> CreateAsync({{ns}}.Application.Features.{{plural entity}}.Commands.Create{{entity}}.Create{{entity}}Command command, CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(command, cancellationToken);
+{{#if (opEnabled "read")}}
+        return CreatedAtAction("GetById", new { id = result.Id }, result);
+{{else}}
+        return Ok(result);
+{{/if}}
+    }
+{{/if}}
+{{#if (opEnabled "update")}}
+
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> UpdateAsync(Guid id, {{ns}}.Application.Features.{{plural entity}}.{{entity}}Dto dto, CancellationToken cancellationToken)
+    {
+        var command = new {{ns}}.Application.Features.{{plural entity}}.Commands.Update{{entity}}.Update{{entity}}Command(id{{#each fields}}{{#unless (eq (pascal name) "Id")}}, dto.{{pascal name}}{{/unless}}{{/each}});
+        await _sender.Send(command, cancellationToken);
+        return NoContent();
+    }
+{{/if}}
+{{#if (opEnabled "delete")}}
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> DeleteAsync(Guid id, CancellationToken cancellationToken)
+    {
+        await _sender.Send(new {{ns}}.Application.Features.{{plural entity}}.Commands.Delete{{entity}}.Delete{{entity}}Command(id), cancellationToken);
+        return NoContent();
+    }
+{{/if}}
+
+    // SCAFFOLD:CONTROLLER_ACTIONS:START
+    // SCAFFOLD:CONTROLLER_ACTIONS:END
+}

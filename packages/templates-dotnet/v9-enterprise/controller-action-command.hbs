@@ -1,0 +1,6 @@
+    [Http{{httpAttr httpMethod}}({{#if route}}"{{route}}"{{else}}"{{kebab methodName}}"{{/if}})]
+    public async Task<ActionResult<{{returnType}}>> {{methodName}}Async({{#each parameters}}[FromQuery] {{type}} {{camel name}}, {{/each}}CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(new {{ns}}.Application.Features.{{plural entity}}.Commands.{{methodName}}.{{methodName}}Command({{#each parameters}}{{camel name}}{{#unless @last}}, {{/unless}}{{/each}}), cancellationToken);
+        return Ok(result);
+    }

@@ -1,0 +1,2 @@
+        services.AddSingleton(_ => new Azure.Storage.Blobs.BlobServiceClient(configuration.GetConnectionString("BlobStorage") ?? "UseDevelopmentStorage=true"));
+        services.AddSingleton<{{ns}}.Application.Common.Interfaces.ICloudStorageProvider, {{ns}}.Infrastructure.Cloud.AzureStorageProvider>();

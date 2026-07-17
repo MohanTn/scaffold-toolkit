@@ -1,0 +1,12 @@
+{
+  "manifestSchemaVersion": 1,
+  "targetStack": "backend",
+  "entity": "Product",
+  "options": { "company": "Acme", "projectName": "Shop", "isCommand": false },
+  "artifacts": ["custom-endpoint"],
+  "methodName": "GetActiveProducts",
+  "returnType": "int",
+  "httpMethod": "GET",
+  "targetController": "ProductsController",
+  "parameters": [ { "name": "minPrice", "type": "decimal" } ]
+}

@@ -1,0 +1,22 @@
+namespace {{ns}}.Application.Features.{{plural entity}}.Queries.{{methodName}};
+
+public class {{methodName}}QueryHandler : IRequestHandler<{{methodName}}Query, {{returnType}}>
+{
+    private readonly {{ns}}.Application.Common.Interfaces.I{{entity}}Repository _repository;
+
+    public {{methodName}}QueryHandler({{ns}}.Application.Common.Interfaces.I{{entity}}Repository repository)
+    {
+        _repository = repository;
+    }
+
+    /// SCAFFOLD:AI_IMPLEMENTATION:START:required
+    public async Task<{{returnType}}> Handle({{methodName}}Query request, CancellationToken cancellationToken)
+    {
+        // Orchestrate the query: delegate data access to the repository's
+        // {{methodName}}Async, then shape/validate the result here.
+        return await _repository.{{methodName}}Async({{#each parameters}}request.{{pascal name}}, {{/each}}cancellationToken);
+    }
+
+    // Add private helper methods as needed
+    /// SCAFFOLD:AI_IMPLEMENTATION:END
+}

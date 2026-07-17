@@ -1,0 +1,20 @@
+namespace {{ns}}.Domain.Entities;
+
+public class {{entity}}
+{
+    public Guid Id { get; set; }
+{{#each fields}}
+{{#unless (eq (pascal name) "Id")}}
+    public {{type}} {{pascal name}} { get; set; }{{#if (eq type "string")}} = string.Empty;{{/if}}
+{{/unless}}
+{{/each}}
+{{#each fields}}
+{{#if references}}
+    public {{references}}? {{references}} { get; set; }
+{{/if}}
+{{/each}}
+
+    // SCAFFOLD:AI_IMPLEMENTATION:START
+    // Domain behavior for {{entity}} (invariants, factory methods, state transitions) goes here.
+    // SCAFFOLD:AI_IMPLEMENTATION:END
+}

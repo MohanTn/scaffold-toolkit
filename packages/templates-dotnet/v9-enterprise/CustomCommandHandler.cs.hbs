@@ -1,0 +1,26 @@
+namespace {{ns}}.Application.Features.{{plural entity}}.Commands.{{methodName}};
+
+public class {{methodName}}CommandHandler : IRequestHandler<{{methodName}}Command, {{returnType}}>
+{
+    private readonly {{ns}}.Application.Common.Interfaces.I{{entity}}Repository _repository;
+    private readonly {{ns}}.Application.Common.Interfaces.IUnitOfWork _unitOfWork;
+
+    public {{methodName}}CommandHandler({{ns}}.Application.Common.Interfaces.I{{entity}}Repository repository, {{ns}}.Application.Common.Interfaces.IUnitOfWork unitOfWork)
+    {
+        _repository = repository;
+        _unitOfWork = unitOfWork;
+    }
+
+    /// SCAFFOLD:AI_IMPLEMENTATION:START:required
+    public async Task<{{returnType}}> Handle({{methodName}}Command request, CancellationToken cancellationToken)
+    {
+        // Orchestrate the command: load → mutate → persist. Delegate data
+        // access to the repository's {{methodName}}Async, then save.
+        var result = await _repository.{{methodName}}Async({{#each parameters}}request.{{pascal name}}, {{/each}}cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return result;
+    }
+
+    // Add private helper methods as needed
+    /// SCAFFOLD:AI_IMPLEMENTATION:END
+}

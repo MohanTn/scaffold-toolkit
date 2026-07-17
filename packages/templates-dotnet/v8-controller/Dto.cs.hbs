@@ -1,7 +1,0 @@
-namespace {{ns}}.Application.DTOs;
-
-public record {{entity}}Dto(
-{{#each fields}}
-    {{type}} {{name}}{{#unless @last}},{{/unless}}
-{{/each}}
-);

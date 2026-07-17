@@ -1,0 +1,6 @@
+{
+  "manifestSchemaVersion": 1,
+  "targetStack": "backend",
+  "options": { "company": "Acme", "projectName": "Shop" },
+  "artifacts": ["outbox"]
+}

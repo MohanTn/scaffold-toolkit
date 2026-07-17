@@ -1,0 +1,42 @@
+using System.IO;
+using Azure.Storage.Blobs;
+
+namespace {{ns}}.Infrastructure.Cloud;
+
+/// <summary>Azure Blob Storage implementation of ICloudStorageProvider. Container name comes from configuration key "CloudStorage:Bucket".</summary>
+public class AzureStorageProvider : {{ns}}.Application.Common.Interfaces.ICloudStorageProvider
+{
+    private readonly BlobContainerClient _container;
+
+    public AzureStorageProvider(BlobServiceClient client, IConfiguration configuration)
+    {
+        var container = configuration["CloudStorage:Bucket"] ?? throw new InvalidOperationException("CloudStorage:Bucket is not configured");
+        _container = client.GetBlobContainerClient(container);
+    }
+
+    public async Task UploadAsync(string key, Stream content, CancellationToken cancellationToken = default)
+    {
+        await _container.GetBlobClient(key).UploadAsync(content, overwrite: true, cancellationToken);
+    }
+
+    public async Task<Stream> DownloadAsync(string key, CancellationToken cancellationToken = default)
+    {
+        var response = await _container.GetBlobClient(key).DownloadContentAsync(cancellationToken);
+        return response.Value.Content.ToStream();
+    }
+
+    public async Task DeleteAsync(string key, CancellationToken cancellationToken = default)
+    {
+        await _container.GetBlobClient(key).DeleteIfExistsAsync(cancellationToken: cancellationToken);
+    }
+
+    public async Task<bool> ExistsAsync(string key, CancellationToken cancellationToken = default)
+    {
+        var response = await _container.GetBlobClient(key).ExistsAsync(cancellationToken);
+        return response.Value;
+    }
+
+    // SCAFFOLD:AI_IMPLEMENTATION:START
+    // Project-specific blob operations (SAS tokens, tiers, snapshots) go here.
+    // SCAFFOLD:AI_IMPLEMENTATION:END
+}

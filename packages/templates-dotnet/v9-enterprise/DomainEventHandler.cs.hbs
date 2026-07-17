@@ -1,0 +1,22 @@
+namespace {{ns}}.Application.Features.DomainEvents;
+
+public class {{eventName}}EventHandler : INotificationHandler<{{ns}}.Domain.Events.{{eventName}}Event>
+{
+    private readonly ILogger<{{eventName}}EventHandler> _logger;
+
+    public {{eventName}}EventHandler(ILogger<{{eventName}}EventHandler> logger)
+    {
+        _logger = logger;
+    }
+
+    /// SCAFFOLD:AI_IMPLEMENTATION:START:required
+    public Task Handle({{ns}}.Domain.Events.{{eventName}}Event notification, CancellationToken cancellationToken)
+    {
+        // React to the event: side effects, projections, notifications, integration messages.
+        _logger.LogInformation("{{eventName}} handled for {SubjectId}", notification.{{#if entity}}{{entity}}Id{{else}}SubjectId{{/if}});
+        return Task.CompletedTask;
+    }
+
+    // Add private helper methods as needed
+    /// SCAFFOLD:AI_IMPLEMENTATION:END
+}

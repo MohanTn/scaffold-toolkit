@@ -1,0 +1,31 @@
+using System.Security.Cryptography;
+using System.Text;
+
+namespace {{ns}}.Application.Common.Helpers;
+
+/// <summary>Cryptographic utilities: hashing, HMAC signatures, and secure random tokens. BCL primitives only.</summary>
+public static class CryptoHelper
+{
+    public static string Sha256Hex(string input)
+    {
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(input));
+        return Convert.ToHexString(bytes).ToLowerInvariant();
+    }
+
+    public static string HmacSha256Hex(string input, string key)
+    {
+        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(key));
+        var bytes = hmac.ComputeHash(Encoding.UTF8.GetBytes(input));
+        return Convert.ToHexString(bytes).ToLowerInvariant();
+    }
+
+    public static string RandomToken(int byteLength = 32)
+    {
+        var bytes = RandomNumberGenerator.GetBytes(byteLength);
+        return Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+    }
+
+    // SCAFFOLD:AI_IMPLEMENTATION:START
+    // Project-specific cryptographic helpers (key derivation, envelope encryption, ...) go here.
+    // SCAFFOLD:AI_IMPLEMENTATION:END
+}

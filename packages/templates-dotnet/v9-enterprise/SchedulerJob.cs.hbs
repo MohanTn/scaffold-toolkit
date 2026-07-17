@@ -1,0 +1,25 @@
+namespace {{ns}}.Infrastructure.Jobs;
+
+/// <summary>Scheduled job "{{jobName}}". Interval configured at "Jobs:{{jobName}}:IntervalSeconds".</summary>
+public class {{jobName}}Job : CronJobService
+{
+    private readonly IServiceScopeFactory _scopeFactory;
+
+    public {{jobName}}Job(IConfiguration configuration, ILogger<{{jobName}}Job> logger, IServiceScopeFactory scopeFactory)
+        : base(configuration, logger, "{{jobName}}")
+    {
+        _scopeFactory = scopeFactory;
+    }
+
+    /// SCAFFOLD:AI_IMPLEMENTATION:START:required
+    protected override async Task RunAsync(CancellationToken cancellationToken)
+    {
+        // The job's work goes here. Resolve scoped services (DbContext,
+        // repositories) through a scope — a BackgroundService is a singleton.
+        using var scope = _scopeFactory.CreateScope();
+        await Task.CompletedTask;
+    }
+
+    // Add private helper methods as needed
+    /// SCAFFOLD:AI_IMPLEMENTATION:END
+}

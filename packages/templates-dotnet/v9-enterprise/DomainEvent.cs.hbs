@@ -1,0 +1,4 @@
+namespace {{ns}}.Domain.Events;
+
+/// <summary>Raised when {{kebab eventName}} occurs{{#if entity}} on a {{entity}}{{/if}}.</summary>
+public sealed record {{eventName}}Event(Guid {{#if entity}}{{entity}}Id{{else}}SubjectId{{/if}}, DateTime OccurredUtc) : INotification;

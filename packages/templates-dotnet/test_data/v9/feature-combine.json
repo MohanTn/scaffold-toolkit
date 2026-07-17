@@ -1,0 +1,16 @@
+{
+  "manifestSchemaVersion": 1,
+  "targetStack": "backend",
+  "entity": "Order",
+  "fields": [
+    { "name": "total", "type": "decimal" },
+    { "name": "placedAt", "type": "DateTime" }
+  ],
+  "options": {
+    "company": "Acme",
+    "projectName": "Shop",
+    "combine": true,
+    "ops": { "create": true, "read": true, "update": true, "delete": true }
+  },
+  "artifacts": ["base", "op-create", "op-read", "op-update", "op-delete"]
+}

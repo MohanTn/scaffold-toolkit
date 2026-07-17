@@ -1,0 +1,43 @@
+namespace {{ns}}.Application.Common.Helpers;
+
+/// <summary>Guard clauses for argument and state validation. Throws on violation; returns the validated value otherwise.</summary>
+public static class Guard
+{
+    public static T AgainstNull<T>(T? value, string parameterName)
+        where T : class
+    {
+        return value ?? throw new ArgumentNullException(parameterName);
+    }
+
+    public static string AgainstNullOrEmpty(string? value, string parameterName)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new ArgumentException("Value cannot be null or empty.", parameterName);
+        }
+        return value;
+    }
+
+    public static Guid AgainstEmpty(Guid value, string parameterName)
+    {
+        if (value == Guid.Empty)
+        {
+            throw new ArgumentException("Value cannot be an empty GUID.", parameterName);
+        }
+        return value;
+    }
+
+    public static T AgainstOutOfRange<T>(T value, T min, T max, string parameterName)
+        where T : IComparable<T>
+    {
+        if (value.CompareTo(min) < 0 || value.CompareTo(max) > 0)
+        {
+            throw new ArgumentOutOfRangeException(parameterName, value, $"Value must be between {min} and {max}.");
+        }
+        return value;
+    }
+
+    // SCAFFOLD:AI_IMPLEMENTATION:START
+    // Project-specific guard clauses go here.
+    // SCAFFOLD:AI_IMPLEMENTATION:END
+}

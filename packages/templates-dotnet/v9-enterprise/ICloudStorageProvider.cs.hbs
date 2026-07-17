@@ -1,0 +1,17 @@
+namespace {{ns}}.Application.Common.Interfaces;
+
+/// <summary>Cloud object-storage abstraction. One implementation per provider lives in Infrastructure/Cloud; the active one is chosen at registration time.</summary>
+public interface ICloudStorageProvider
+{
+    Task UploadAsync(string key, Stream content, CancellationToken cancellationToken = default);
+
+    Task<Stream> DownloadAsync(string key, CancellationToken cancellationToken = default);
+
+    Task DeleteAsync(string key, CancellationToken cancellationToken = default);
+
+    Task<bool> ExistsAsync(string key, CancellationToken cancellationToken = default);
+
+    // SCAFFOLD:AI_IMPLEMENTATION:START
+    // Project-specific storage operations (signed URLs, metadata, listings) go here.
+    // SCAFFOLD:AI_IMPLEMENTATION:END
+}

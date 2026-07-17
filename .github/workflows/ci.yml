@@ -21,7 +21,7 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci
-      - run: npm run build # before test — packages/core's tests exercise dist/cli.js
+      - run: npm run build # before test — integration tests exercise dist/cli.js
       - run: npm run lint
       - run: npm test
 
@@ -37,27 +37,13 @@ jobs:
         with:
           dotnet-version: '8.0.x'
       - run: npm ci
-      - run: npm run build --workspace=packages/core
-      - run: node packages/templates-dotnet/tools/check-guardrails.mjs
-      - run: node packages/templates-dotnet/tools/validate-build.mjs
-      - run: node packages/templates-dotnet/v8-controller-storemedia-v2/tools/validate-build.mjs
-
-  templates-node-build-check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run build --workspace=packages/core
-      - run: node packages/templates-node/tools/check-guardrails.mjs
-      - run: node packages/templates-node/tools/validate-build.mjs
+      - run: npm run build
+      - run: node packages/templates-dotnet/tools/check-guardrails-v9.mjs
+      - run: node packages/templates-dotnet/tools/validate-build-v9.mjs
 
   publish:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [test, templates-dotnet-build-check, templates-node-build-check]
+    needs: [test, templates-dotnet-build-check]
     runs-on: ubuntu-latest
     concurrency:
       group: publish
@@ -79,12 +65,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git pull --rebase origin main
-          npm version patch --workspaces --include-workspace-root=false --no-git-tag-version
-          NEW_VERSION=$(node -p "require('./packages/core/package.json').version")
+          npm version patch --no-git-tag-version
+          NEW_VERSION=$(node -p "require('./package.json').version")
           git commit -am "chore(release): v$NEW_VERSION [skip ci]"
           git tag "v$NEW_VERSION"
           git push origin HEAD:main --follow-tags
       - name: Publish to npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --workspaces
+        run: npm publish

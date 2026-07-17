@@ -1,0 +1,80 @@
+namespace {{ns}}.Infrastructure.Outbox;
+
+/// <summary>
+/// Polls OutboxMessages for unprocessed rows and dispatches them. Poll
+/// interval configured at "Outbox:IntervalSeconds" (default 10).
+/// </summary>
+public class OutboxProcessor : BackgroundService
+{
+    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly ILogger<OutboxProcessor> _logger;
+    private readonly TimeSpan _interval;
+
+    public OutboxProcessor(IServiceScopeFactory scopeFactory, ILogger<OutboxProcessor> logger, IConfiguration configuration)
+    {
+        _scopeFactory = scopeFactory;
+        _logger = logger;
+        _interval = TimeSpan.FromSeconds(configuration.GetValue<int?>("Outbox:IntervalSeconds") ?? 10);
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        using var timer = new PeriodicTimer(_interval);
+        while (!stoppingToken.IsCancellationRequested && await timer.WaitForNextTickAsync(stoppingToken))
+        {
+            try
+            {
+                await ProcessPendingAsync(stoppingToken);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Outbox processing pass failed; will retry on next tick");
+            }
+        }
+    }
+
+    private async Task ProcessPendingAsync(CancellationToken cancellationToken)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<{{ns}}.Infrastructure.Persistence.ApplicationDbContext>();
+
+        var pending = await db.OutboxMessages
+            .Where(m => m.ProcessedUtc == null)
+            .OrderBy(m => m.OccurredUtc)
+            .Take(20)
+            .ToListAsync(cancellationToken);
+
+        foreach (var message in pending)
+        {
+            try
+            {
+                await DispatchAsync(message, scope.ServiceProvider, cancellationToken);
+                message.ProcessedUtc = DateTime.UtcNow;
+                message.Error = null;
+            }
+            catch (Exception ex)
+            {
+                message.Error = ex.Message;
+                _logger.LogError(ex, "Failed to dispatch outbox message {MessageId} ({MessageType})", message.Id, message.Type);
+            }
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    /// SCAFFOLD:AI_IMPLEMENTATION:START:required
+    private Task DispatchAsync({{ns}}.Domain.Entities.OutboxMessage message, IServiceProvider services, CancellationToken cancellationToken)
+    {
+        // Dispatch the message to its real destination: publish to a broker,
+        // call MediatR, hit a webhook. Deserialize message.Payload by message.Type.
+        _logger.LogInformation("Dispatching outbox message {MessageId} ({MessageType})", message.Id, message.Type);
+        return Task.CompletedTask;
+    }
+
+    // Add private helper methods as needed
+    /// SCAFFOLD:AI_IMPLEMENTATION:END
+}

@@ -1,0 +1,25 @@
+namespace {{ns}}.UnitTests.Features.{{plural entity}};
+
+public class Create{{entity}}CommandHandlerTests
+{
+    private readonly Mock<{{ns}}.Application.Common.Interfaces.I{{entity}}Repository> _repository = new();
+    private readonly Mock<{{ns}}.Application.Common.Interfaces.IUnitOfWork> _unitOfWork = new();
+
+    [Fact]
+    public async Task Handle_ShouldCreateEntity_WhenCommandIsValid()
+    {
+        // Arrange
+        var handler = new {{ns}}.Application.Features.{{plural entity}}.Commands.Create{{entity}}.Create{{entity}}CommandHandler(_repository.Object, _unitOfWork.Object);
+        var command = new {{ns}}.Application.Features.{{plural entity}}.Commands.Create{{entity}}.Create{{entity}}Command({{#each fields}}{{#unless (eq (pascal name) "Id")}}default({{type}})!{{#unless @last}}, {{/unless}}{{/unless}}{{/each}});
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        // SCAFFOLD:AI_IMPLEMENTATION:START
+        _repository.Verify(r => r.AddAsync(It.IsAny<{{ns}}.Domain.Entities.{{entity}}>(), It.IsAny<CancellationToken>()), Times.Once);
+        _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        result.Should().NotBeNull();
+        // SCAFFOLD:AI_IMPLEMENTATION:END
+    }
+}

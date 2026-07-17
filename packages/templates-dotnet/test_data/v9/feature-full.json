@@ -1,0 +1,16 @@
+{
+  "manifestSchemaVersion": 1,
+  "targetStack": "backend",
+  "entity": "Product",
+  "fields": [
+    { "name": "name", "type": "string" },
+    { "name": "price", "type": "decimal" },
+    { "name": "isActive", "type": "bool" }
+  ],
+  "options": {
+    "company": "Acme",
+    "projectName": "Shop",
+    "ops": { "create": true, "read": true, "update": true, "delete": true }
+  },
+  "artifacts": ["base", "op-create", "op-read", "op-update", "op-delete"]
+}

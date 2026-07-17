@@ -1,0 +1,18 @@
+namespace {{ns}}.Domain.Factories;
+
+/// <summary>Creates valid {{entity}} instances — the single place {{entity}} invariants are enforced at construction time.</summary>
+public class {{entity}}Factory
+{
+    /// SCAFFOLD:AI_IMPLEMENTATION:START:required
+    public {{ns}}.Domain.Entities.{{entity}} Create()
+    {
+        // Enforce invariants here: required values, defaults, initial state.
+        return new {{ns}}.Domain.Entities.{{entity}}
+        {
+            Id = Guid.NewGuid(),
+        };
+    }
+
+    // Add overloads or With* builders as the domain requires
+    /// SCAFFOLD:AI_IMPLEMENTATION:END
+}
