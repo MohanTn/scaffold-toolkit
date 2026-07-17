@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * tools/check-guardrails-v9.mjs
- * Edit-surface contract for the v9-enterprise pack, driven through the real
+ * tools/check-guardrails-csharp-enterprise.mjs
+ * Edit-surface contract for the csharp-enterprise pack, driven through the real
  * `scaffold add` flow: injected wiring (controller actions, repository
  * interface signatures, DI/health-check registrations) stays frozen for the
  * host agent, while AI_IMPLEMENTATION seams (handlers, the partial-class
@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, '..', '..', '..');
 const CORE_CLI = join(REPO_ROOT, 'dist', 'cli.js');
-const PACK_SPEC = `backend=${REPO_ROOT}@packages/templates-dotnet/v9-enterprise`;
+const PACK_SPEC = `backend=${REPO_ROOT}@templates/templates-dotnet/csharp-enterprise`;
 
 function run(args, cwd) {
   const result = spawnSync(process.execPath, [CORE_CLI, ...args], { cwd, encoding: 'utf8' });
@@ -53,11 +53,11 @@ function expectVerdict(label, cwd, expectAllow, file, tool, oldString) {
 
 function main() {
   if (!existsSync(CORE_CLI)) {
-    console.error(`check-guardrails-v9.mjs: ${CORE_CLI} not found — run "npm run build" at the repo root first`);
+    console.error(`check-guardrails-csharp-enterprise.mjs: ${CORE_CLI} not found — run "npm run build" at the repo root first`);
     process.exit(1);
   }
 
-  const sampleDir = mkdtempSync(join(tmpdir(), 'scaffold-v9-guardrails-'));
+  const sampleDir = mkdtempSync(join(tmpdir(), 'scaffold-csharp-enterprise-guardrails-'));
   try {
     runOrDie('scaffold init', ['init', '--project-type', 'dotnet', '--pack', PACK_SPEC], sampleDir);
     runOrDie('add feature Product', ['add', 'feature', '--name', 'Product', '--properties', 'Name:string,Price:decimal'], sampleDir);
@@ -102,10 +102,10 @@ function main() {
   }
 
   if (failures > 0) {
-    console.error(`\ncheck-guardrails-v9.mjs: FAILED — ${failures} assertion(s) did not hold`);
+    console.error(`\ncheck-guardrails-csharp-enterprise.mjs: FAILED — ${failures} assertion(s) did not hold`);
     process.exit(1);
   }
-  console.log('\ncheck-guardrails-v9.mjs: OK — injected wiring frozen, AI seams editable.');
+  console.log('\ncheck-guardrails-csharp-enterprise.mjs: OK — injected wiring frozen, AI seams editable.');
 }
 
 main();

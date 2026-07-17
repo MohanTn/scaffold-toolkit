@@ -55,11 +55,11 @@ test('scaffold -v prints the installed package version', () => {
 
 test('scaffold init --pack seeds .scaffold/config.json with the given project type and a path-based pack', () => {
   const targetRepo = buildFixtureTargetRepo();
-  const { status } = runCli(['init', '--project-type', 'dotnet', '--pack', 'backend=packages/templates-dotnet@v8-controller'], targetRepo);
+  const { status } = runCli(['init', '--project-type', 'dotnet', '--pack', 'backend=templates/templates-dotnet@v8-controller'], targetRepo);
   assert.equal(status, 0);
   const config = JSON.parse(readFileSync(path.join(targetRepo, '.scaffold', 'config.json'), 'utf8'));
   assert.equal(config.projectType, 'dotnet');
-  assert.equal(config.packs.backend.path, 'packages/templates-dotnet');
+  assert.equal(config.packs.backend.path, 'templates/templates-dotnet');
   assert.equal(config.packs.backend.version, 'v8-controller');
   assert.equal(config.packs.backend.url, undefined);
 });

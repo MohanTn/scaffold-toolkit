@@ -1,4 +1,4 @@
-# v9-enterprise — single-project enterprise pack
+# csharp-enterprise — single-project enterprise pack
 
 ASP.NET Core 8, one web project with layer folders (`Domain/`, `Application/`, `Infrastructure/`, `Api/`) plus one xunit test project. Built for the `scaffold add` command family: every artifact kind is an opt-in tag, rendered one at a time into the same project.
 
@@ -30,4 +30,4 @@ This pack is **artifact-scoped by design**: its descriptor declares `artifacts` 
 
 ## Build check
 
-`packages/templates-dotnet/tools/validate-build-v9.mjs` drives the real `scaffold add` commands into throwaway projects and runs `dotnet build`/`dotnet test`: the full enterprise sample, the combined layout, each cloud provider, and a raw-manifest postgres variant. It runs in CI and gates publish.
+`templates/templates-dotnet/tools/validate-build-csharp-enterprise.mjs` drives the real `scaffold add` commands into throwaway projects and runs `dotnet build`/`dotnet test`: the full enterprise sample, the combined layout, each cloud provider, and a raw-manifest postgres variant. It runs in CI and gates publish.

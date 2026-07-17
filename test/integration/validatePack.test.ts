@@ -130,7 +130,7 @@ test('validate-pack: a relative --pack path resolves against the real process cw
   assert.equal(results[0].injectionsExercised, 2);
 });
 
-test('validate-pack CLI: --pack . run from inside the pack directory itself resolves correctly (the exact invocation packages/templates-dotnet/README.md documents)', () => {
+test('validate-pack CLI: --pack . run from inside the pack directory itself resolves correctly (the exact invocation templates/templates-dotnet/README.md documents)', () => {
   const cliPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'dist', 'cli.js');
   assert.ok(existsSync(cliPath), `${cliPath} not built — run "npm run build" first`);
 

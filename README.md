@@ -13,7 +13,7 @@ or invoke it without installing via `npx @mohantn/scaffold-core`.
 ## Quick start
 
 ```sh
-scaffold init --pack backend=packages/templates-dotnet@v9-enterprise
+scaffold init --pack backend=templates/templates-dotnet@csharp-enterprise
 scaffold add feature --name Product --properties "Name:string,Price:decimal,IsActive:bool"
 scaffold add custom --name GetProductsWithFilter --return-type PagedResult \
   --parameters "page:int,pageSize:int" --method GET --target-controller ProductsController
@@ -62,8 +62,8 @@ Extending **existing** controllers and repositories never rewrites code: new mem
   "projectType": "dotnet",
   "packs": {
     "backend": {
-      "path": "packages/templates-dotnet",
-      "version": "v9-enterprise",
+      "path": "templates/templates-dotnet",
+      "version": "csharp-enterprise",
       "defaults": { "options": { "combine": true, "database": { "provider": "postgres" } } }
     }
   }
@@ -90,4 +90,4 @@ The published package ships `hooks/` for Claude Code:
 
 ## Determinism guarantee
 
-For one `scaffold generate`/`scaffold add` invocation against a given repo state: identical file writes, identical report, identical exit code — regardless of which agent (or human) drives it. Artifact/`when` selection is pure set membership over the descriptor, the `add` compilers are pure flag→manifest functions, dry-run shares the real code path, and marker injections are content-hash idempotent. Template packs prove their output compiles via real build checks in CI (`packages/templates-dotnet/tools/validate-build*.mjs`), which gate every npm publish.
+For one `scaffold generate`/`scaffold add` invocation against a given repo state: identical file writes, identical report, identical exit code — regardless of which agent (or human) drives it. Artifact/`when` selection is pure set membership over the descriptor, the `add` compilers are pure flag→manifest functions, dry-run shares the real code path, and marker injections are content-hash idempotent. Template packs prove their output compiles via real build checks in CI (`templates/templates-dotnet/tools/validate-build*.mjs`), which gate every npm publish.

@@ -38,7 +38,7 @@ program.addHelpText(
   'after',
   `
 Typical flow:
-  $ scaffold init --pack backend=packages/templates-dotnet@v9-enterprise
+  $ scaffold init --pack backend=templates/templates-dotnet@csharp-enterprise
   $ scaffold add feature --name Product --properties "Name:string,Price:decimal"
   $ scaffold add custom --name GetProductsWithFilter --return-type PagedResult --parameters "page:int,pageSize:int" --target-controller ProductsController
   $ scaffold next        # what AI_IMPLEMENTATION blocks still need business logic
@@ -92,12 +92,12 @@ function parsePackSpecs(specs: string[]): Record<string, PackConfig> {
   for (const spec of specs) {
     const match = PACK_SPEC.exec(spec);
     if (!match) {
-      throw new Error(`invalid --pack "${spec}" — expected name=path@version, e.g. backend=packages/templates-dotnet@v9-enterprise`);
+      throw new Error(`invalid --pack "${spec}" — expected name=path@version, e.g. backend=templates/templates-dotnet@csharp-enterprise`);
     }
     const [, name, dir, version] = match;
     if (dir.includes('://') || SCP_STYLE_USER_HOST.test(dir) || SCP_STYLE_BARE_HOST.test(dir)) {
       throw new Error(
-        `invalid --pack "${spec}" — "scaffold init" no longer accepts a git URL, point --pack at a local directory instead, e.g. backend=packages/templates-dotnet@v9-enterprise`,
+        `invalid --pack "${spec}" — "scaffold init" no longer accepts a git URL, point --pack at a local directory instead, e.g. backend=templates/templates-dotnet@csharp-enterprise`,
       );
     }
     packs[name] = { path: dir, version };
@@ -114,14 +114,14 @@ program
   .summary('write .scaffold/config.json for this repo')
   .description('Write .scaffold/config.json for this repo: records the project type (auto-detected unless overridden) and the template pack(s) later commands resolve against.')
   .option('--project-type <type>', 'skip auto-detection and use this project type')
-  .option('--pack <spec>', 'seed a template pack as name=path@version, e.g. backend=packages/templates-dotnet@v9-enterprise (repeatable)', collect, [] as string[])
+  .option('--pack <spec>', 'seed a template pack as name=path@version, e.g. backend=templates/templates-dotnet@csharp-enterprise (repeatable)', collect, [] as string[])
   .addHelpText(
     'after',
     `
 Examples:
   $ scaffold init
   $ scaffold init --project-type dotnet
-  $ scaffold init --pack backend=packages/templates-dotnet@v9-enterprise`,
+  $ scaffold init --pack backend=templates/templates-dotnet@csharp-enterprise`,
   )
   .action(async (opts: { projectType?: string; pack: string[] }) => {
     try {
@@ -410,14 +410,14 @@ pack
   .description(
     'Write a schema-valid, empty manifest.templates.json (no targets/injections/inputs yet) under <dir>/<version>/, plus a tools/validate-build.mjs stub under <dir>/tools/ — the smallest starting point "scaffold validate-pack" accepts unmodified. The author adds their first target, template, and test_data fixture by hand.',
   )
-  .requiredOption('--dir <path>', 'the pack\'s root directory (created if missing), e.g. packages/templates-go')
+  .requiredOption('--dir <path>', 'the pack\'s root directory (created if missing), e.g. templates/templates-go')
   .requiredOption('--pack-version <version>', 'the version folder to create under --dir, e.g. v1')
   .option('--stack <label>', 'a descriptive label (e.g. "backend") noted in the generated files\' comments; not enforced')
   .addHelpText(
     'after',
     `
 Examples:
-  $ scaffold pack new --dir packages/templates-go --pack-version v1
+  $ scaffold pack new --dir templates/templates-go --pack-version v1
   $ scaffold pack new --dir ./my-pack --pack-version v1 --stack backend
 
 Next steps once the skeleton exists: add targets[]/injections[]/inputs[] to
@@ -606,7 +606,7 @@ program
 Examples:
   $ scaffold bootstrap-markers --dry-run
   $ scaffold bootstrap-markers --json
-  $ scaffold bootstrap-markers --pack-version v9-enterprise --pack ./my-pack --dry-run
+  $ scaffold bootstrap-markers --pack-version csharp-enterprise --pack ./my-pack --dry-run
 
 Exits 1 while any marker or mapping still needs manual placement.`,
   )
@@ -633,7 +633,7 @@ program
     'after',
     `
 Examples:
-  $ scaffold validate-pack --pack packages/templates-dotnet --manifest packages/templates-dotnet/test_data/order.manifest.json
+  $ scaffold validate-pack --pack templates/templates-dotnet --manifest templates/templates-dotnet/test_data/order.manifest.json
   $ scaffold validate-pack --pack ./my-pack --pack-version v1 --manifest ./my-pack/test_data/sample.manifest.json --json
 
 Note: this only proves generate does not throw — pair it with the pack's own

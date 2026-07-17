@@ -38,8 +38,8 @@ jobs:
           dotnet-version: '8.0.x'
       - run: npm ci
       - run: npm run build
-      - run: node packages/templates-dotnet/tools/check-guardrails-v9.mjs
-      - run: node packages/templates-dotnet/tools/validate-build-v9.mjs
+      - run: node templates/templates-dotnet/tools/check-guardrails-csharp-enterprise.mjs
+      - run: node templates/templates-dotnet/tools/validate-build-csharp-enterprise.mjs
 
   publish:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'

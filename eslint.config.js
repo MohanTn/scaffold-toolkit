@@ -3,7 +3,7 @@ import js from '@eslint/js';
 
 export default tseslint.config(
   {
-    ignores: ['**/dist/**', '**/node_modules/**', '**/test/**', '**/test/fixtures/**', 'packages/**', 'hooks/**'],
+    ignores: ['**/dist/**', '**/node_modules/**', '**/test/**', '**/test/fixtures/**', 'templates/**', 'hooks/**'],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

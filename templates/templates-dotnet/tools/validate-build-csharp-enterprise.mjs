@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * tools/validate-build-v9.mjs
- * Compile proof for the v9-enterprise pack, driven through the real
+ * tools/validate-build-csharp-enterprise.mjs
+ * Compile proof for the csharp-enterprise pack, driven through the real
  * `scaffold add` command family (not raw generate) so the compiler layer,
  * artifact scoping, `when` conditionals, and marker injections are all
  * exercised exactly the way a host agent uses them. Scaffolds a throwaway
@@ -23,7 +23,7 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, '..', '..', '..');
 const CORE_CLI = join(REPO_ROOT, 'dist', 'cli.js');
-const PACK_SPEC = `backend=${REPO_ROOT}@packages/templates-dotnet/v9-enterprise`;
+const PACK_SPEC = `backend=${REPO_ROOT}@templates/templates-dotnet/csharp-enterprise`;
 
 function run(command, args, cwd) {
   const result = spawnSync(command, args, { cwd, encoding: 'utf8' });
@@ -49,7 +49,7 @@ function scaffold(label, args, cwd) {
 function buildSolution(label, dir) {
   const sln = readdirSync(dir).find((name) => name.endsWith('.sln'));
   if (!sln) {
-    console.error(`validate-build-v9.mjs: no .sln found for ${label}`);
+    console.error(`validate-build-csharp-enterprise.mjs: no .sln found for ${label}`);
     return false;
   }
   const slnPath = join(dir, sln);
@@ -59,7 +59,7 @@ function buildSolution(label, dir) {
 /** Runs `steps` inside a fresh initialized sample dir; always cleans up. */
 function inFreshProject(label, steps) {
   console.log(`\n=== ${label} ===`);
-  const dir = mkdtempSync(join(tmpdir(), 'scaffold-v9-buildcheck-'));
+  const dir = mkdtempSync(join(tmpdir(), 'scaffold-csharp-enterprise-buildcheck-'));
   let ok;
   try {
     ok = scaffold('scaffold init', ['init', '--project-type', 'dotnet', '--pack', PACK_SPEC], dir) && steps(dir);
@@ -67,18 +67,18 @@ function inFreshProject(label, steps) {
     rmSync(dir, { recursive: true, force: true });
   }
   if (!ok) {
-    console.error(`\nvalidate-build-v9.mjs: FAILED — ${label}`);
+    console.error(`\nvalidate-build-csharp-enterprise.mjs: FAILED — ${label}`);
     process.exit(1);
   }
 }
 
 function main() {
   if (!existsSync(CORE_CLI)) {
-    console.error(`validate-build-v9.mjs: ${CORE_CLI} not found — run "npm run build" at the repo root first`);
+    console.error(`validate-build-csharp-enterprise.mjs: ${CORE_CLI} not found — run "npm run build" at the repo root first`);
     process.exit(1);
   }
   if (run('dotnet', ['--version'], REPO_ROOT).status !== 0) {
-    console.error('validate-build-v9.mjs: "dotnet" not found on PATH — install the .NET SDK to run this check');
+    console.error('validate-build-csharp-enterprise.mjs: "dotnet" not found on PATH — install the .NET SDK to run this check');
     process.exit(1);
   }
 
@@ -99,17 +99,17 @@ function main() {
     // Injections landed where expected before paying for the dotnet build.
     const program = readFileSync(join(dir, 'src/Company.MyProject/Program.cs'), 'utf8');
     if (!program.includes('DatabaseHealthCheck')) {
-      console.error('validate-build-v9.mjs: health-check registration missing from Program.cs');
+      console.error('validate-build-csharp-enterprise.mjs: health-check registration missing from Program.cs');
       return false;
     }
     const controller = readFileSync(join(dir, 'src/Company.MyProject/Api/Controllers/ProductsController.cs'), 'utf8');
     if (!controller.includes('GetActiveProductsAsync') || !controller.includes('ArchiveStaleProductsAsync')) {
-      console.error('validate-build-v9.mjs: custom endpoint actions missing from ProductsController.cs');
+      console.error('validate-build-csharp-enterprise.mjs: custom endpoint actions missing from ProductsController.cs');
       return false;
     }
     const iface = readFileSync(join(dir, 'src/Company.MyProject/Application/Common/Interfaces/IProductRepository.cs'), 'utf8');
     if (!iface.includes('GetActiveProductsAsync') || !iface.includes('ArchiveStaleProductsAsync')) {
-      console.error('validate-build-v9.mjs: custom repository methods missing from IProductRepository.cs');
+      console.error('validate-build-csharp-enterprise.mjs: custom repository methods missing from IProductRepository.cs');
       return false;
     }
 
@@ -126,11 +126,11 @@ function main() {
     const combinedPath = join(dir, 'src/Company.MyProject/Infrastructure/Persistence/Repositories/OrderRepository.cs');
     const combined = readFileSync(combinedPath, 'utf8');
     if (!combined.includes('public interface IOrderRepository') || !combined.includes('CountOrdersAsync')) {
-      console.error('validate-build-v9.mjs: combined repository missing interface or injected method');
+      console.error('validate-build-csharp-enterprise.mjs: combined repository missing interface or injected method');
       return false;
     }
     if (existsSync(join(dir, 'src/Company.MyProject/Application/Common/Interfaces/IOrderRepository.cs'))) {
-      console.error('validate-build-v9.mjs: split interface file exists despite --combine');
+      console.error('validate-build-csharp-enterprise.mjs: split interface file exists despite --combine');
       return false;
     }
     return buildSolution('combined layout', dir);
@@ -143,14 +143,14 @@ function main() {
       if (!scaffold(`add cloud-provider ${provider}`, ['add', 'cloud-provider', '--provider', provider], dir)) return false;
       const csproj = readFileSync(join(dir, 'src/Company.MyProject/Company.MyProject.csproj'), 'utf8');
       if (!/AWSSDK\.S3|Azure\.Storage\.Blobs|Google\.Cloud\.Storage\.V1/.test(csproj)) {
-        console.error(`validate-build-v9.mjs: ${provider} package reference missing from csproj`);
+        console.error(`validate-build-csharp-enterprise.mjs: ${provider} package reference missing from csproj`);
         return false;
       }
       return buildSolution(`cloud ${provider}`, dir);
     });
   }
 
-  // --- Raw manifest layer still drives v9 (postgres provider variant) -------
+  // --- Raw manifest layer still drives csharp-enterprise (postgres provider variant) -------
   inFreshProject('raw manifest layer: postgres provider', (dir) => {
     const manifestOut = join(dir, 'ledger.manifest.json');
     if (
@@ -164,13 +164,13 @@ function main() {
     if (!scaffold('generate (postgres)', ['generate', '--manifest', manifestOut], dir)) return false;
     const csproj = readFileSync(join(dir, 'src/Company.MyProject/Company.MyProject.csproj'), 'utf8');
     if (!csproj.includes('Npgsql.EntityFrameworkCore.PostgreSQL')) {
-      console.error('validate-build-v9.mjs: postgres provider package missing from csproj');
+      console.error('validate-build-csharp-enterprise.mjs: postgres provider package missing from csproj');
       return false;
     }
     return buildSolution('postgres variant', dir);
   });
 
-  console.log('\nvalidate-build-v9.mjs: OK — enterprise sample, combined layout, 3 cloud providers, and the raw-manifest postgres variant all generated and compiled.');
+  console.log('\nvalidate-build-csharp-enterprise.mjs: OK — enterprise sample, combined layout, 3 cloud providers, and the raw-manifest postgres variant all generated and compiled.');
 }
 
 main();

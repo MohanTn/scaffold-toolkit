@@ -41,7 +41,7 @@ test('loadConfig rejects a pack entry with neither "url" nor "path"', () => {
 
 test('loadConfig rejects a pack entry with both "url" and "path"', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'scaffold-config-'));
-  writeRawConfig(dir, { projectType: 'dotnet', packs: { backend: { url: 'https://example.com/pack.git', path: 'packages/templates-dotnet', version: 'v1' } } });
+  writeRawConfig(dir, { projectType: 'dotnet', packs: { backend: { url: 'https://example.com/pack.git', path: 'templates/templates-dotnet', version: 'v1' } } });
   assert.throws(() => loadConfig(dir), ConfigValidationError);
 });
 
@@ -49,7 +49,7 @@ test('saveConfig then loadConfig round-trips a path-based pack entry', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'scaffold-config-'));
   const config = {
     projectType: 'dotnet',
-    packs: { backend: { path: 'packages/templates-dotnet', version: 'v8-controller' } },
+    packs: { backend: { path: 'templates/templates-dotnet', version: 'v8-controller' } },
   };
   saveConfig(dir, config);
   assert.deepEqual(loadConfig(dir), config);
@@ -61,7 +61,7 @@ test('saveConfig then loadConfig round-trips a manually-declared capabilityFlags
     projectType: 'dotnet',
     packs: {
       backend: {
-        path: 'packages/templates-dotnet',
+        path: 'templates/templates-dotnet',
         version: 'v8-controller',
         capabilityFlags: { 'target:src/Controllers/{{entity}}Controller.cs::Order': 'CRUD' as const },
       },
@@ -75,7 +75,7 @@ test('loadConfig rejects a capabilityFlags value outside READ-ONLY/WRITE-ONLY/CR
   const dir = mkdtempSync(path.join(tmpdir(), 'scaffold-config-'));
   writeRawConfig(dir, {
     projectType: 'dotnet',
-    packs: { backend: { path: 'packages/templates-dotnet', version: 'v1', capabilityFlags: { 'target:Foo.cs': 'DELETE-ONLY' } } },
+    packs: { backend: { path: 'templates/templates-dotnet', version: 'v1', capabilityFlags: { 'target:Foo.cs': 'DELETE-ONLY' } } },
   });
   assert.throws(() => loadConfig(dir), ConfigValidationError);
 });
@@ -86,8 +86,8 @@ test('saveConfig then loadConfig round-trips a free-form pack defaults object', 
     projectType: 'dotnet',
     packs: {
       backend: {
-        path: 'packages/templates-dotnet',
-        version: 'v9-enterprise',
+        path: 'templates/templates-dotnet',
+        version: 'csharp-enterprise',
         defaults: { options: { combine: true, database: { scope: 'Tenant' } } },
       },
     },

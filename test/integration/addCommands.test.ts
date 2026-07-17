@@ -1,6 +1,6 @@
 /**
  * End-to-end coverage of the `scaffold add` family against a fixture pack
- * shaped like v9-enterprise: op-tagged CRUD targets, a when-gated
+ * shaped like csharp-enterprise: op-tagged CRUD targets, a when-gated
  * split/combined repository layout carrying REPO_INTERFACE_METHODS /
  * REPO_IMPL_METHODS zones, a controller with a CONTROLLER_ACTIONS zone, and
  * `custom-endpoint` injections extending both. Compilers run in-process into

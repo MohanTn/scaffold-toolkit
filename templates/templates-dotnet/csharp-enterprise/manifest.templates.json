@@ -1,6 +1,6 @@
 {
   "descriptorSchemaVersion": 2,
-  "packVersion": "v9-enterprise",
+  "packVersion": "csharp-enterprise",
   "requires": {
     "scaffoldCli": ">=0.3.0 <1.0.0"
   },

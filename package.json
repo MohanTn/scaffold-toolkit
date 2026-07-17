@@ -41,8 +41,8 @@
     "lint": "eslint . --ext .ts",
     "test": "node --import tsx --test \"test/**/*.test.ts\" \"test/**/*.test.mjs\"",
     "prepublishOnly": "npm run build",
-    "validate:templates-dotnet": "node packages/templates-dotnet/tools/validate-build-v9.mjs",
-    "check:guardrails:templates-dotnet": "node packages/templates-dotnet/tools/check-guardrails-v9.mjs"
+    "validate:templates-dotnet": "node templates/templates-dotnet/tools/validate-build-csharp-enterprise.mjs",
+    "check:guardrails:templates-dotnet": "node templates/templates-dotnet/tools/check-guardrails-csharp-enterprise.mjs"
   },
   "dependencies": {
     "@toon-format/toon": "^2.3.0",

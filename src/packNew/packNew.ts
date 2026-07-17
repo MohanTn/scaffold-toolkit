@@ -4,7 +4,7 @@
  * (targets: [], injections: [], inputs: []) manifest.templates.json under
  * <dir>/<version>/, plus a commented tools/validate-build.mjs stub at
  * <dir>/tools/ (a peer of every version folder, matching every existing
- * pack's layout, e.g. packages/templates-dotnet/tools/validate-build.mjs).
+ * pack's layout, e.g. templates/templates-dotnet/tools/validate-build.mjs).
  *
  * Deliberately minimal: no .hbs templates, no test_data fixtures. The empty
  * descriptor passes `scaffold validate-pack` trivially (there's nothing yet
@@ -28,7 +28,7 @@ export interface PackNewResult {
   validateBuildPath: string;
 }
 
-/** A broad default range; a real pack narrows this to the CLI features it actually uses (v9-enterprise declares >=0.3.0). */
+/** A broad default range; a real pack narrows this to the CLI features it actually uses (csharp-enterprise declares >=0.3.0). */
 const SCAFFOLD_CLI_RANGE = '>=0.2.0 <1.0.0';
 
 function buildDescriptor(options: PackNewOptions): Record<string, unknown> {
@@ -57,7 +57,7 @@ function validateBuildStub(options: PackNewOptions): string {
  * test_data/ fixtures through the real "scaffold generate" CLI into a
  * throwaway sample project, then actually build/test that output with
  * ${stackNote} stack's own toolchain — see
- * packages/templates-dotnet/tools/validate-build-v9.mjs in this repo for a
+ * templates/templates-dotnet/tools/validate-build-csharp-enterprise.mjs in this repo for a
  * worked example to copy from.
  *
  * TODO: add test_data/ fixtures for this pack, then replace this stub with
