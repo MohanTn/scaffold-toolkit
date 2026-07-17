@@ -30,6 +30,15 @@ interface ArtifactKind {
   nameInput?: string;
   /** Whether --entity is compiled into manifest.entity when present. */
   entityInput?: boolean;
+  /**
+   * Also render the pack's `base` artifact alongside this one. The dotnet
+   * pack establishes `base` via `scaffold add feature` before any other
+   * artifact runs, so its single-artifact kinds never need this. Packs with
+   * no "feature" command (e.g. react-app) have no other bootstrap step, so
+   * their kinds set this to render skip-if-exists base scaffolding (and any
+   * barrel file a kind injects into) on first use — idempotent on repeats.
+   */
+  includeBase?: boolean;
 }
 
 export const ARTIFACT_KINDS: Record<string, ArtifactKind> = {
@@ -75,6 +84,38 @@ export const ARTIFACT_KINDS: Record<string, ArtifactKind> = {
   'outbox-processor': {
     artifact: 'outbox',
   },
+  component: {
+    artifact: 'component',
+    requires: [{ flag: 'name', hint: '--name <ComponentName>, e.g. --name Button' }],
+    nameInput: 'componentName',
+    includeBase: true,
+  },
+  hook: {
+    artifact: 'hook',
+    // PascalCase in, camelCase (useToggle) derived by the pack's `camel` helper for the filename/export.
+    requires: [{ flag: 'name', hint: '--name <HookName> (PascalCase, "use" prefix), e.g. --name UseToggle' }],
+    nameInput: 'hookName',
+    includeBase: true,
+  },
+  page: {
+    artifact: 'page',
+    requires: [{ flag: 'name', hint: '--name <PageName>, e.g. --name ProductsPage' }],
+    nameInput: 'pageName',
+    includeBase: true,
+  },
+  context: {
+    artifact: 'context',
+    requires: [{ flag: 'name', hint: '--name <ContextName>, e.g. --name Auth' }],
+    nameInput: 'contextName',
+    includeBase: true,
+  },
+  'api-client': {
+    artifact: 'api-client',
+    // PascalCase in (e.g. Products); the pack's `camel`/`kebab` helpers derive productsApi.js.
+    requires: [{ flag: 'name', hint: '--name <ResourceName> (PascalCase), e.g. --name Products' }],
+    nameInput: 'apiName',
+    includeBase: true,
+  },
 };
 
 export function compileAddArtifact(kindName: string, flags: AddArtifactFlags): IntentManifest {
@@ -94,7 +135,7 @@ export function compileAddArtifact(kindName: string, flags: AddArtifactFlags): I
   const manifest: IntentManifest = {
     manifestSchemaVersion: 1,
     targetStack: flags.targetStack,
-    artifacts: [artifact],
+    artifacts: kind.includeBase ? ['base', artifact] : [artifact],
   };
 
   if (kind.nameInput !== undefined) {

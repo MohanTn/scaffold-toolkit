@@ -1,0 +1,10 @@
+import { renderHook } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+import {{camel hookName}} from './{{camel hookName}}.js';
+
+describe('{{camel hookName}}', () => {
+  it('returns a defined value', () => {
+    const { result } = renderHook(() => {{camel hookName}}());
+    expect(result.current).toBeDefined();
+  });
+});

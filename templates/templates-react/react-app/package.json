@@ -1,0 +1,4 @@
+{
+  "type": "commonjs",
+  "_comment": "helpers.js is CommonJS (module.exports.register); this scopes it as CJS despite the repo root's type:module. Same baseline ensurePackCjsBaseline writes for cached url-packs."
+}

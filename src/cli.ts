@@ -368,6 +368,36 @@ const ARTIFACT_SUBCOMMANDS: ArtifactSubcommand[] = [
     flags: [],
     example: 'scaffold add outbox-processor',
   },
+  {
+    kind: 'component',
+    summary: 'React component + CSS module + test, exported from the components barrel',
+    flags: [{ spec: '--name <ComponentName>', help: 'component name (PascalCase), e.g. Button' }],
+    example: 'scaffold add component --name Button',
+  },
+  {
+    kind: 'hook',
+    summary: 'custom React hook + test, exported from the hooks barrel',
+    flags: [{ spec: '--name <HookName>', help: 'hook name (PascalCase, "use" prefix), e.g. UseToggle' }],
+    example: 'scaffold add hook --name UseToggle',
+  },
+  {
+    kind: 'page',
+    summary: 'page-level component + test, exported from the pages barrel',
+    flags: [{ spec: '--name <PageName>', help: 'page name (PascalCase), e.g. ProductsPage' }],
+    example: 'scaffold add page --name ProductsPage',
+  },
+  {
+    kind: 'context',
+    summary: 'React context provider + hook + test, exported from the context barrel',
+    flags: [{ spec: '--name <ContextName>', help: 'context name (PascalCase), e.g. Auth' }],
+    example: 'scaffold add context --name Auth',
+  },
+  {
+    kind: 'api-client',
+    summary: 'fetch-based REST client (getAll/getById/create/update/remove) + test, exported from the api barrel',
+    flags: [{ spec: '--name <ResourceName>', help: 'resource name (PascalCase), e.g. Products' }],
+    example: 'scaffold add api-client --name Products',
+  },
 ];
 
 for (const sub of ARTIFACT_SUBCOMMANDS) {

@@ -1,0 +1,19 @@
+import { createContext, useContext, useState } from 'react';
+
+const {{pascal contextName}}Context = createContext(undefined);
+
+// AI_IMPLEMENTATION_START:required
+export function {{pascal contextName}}Provider({ children }) {
+  const [state, setState] = useState(null);
+  const value = { state, setState };
+  return <{{pascal contextName}}Context.Provider value={value}>{children}</{{pascal contextName}}Context.Provider>;
+}
+// AI_IMPLEMENTATION_END
+
+export function use{{pascal contextName}}() {
+  const context = useContext({{pascal contextName}}Context);
+  if (context === undefined) {
+    throw new Error('use{{pascal contextName}} must be used within a {{pascal contextName}}Provider');
+  }
+  return context;
+}

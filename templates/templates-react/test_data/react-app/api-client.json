@@ -1,0 +1,7 @@
+{
+  "manifestSchemaVersion": 1,
+  "targetStack": "frontend",
+  "options": { "projectName": "ShopFront" },
+  "artifacts": ["api-client"],
+  "apiName": "Products"
+}

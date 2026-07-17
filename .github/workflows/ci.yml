@@ -41,9 +41,22 @@ jobs:
       - run: node templates/templates-dotnet/tools/check-guardrails-csharp-enterprise.mjs
       - run: node templates/templates-dotnet/tools/validate-build-csharp-enterprise.mjs
 
+  templates-react-build-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: node templates/templates-react/tools/check-guardrails-react-app.mjs
+      - run: node templates/templates-react/tools/validate-build-react-app.mjs
+
   publish:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [test, templates-dotnet-build-check]
+    needs: [test, templates-dotnet-build-check, templates-react-build-check]
     runs-on: ubuntu-latest
     concurrency:
       group: publish

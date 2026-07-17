@@ -1,0 +1,19 @@
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+import { {{pascal contextName}}Provider, use{{pascal contextName}} } from './{{pascal contextName}}Context.jsx';
+
+function Consumer() {
+  const { state } = use{{pascal contextName}}();
+  return <div data-testid="{{kebab contextName}}-consumer">{String(state)}</div>;
+}
+
+describe('{{pascal contextName}}Provider', () => {
+  it('provides a context value to descendants', () => {
+    render(
+      <{{pascal contextName}}Provider>
+        <Consumer />
+      </{{pascal contextName}}Provider>,
+    );
+    expect(screen.getByTestId('{{kebab contextName}}-consumer')).toBeInTheDocument();
+  });
+});

@@ -1,0 +1,46 @@
+const BASE_URL = '/api/{{kebab apiName}}';
+
+async function handleResponse(response) {
+  if (!response.ok) {
+    throw new Error(`{{pascal apiName}} API request failed: ${response.status} ${response.statusText}`);
+  }
+  if (response.status === 204) return undefined;
+  return response.json();
+}
+
+export async function getAll() {
+  const response = await fetch(BASE_URL);
+  return handleResponse(response);
+}
+
+export async function getById(id) {
+  const response = await fetch(`${BASE_URL}/${id}`);
+  return handleResponse(response);
+}
+
+export async function create(data) {
+  const response = await fetch(BASE_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return handleResponse(response);
+}
+
+export async function update(id, data) {
+  const response = await fetch(`${BASE_URL}/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return handleResponse(response);
+}
+
+export async function remove(id) {
+  const response = await fetch(`${BASE_URL}/${id}`, { method: 'DELETE' });
+  return handleResponse(response);
+}
+
+// AI_IMPLEMENTATION_START
+// Add project-specific requests for {{pascal apiName}} here (custom filters, bulk operations, etc.).
+// AI_IMPLEMENTATION_END

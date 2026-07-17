@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Introduces the `templates-react` pack with five new artifact kinds (component, hook, page, context, api-client) and the `includeBase` feature to auto-render base scaffolding alongside React artifacts, since React packs lack a bootstrap step like .NET's feature command.
+
 ## [0.3.0]
 
 ### Added

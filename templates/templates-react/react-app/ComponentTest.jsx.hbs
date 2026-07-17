@@ -1,0 +1,10 @@
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+import {{pascal componentName}} from './{{pascal componentName}}.jsx';
+
+describe('{{pascal componentName}}', () => {
+  it('renders without crashing', () => {
+    render(<{{pascal componentName}} />);
+    expect(screen.getByTestId('{{kebab componentName}}')).toBeInTheDocument();
+  });
+});

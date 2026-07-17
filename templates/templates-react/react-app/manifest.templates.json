@@ -1,0 +1,129 @@
+{
+  "descriptorSchemaVersion": 2,
+  "packVersion": "react-app",
+  "requires": {
+    "scaffoldCli": ">=0.3.0 <1.0.0"
+  },
+  "inputs": [
+    {
+      "name": "artifacts",
+      "type": "array",
+      "required": true,
+      "minItems": 1,
+      "_comment": "react-app is artifact-scoped by design, same as csharp-enterprise: a manifest must say which artifact tags to render. scaffold add compiles this automatically."
+    },
+    {
+      "name": "componentName",
+      "type": "string",
+      "required": false,
+      "pattern": "^[A-Z][A-Za-z0-9]*$"
+    },
+    {
+      "name": "hookName",
+      "type": "string",
+      "required": false,
+      "pattern": "^[A-Z][A-Za-z0-9]*$",
+      "_comment": "Entered PascalCase (e.g. UseToggle); the pack's `camel` helper derives the camelCase filename/export (useToggle)."
+    },
+    {
+      "name": "pageName",
+      "type": "string",
+      "required": false,
+      "pattern": "^[A-Z][A-Za-z0-9]*$"
+    },
+    {
+      "name": "contextName",
+      "type": "string",
+      "required": false,
+      "pattern": "^[A-Z][A-Za-z0-9]*$"
+    },
+    {
+      "name": "apiName",
+      "type": "string",
+      "required": false,
+      "pattern": "^[A-Z][A-Za-z0-9]*$",
+      "_comment": "Entered PascalCase (e.g. Products); the pack's `camel` helper derives productsApi.js."
+    }
+  ],
+  "targets": [
+    { "output": "package.json", "template": "AppPackageJson.hbs", "mode": "skip-if-exists" },
+    { "output": "vite.config.js", "template": "ViteConfig.hbs", "mode": "skip-if-exists" },
+    { "output": "index.html", "template": "IndexHtml.hbs", "mode": "skip-if-exists" },
+    { "output": ".gitignore", "template": "Gitignore.hbs", "mode": "skip-if-exists" },
+    { "output": "eslint.config.js", "template": "EslintConfig.hbs", "mode": "skip-if-exists" },
+    { "output": "README.md", "template": "ProjectReadme.hbs", "mode": "skip-if-exists" },
+    { "output": "src/main.jsx", "template": "MainJsx.hbs", "mode": "skip-if-exists" },
+    { "output": "src/App.jsx", "template": "AppJsx.hbs", "mode": "skip-if-exists" },
+    { "output": "src/App.css", "template": "AppCss.hbs", "mode": "skip-if-exists" },
+    { "output": "src/App.test.jsx", "template": "AppTestJsx.hbs", "mode": "skip-if-exists" },
+    { "output": "src/test/setup.js", "template": "TestSetup.hbs", "mode": "skip-if-exists" },
+    { "output": "src/components/index.js", "template": "ComponentsIndex.hbs", "mode": "skip-if-exists" },
+    { "output": "src/hooks/index.js", "template": "HooksIndex.hbs", "mode": "skip-if-exists" },
+    { "output": "src/pages/index.js", "template": "PagesIndex.hbs", "mode": "skip-if-exists" },
+    { "output": "src/context/index.js", "template": "ContextIndex.hbs", "mode": "skip-if-exists" },
+    { "output": "src/api/index.js", "template": "ApiIndex.hbs", "mode": "skip-if-exists" },
+
+    { "output": "src/components/{{pascal componentName}}/{{pascal componentName}}.jsx", "template": "Component.jsx.hbs", "mode": "create", "artifact": "component" },
+    { "output": "src/components/{{pascal componentName}}/{{pascal componentName}}.module.css", "template": "ComponentModuleCss.hbs", "mode": "create", "artifact": "component" },
+    { "output": "src/components/{{pascal componentName}}/{{pascal componentName}}.test.jsx", "template": "ComponentTest.jsx.hbs", "mode": "create", "artifact": "component" },
+
+    { "output": "src/hooks/{{camel hookName}}.js", "template": "Hook.js.hbs", "mode": "create", "artifact": "hook" },
+    { "output": "src/hooks/{{camel hookName}}.test.js", "template": "HookTest.js.hbs", "mode": "create", "artifact": "hook" },
+
+    { "output": "src/pages/{{pascal pageName}}/{{pascal pageName}}.jsx", "template": "Page.jsx.hbs", "mode": "create", "artifact": "page" },
+    { "output": "src/pages/{{pascal pageName}}/{{pascal pageName}}.test.jsx", "template": "PageTest.jsx.hbs", "mode": "create", "artifact": "page" },
+
+    { "output": "src/context/{{pascal contextName}}Context.jsx", "template": "Context.jsx.hbs", "mode": "create", "artifact": "context" },
+    { "output": "src/context/{{pascal contextName}}Context.test.jsx", "template": "ContextTest.jsx.hbs", "mode": "create", "artifact": "context" },
+
+    { "output": "src/api/{{camel apiName}}Api.js", "template": "ApiClient.js.hbs", "mode": "create", "artifact": "api-client" },
+    { "output": "src/api/{{camel apiName}}Api.test.js", "template": "ApiClientTest.js.hbs", "mode": "create", "artifact": "api-client" }
+  ],
+  "injections": [
+    {
+      "file": "src/components/index.js",
+      "marker": "COMPONENT_EXPORTS",
+      "template": "component-export.hbs",
+      "position": "before-end",
+      "hashTrailerPrefix": "// scaffold-hash:",
+      "strategy": "append",
+      "artifact": "component"
+    },
+    {
+      "file": "src/hooks/index.js",
+      "marker": "HOOK_EXPORTS",
+      "template": "hook-export.hbs",
+      "position": "before-end",
+      "hashTrailerPrefix": "// scaffold-hash:",
+      "strategy": "append",
+      "artifact": "hook"
+    },
+    {
+      "file": "src/pages/index.js",
+      "marker": "PAGE_EXPORTS",
+      "template": "page-export.hbs",
+      "position": "before-end",
+      "hashTrailerPrefix": "// scaffold-hash:",
+      "strategy": "append",
+      "artifact": "page"
+    },
+    {
+      "file": "src/context/index.js",
+      "marker": "CONTEXT_EXPORTS",
+      "template": "context-export.hbs",
+      "position": "before-end",
+      "hashTrailerPrefix": "// scaffold-hash:",
+      "strategy": "append",
+      "artifact": "context"
+    },
+    {
+      "file": "src/api/index.js",
+      "marker": "API_EXPORTS",
+      "template": "api-export.hbs",
+      "position": "before-end",
+      "hashTrailerPrefix": "// scaffold-hash:",
+      "strategy": "append",
+      "artifact": "api-client"
+    }
+  ]
+}
