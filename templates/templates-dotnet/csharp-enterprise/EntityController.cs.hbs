@@ -12,8 +12,8 @@ public class {{plural entity}}Controller : ControllerBase
     }
 {{#if (opEnabled "read")}}
 
-    [HttpGet("{id:guid}")]
-    public async Task<ActionResult<{{ns}}.Application.Features.{{plural entity}}.{{entity}}Dto>> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+    [HttpGet("{{keyRouteIdSegment}}")]
+    public async Task<ActionResult<{{ns}}.Application.Features.{{plural entity}}.{{entity}}Dto>> GetByIdAsync({{keyType}} id, CancellationToken cancellationToken)
     {
         var result = await _sender.Send(new {{ns}}.Application.Features.{{plural entity}}.Queries.Get{{entity}}ById.Get{{entity}}ByIdQuery(id), cancellationToken);
         return result is null ? NotFound() : Ok(result);
@@ -41,8 +41,8 @@ public class {{plural entity}}Controller : ControllerBase
 {{/if}}
 {{#if (opEnabled "update")}}
 
-    [HttpPut("{id:guid}")]
-    public async Task<IActionResult> UpdateAsync(Guid id, {{ns}}.Application.Features.{{plural entity}}.{{entity}}Dto dto, CancellationToken cancellationToken)
+    [HttpPut("{{keyRouteIdSegment}}")]
+    public async Task<IActionResult> UpdateAsync({{keyType}} id, {{ns}}.Application.Features.{{plural entity}}.{{entity}}Dto dto, CancellationToken cancellationToken)
     {
         var command = new {{ns}}.Application.Features.{{plural entity}}.Commands.Update{{entity}}.Update{{entity}}Command(id{{#each fields}}{{#unless (eq (pascal name) "Id")}}, dto.{{pascal name}}{{/unless}}{{/each}});
         await _sender.Send(command, cancellationToken);
@@ -51,8 +51,8 @@ public class {{plural entity}}Controller : ControllerBase
 {{/if}}
 {{#if (opEnabled "delete")}}
 
-    [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> DeleteAsync(Guid id, CancellationToken cancellationToken)
+    [HttpDelete("{{keyRouteIdSegment}}")]
+    public async Task<IActionResult> DeleteAsync({{keyType}} id, CancellationToken cancellationToken)
     {
         await _sender.Send(new {{ns}}.Application.Features.{{plural entity}}.Commands.Delete{{entity}}.Delete{{entity}}Command(id), cancellationToken);
         return NoContent();

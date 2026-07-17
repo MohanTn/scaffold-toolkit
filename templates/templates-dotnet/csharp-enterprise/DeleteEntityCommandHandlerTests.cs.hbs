@@ -12,7 +12,7 @@ public class Delete{{entity}}CommandHandlerTests
     public async Task Handle_ShouldDeleteEntity_WhenEntityExists()
     {
         // Arrange
-        var entity = new {{ns}}.Domain.Entities.{{entity}} { Id = Guid.NewGuid() };
+        var entity = new {{ns}}.Domain.Entities.{{entity}} { Id = {{keyNewExpr}} };
         _repository.Setup(r => r.GetByIdAsync(entity.Id, It.IsAny<CancellationToken>())).ReturnsAsync(entity);
         var command = new {{ns}}.Application.Features.{{plural entity}}.Commands.Delete{{entity}}.Delete{{entity}}Command(entity.Id);
 
@@ -30,7 +30,7 @@ public class Delete{{entity}}CommandHandlerTests
     public async Task Handle_ShouldThrowNotFound_WhenEntityDoesNotExist()
     {
         // Arrange
-        var command = new {{ns}}.Application.Features.{{plural entity}}.Commands.Delete{{entity}}.Delete{{entity}}Command(Guid.NewGuid());
+        var command = new {{ns}}.Application.Features.{{plural entity}}.Commands.Delete{{entity}}.Delete{{entity}}Command({{keyNewExpr}});
 
         // Act / Assert
         // SCAFFOLD:AI_IMPLEMENTATION:START

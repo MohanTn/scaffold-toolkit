@@ -10,7 +10,7 @@ public partial class {{entity}}Repository : {{ns}}.Application.Common.Interfaces
     }
 
     /// SCAFFOLD:AI_IMPLEMENTATION:START:required
-    public async Task<{{ns}}.Domain.Entities.{{entity}}?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<{{ns}}.Domain.Entities.{{entity}}?> GetByIdAsync({{keyType}} id, CancellationToken cancellationToken = default)
     {
         return await _context.{{plural entity}}.FindAsync(new object[] { id }, cancellationToken: cancellationToken);
     }

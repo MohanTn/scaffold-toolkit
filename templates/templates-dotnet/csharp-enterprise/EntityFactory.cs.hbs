@@ -9,7 +9,7 @@ public class {{entity}}Factory
         // Enforce invariants here: required values, defaults, initial state.
         return new {{ns}}.Domain.Entities.{{entity}}
         {
-            Id = Guid.NewGuid(),
+            Id = {{keyNewExpr}},
         };
     }
 

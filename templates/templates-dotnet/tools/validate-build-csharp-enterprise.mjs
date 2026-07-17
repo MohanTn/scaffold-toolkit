@@ -170,7 +170,61 @@ function main() {
     return buildSolution('postgres variant', dir);
   });
 
-  console.log('\nvalidate-build-csharp-enterprise.mjs: OK — enterprise sample, combined layout, 3 cloud providers, and the raw-manifest postgres variant all generated and compiled.');
+  // --- Raw manifest layer: options.keyType swaps the entity primary key ----
+  inFreshProject('raw manifest layer: keyType=int', (dir) => {
+    const manifestOut = join(dir, 'ledger.manifest.json');
+    if (
+      !scaffold('manifest new', [
+        'manifest', 'new', '--stack', 'backend', '--entity', 'Ledger', '--field', 'Amount:decimal',
+        '--option', 'keyType=int',
+        '--artifact', 'base', '--artifact', 'op-create', '--artifact', 'op-read', '--artifact', 'op-update', '--artifact', 'op-delete',
+        '--out', manifestOut,
+      ], dir)
+    ) return false;
+    if (!scaffold('generate (keyType=int)', ['generate', '--manifest', manifestOut], dir)) return false;
+    const entity = readFileSync(join(dir, 'src/Company.MyProject/Domain/Entities/Ledger.cs'), 'utf8');
+    if (!entity.includes('public int Id { get; set; }')) {
+      console.error('validate-build-csharp-enterprise.mjs: keyType=int did not produce "public int Id" on the domain entity');
+      return false;
+    }
+    const config = readFileSync(join(dir, 'src/Company.MyProject/Infrastructure/Persistence/Configurations/LedgerConfiguration.cs'), 'utf8');
+    if (!config.includes('ValueGeneratedOnAdd()')) {
+      console.error('validate-build-csharp-enterprise.mjs: keyType=int did not switch EF config to ValueGeneratedOnAdd()');
+      return false;
+    }
+    const controller = readFileSync(join(dir, 'src/Company.MyProject/Api/Controllers/LedgersController.cs'), 'utf8');
+    if (!controller.includes('{id:int}') || controller.includes('{id:guid}')) {
+      console.error('validate-build-csharp-enterprise.mjs: keyType=int did not switch the route constraint to {id:int}');
+      return false;
+    }
+    return buildSolution('keyType=int variant', dir);
+  });
+
+  inFreshProject('raw manifest layer: keyType=string', (dir) => {
+    const manifestOut = join(dir, 'ledger.manifest.json');
+    if (
+      !scaffold('manifest new', [
+        'manifest', 'new', '--stack', 'backend', '--entity', 'Ledger', '--field', 'Amount:decimal',
+        '--option', 'keyType=string',
+        '--artifact', 'base', '--artifact', 'op-create', '--artifact', 'op-read', '--artifact', 'op-update', '--artifact', 'op-delete',
+        '--out', manifestOut,
+      ], dir)
+    ) return false;
+    if (!scaffold('generate (keyType=string)', ['generate', '--manifest', manifestOut], dir)) return false;
+    const entity = readFileSync(join(dir, 'src/Company.MyProject/Domain/Entities/Ledger.cs'), 'utf8');
+    if (!entity.includes('public string Id { get; set; }')) {
+      console.error('validate-build-csharp-enterprise.mjs: keyType=string did not produce "public string Id" on the domain entity');
+      return false;
+    }
+    const handler = readFileSync(join(dir, 'src/Company.MyProject/Application/Features/Ledgers/Commands/CreateLedger/CreateLedgerCommandHandler.cs'), 'utf8');
+    if (!handler.includes('Guid.NewGuid().ToString()')) {
+      console.error('validate-build-csharp-enterprise.mjs: keyType=string did not switch Create handler to Guid.NewGuid().ToString()');
+      return false;
+    }
+    return buildSolution('keyType=string variant', dir);
+  });
+
+  console.log('\nvalidate-build-csharp-enterprise.mjs: OK — enterprise sample, combined layout, 3 cloud providers, the raw-manifest postgres variant, and keyType=int/string variants all generated and compiled.');
 }
 
 main();

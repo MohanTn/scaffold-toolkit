@@ -2,7 +2,7 @@ namespace {{ns}}.Domain.Entities;
 
 public class {{entity}}
 {
-    public Guid Id { get; set; }
+    public {{keyType}} Id { get; set; }
 {{#each fields}}
 {{#unless (eq (pascal name) "Id")}}
     public {{type}} {{pascal name}} { get; set; }{{#if (eq type "string")}} = string.Empty;{{/if}}

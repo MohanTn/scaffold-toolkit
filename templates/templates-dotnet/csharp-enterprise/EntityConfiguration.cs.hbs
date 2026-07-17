@@ -9,7 +9,7 @@ public class {{entity}}Configuration : IEntityTypeConfiguration<{{entity}}>
     public void Configure(EntityTypeBuilder<{{entity}}> builder)
     {
         builder.HasKey(x => x.Id);
-        builder.Property(x => x.Id).ValueGeneratedNever();
+        builder.Property(x => x.Id).ValueGenerated{{keyValueGenerated}}();
 {{#each fields}}
 {{#unless (eq (pascal name) "Id")}}
         builder.Property(x => x.{{pascal name}}){{#unless (isNullable type)}}.IsRequired(){{/unless}};

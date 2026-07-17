@@ -11,7 +11,7 @@ public class Get{{entity}}ByIdQueryHandlerTests
     public async Task Handle_ShouldReturnDto_WhenEntityExists()
     {
         // Arrange
-        var entity = new {{ns}}.Domain.Entities.{{entity}} { Id = Guid.NewGuid() };
+        var entity = new {{ns}}.Domain.Entities.{{entity}} { Id = {{keyNewExpr}} };
         _repository.Setup(r => r.GetByIdAsync(entity.Id, It.IsAny<CancellationToken>())).ReturnsAsync(entity);
         var query = new {{ns}}.Application.Features.{{plural entity}}.Queries.Get{{entity}}ById.Get{{entity}}ByIdQuery(entity.Id);
 
@@ -28,7 +28,7 @@ public class Get{{entity}}ByIdQueryHandlerTests
     public async Task Handle_ShouldReturnNull_WhenEntityDoesNotExist()
     {
         // Arrange
-        var query = new {{ns}}.Application.Features.{{plural entity}}.Queries.Get{{entity}}ById.Get{{entity}}ByIdQuery(Guid.NewGuid());
+        var query = new {{ns}}.Application.Features.{{plural entity}}.Queries.Get{{entity}}ById.Get{{entity}}ByIdQuery({{keyNewExpr}});
 
         // Act
         var result = await CreateHandler().Handle(query, CancellationToken.None);

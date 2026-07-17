@@ -18,7 +18,7 @@ public class Create{{entity}}CommandHandler : IRequestHandler<Create{{entity}}Co
         // Decompose into private methods as needed (ValidateRequest, CreateEntity, PersistChanges, etc.)
         var entity = new {{ns}}.Domain.Entities.{{entity}}
         {
-            Id = Guid.NewGuid(){{#each fields}}{{#unless (eq (pascal name) "Id")}},
+            Id = {{keyNewExpr}}{{#each fields}}{{#unless (eq (pascal name) "Id")}},
             {{pascal name}} = request.{{pascal name}}{{/unless}}{{/each}}
         };
         await _repository.AddAsync(entity, cancellationToken);

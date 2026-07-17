@@ -10,7 +10,7 @@ public class Update{{entity}}CommandValidatorTests
     public void Validate_ShouldFail_WhenRequiredFieldsAreEmpty()
     {
         // Arrange
-        var command = new {{ns}}.Application.Features.{{plural entity}}.Commands.Update{{entity}}.Update{{entity}}Command(Guid.Empty{{#each fields}}{{#unless (eq (pascal name) "Id")}}, default({{type}})!{{/unless}}{{/each}});
+        var command = new {{ns}}.Application.Features.{{plural entity}}.Commands.Update{{entity}}.Update{{entity}}Command({{keyEmptyExpr}}{{#each fields}}{{#unless (eq (pascal name) "Id")}}, default({{type}})!{{/unless}}{{/each}});
 
         // Act
         var result = _validator.TestValidate(command);

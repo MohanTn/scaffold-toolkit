@@ -1,0 +1,15 @@
+{
+  "manifestSchemaVersion": 1,
+  "targetStack": "backend",
+  "entity": "Ledger",
+  "fields": [
+    { "name": "amount", "type": "decimal" }
+  ],
+  "options": {
+    "company": "Acme",
+    "projectName": "Shop",
+    "keyType": "int",
+    "ops": { "create": true, "read": true, "update": true, "delete": true }
+  },
+  "artifacts": ["base", "op-create", "op-read", "op-update", "op-delete"]
+}

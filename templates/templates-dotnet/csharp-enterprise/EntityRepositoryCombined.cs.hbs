@@ -4,7 +4,7 @@
 
 namespace {{ns}}.Application.Common.Interfaces
 {
-    public interface I{{entity}}Repository : IRepository<{{ns}}.Domain.Entities.{{entity}}>
+    public interface I{{entity}}Repository : IRepository<{{ns}}.Domain.Entities.{{entity}}, {{keyType}}>
     {
         // SCAFFOLD:REPO_INTERFACE_METHODS:START
         // SCAFFOLD:REPO_INTERFACE_METHODS:END
@@ -23,7 +23,7 @@ namespace {{ns}}.Infrastructure.Persistence.Repositories
         }
 
         /// SCAFFOLD:AI_IMPLEMENTATION:START:required
-        public async Task<{{ns}}.Domain.Entities.{{entity}}?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+        public async Task<{{ns}}.Domain.Entities.{{entity}}?> GetByIdAsync({{keyType}} id, CancellationToken cancellationToken = default)
         {
             return await _context.{{plural entity}}.FindAsync(new object[] { id }, cancellationToken: cancellationToken);
         }

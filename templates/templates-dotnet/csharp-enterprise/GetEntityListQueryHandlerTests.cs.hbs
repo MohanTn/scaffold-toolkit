@@ -9,7 +9,7 @@ public class Get{{entity}}ListQueryHandlerTests
     {
         // Arrange
         _repository.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<{{ns}}.Domain.Entities.{{entity}}> { new() { Id = Guid.NewGuid() } });
+            .ReturnsAsync(new List<{{ns}}.Domain.Entities.{{entity}}> { new() { Id = {{keyNewExpr}} } });
         var handler = new {{ns}}.Application.Features.{{plural entity}}.Queries.Get{{entity}}List.Get{{entity}}ListQueryHandler(_repository.Object);
 
         // Act

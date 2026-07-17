@@ -35,9 +35,30 @@ function guidFromString(s) {
   return '{' + [guid.slice(0, 8), guid.slice(8, 12), guid.slice(12, 16), guid.slice(16, 20), guid.slice(20, 32)].join('-').toUpperCase() + '}';
 }
 
+// keyType: entity primary-key primitive, driven by options.keyType (guid|int|long|string).
+// Defaults to guid, matching this pack's original hardcoded behavior.
+const KEY_TYPES = {
+  guid: { csType: 'Guid', valueGenerated: 'Never', newExpr: 'Guid.NewGuid()', emptyExpr: 'Guid.Empty', routeIdSegment: '{id:guid}' },
+  int: { csType: 'int', valueGenerated: 'OnAdd', newExpr: 'default', emptyExpr: '0', routeIdSegment: '{id:int}' },
+  long: { csType: 'long', valueGenerated: 'OnAdd', newExpr: 'default', emptyExpr: '0L', routeIdSegment: '{id:long}' },
+  string: { csType: 'string', valueGenerated: 'Never', newExpr: 'Guid.NewGuid().ToString()', emptyExpr: 'string.Empty', routeIdSegment: '{id}' },
+};
+
+function resolveKeyType(options) {
+  const root = options.data && options.data.root ? options.data.root : {};
+  const raw = root.options && root.options.keyType ? String(root.options.keyType).toLowerCase() : 'guid';
+  return KEY_TYPES[raw] || KEY_TYPES.guid;
+}
+
 /** @type {{ register: (handlebars: { registerHelper: (name: string, fn: Function) => void }) => void }} */
 module.exports = {
   register(handlebars) {
+    handlebars.registerHelper('keyType', function (options) { return resolveKeyType(options).csType; });
+    handlebars.registerHelper('keyValueGenerated', function (options) { return resolveKeyType(options).valueGenerated; });
+    handlebars.registerHelper('keyNewExpr', function (options) { return resolveKeyType(options).newExpr; });
+    handlebars.registerHelper('keyEmptyExpr', function (options) { return resolveKeyType(options).emptyExpr; });
+    handlebars.registerHelper('keyRouteIdSegment', function (options) { return resolveKeyType(options).routeIdSegment; });
+
     handlebars.registerHelper('lower', (s) => String(s == null ? '' : s).toLowerCase());
 
     handlebars.registerHelper('eq', (a, b) => a === b);

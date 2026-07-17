@@ -12,7 +12,7 @@ public class Update{{entity}}CommandHandlerTests
     public async Task Handle_ShouldUpdateEntity_WhenEntityExists()
     {
         // Arrange
-        var entity = new {{ns}}.Domain.Entities.{{entity}} { Id = Guid.NewGuid() };
+        var entity = new {{ns}}.Domain.Entities.{{entity}} { Id = {{keyNewExpr}} };
         _repository.Setup(r => r.GetByIdAsync(entity.Id, It.IsAny<CancellationToken>())).ReturnsAsync(entity);
         var command = new {{ns}}.Application.Features.{{plural entity}}.Commands.Update{{entity}}.Update{{entity}}Command(entity.Id{{#each fields}}{{#unless (eq (pascal name) "Id")}}, default({{type}})!{{/unless}}{{/each}});
 
@@ -31,7 +31,7 @@ public class Update{{entity}}CommandHandlerTests
     public async Task Handle_ShouldThrowNotFound_WhenEntityDoesNotExist()
     {
         // Arrange
-        var command = new {{ns}}.Application.Features.{{plural entity}}.Commands.Update{{entity}}.Update{{entity}}Command(Guid.NewGuid(){{#each fields}}{{#unless (eq (pascal name) "Id")}}, default({{type}})!{{/unless}}{{/each}});
+        var command = new {{ns}}.Application.Features.{{plural entity}}.Commands.Update{{entity}}.Update{{entity}}Command({{keyNewExpr}}{{#each fields}}{{#unless (eq (pascal name) "Id")}}, default({{type}})!{{/unless}}{{/each}});
 
         // Act / Assert
         // SCAFFOLD:AI_IMPLEMENTATION:START
