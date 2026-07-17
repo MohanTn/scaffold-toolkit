@@ -45,7 +45,7 @@ Extending **existing** controllers and repositories never rewrites code: new mem
 
 ## Low-level commands
 
-- `scaffold init [--project-type <type>] [--pack <name>=<path>@<version> ...]` — writes `.scaffold/config.json`. `--pack` seeds the `packs` map as local-directory entries (git URLs are rejected; the `url`-pack engine still exists underneath for a future non-vendored pack).
+- `scaffold init [--project-type <type>] [--pack <name>=<path>@<version> ...]` — writes `.scaffold/config.json`. `--pack` seeds the `packs` map as local-directory entries (git URLs are rejected; the `url`-pack engine still exists underneath for a future non-vendored pack); each seeded directory is copied into `.scaffold/cache` immediately and the pack's `path` is rewritten to that cached copy, so the repo stays runnable even if the original `--pack` source later becomes unreachable.
 - `scaffold manifest new --stack <slot> [--entity <Name>] [--field name:type ...] [--option path=value ...] [--input name=value ...] [--artifact <tag> ...] [--out <file>]` — builds a schema-validated intent manifest; `--artifact` scopes the render to those descriptor tags (untagged entries are `base`).
 - `scaffold generate --manifest <file.toon|.json> [--dry-run] [--force] [--json] [--format doc]` — validates the manifest + pack descriptor, renders the selected `create`-mode targets, injects registration snippets at markers, and reports created/injected files plus pending `AI_IMPLEMENTATION` blocks.
 - `scaffold status [--json]` — exits non-zero while any tracked block from a prior generate is unfilled (empty, or tagged `:required` and still holding its shipped placeholder).
@@ -62,7 +62,7 @@ Extending **existing** controllers and repositories never rewrites code: new mem
   "projectType": "dotnet",
   "packs": {
     "backend": {
-      "path": "templates/templates-dotnet",
+      "path": ".scaffold/cache/<hash>/local",
       "version": "csharp-enterprise",
       "defaults": { "options": { "combine": true, "database": { "provider": "postgres" } } }
     }
@@ -70,7 +70,7 @@ Extending **existing** controllers and repositories never rewrites code: new mem
 }
 ```
 
-- A pack entry is either `path` (local directory, read off disk — what `init` writes) or `url` (git remote, cached by `templates sync`, pinned by `pinnedSha`) — never both.
+- A pack entry is either `path` (local directory, read off disk — `init` writes this as a `.scaffold/cache` entry it just copied the `--pack` source into) or `url` (git remote, cached by `templates sync`, pinned by `pinnedSha`) — never both.
 - `defaults` merge UNDER every manifest for that slot (explicit manifest keys win; `options` merges one level deep) — the place for repo-wide choices like `options.combine` or `options.database.provider`.
 - `pathConfig` / `companyProjectName` persist a brownfield repo's real layout (usually written by `bootstrap-markers`); the pack's own `pathConfig` declaration is the fallback.
 - `adoptedPaths` maps descriptor entries to real brownfield files so `check-edit` gates them identically to generated ones.

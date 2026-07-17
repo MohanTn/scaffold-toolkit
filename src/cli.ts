@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 import { createInterface } from 'node:readline/promises';
 import { readFileSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
 import { Command } from 'commander';
 import { readOwnPackageJson } from './version/readPkg.js';
 import { configPath, saveConfig } from './config/loader.js';
 import type { PackConfig } from './config/schema.js';
+import { isPathPack } from './config/schema.js';
 import { detectProjectType } from './config/projectTypeDetect.js';
-import { defaultCacheRoot, syncTemplates } from './templates/sync.js';
+import { defaultCacheRoot, syncTemplates, cacheLocalPack } from './templates/sync.js';
 import { listTemplateVersions } from './templates/list.js';
 import { runGenerate } from './generate/generate.js';
 import { renderReport, renderReportAsDoc } from './generate/report.js';
@@ -128,6 +130,17 @@ Examples:
       const repoRoot = process.cwd();
       const projectType = opts.projectType ?? detectProjectType(repoRoot) ?? (await promptProjectType());
       const packs = parsePackSpecs(opts.pack);
+      // Copies each seeded pack into .scaffold/cache immediately and rewrites
+      // its `path` to the cache dir — generate/list/etc. keep reading `path`
+      // straight off disk exactly as before, but that disk location is now a
+      // local cache entry instead of the original --pack source, so the repo
+      // no longer depends on that source directory staying reachable.
+      const cacheRoot = defaultCacheRoot(repoRoot);
+      for (const [name, pack] of Object.entries(packs)) {
+        if (!isPathPack(pack)) continue; // parsePackSpecs only ever emits path-based entries; guard is purely for narrowing
+        const cachedDir = cacheLocalPack(repoRoot, cacheRoot, pack.path);
+        packs[name] = { ...pack, path: path.relative(repoRoot, cachedDir) };
+      }
       saveConfig(repoRoot, { projectType, packs });
       console.log(`scaffold: wrote ${configPath(repoRoot)} (projectType: ${projectType}, packs: ${Object.keys(packs).join(', ') || 'none'})`);
     } catch (error) {

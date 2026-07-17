@@ -88,6 +88,47 @@ export interface SyncResult {
   changed: boolean;
 }
 
+/**
+ * Copies a `--pack`-seeded local directory into `.scaffold/cache` under its
+ * fixed `LOCAL_PACK_RESOLVED_SHA` key, keyed by `sourceSpec` (the path as
+ * given to `scaffold init`, e.g. `templates/templates-dotnet`) so re-running
+ * `scaffold init` with the same spec refreshes the same cache entry rather
+ * than accumulating stale copies. Called once, at `scaffold init` time —
+ * `generate`/`list`/etc. never read the original source path again
+ * afterward; `init` rewrites the pack's `path` in config.json to point at
+ * the returned cache dir instead, so the repo no longer depends on the
+ * source directory staying reachable (e.g. once cloned elsewhere or handed
+ * to CI without the sibling pack checkout).
+ */
+export function cacheLocalPack(repoRoot: string, cacheRoot: string, sourceSpec: string): string {
+  const sourceDir = path.resolve(repoRoot, sourceSpec);
+  if (!existsSync(sourceDir)) {
+    throw new Error(`pack path "${sourceSpec}" not found at ${sourceDir}`);
+  }
+  const dir = packCacheDir(cacheRoot, sourceSpec, LOCAL_PACK_RESOLVED_SHA);
+  mkdirSync(path.dirname(dir), { recursive: true });
+  const tmp = mkdtempSync(path.join(tmpdir(), 'scaffold-local-pack-'));
+  try {
+    cpSync(sourceDir, tmp, { recursive: true });
+    ensurePackCjsBaseline(tmp);
+    if (existsSync(dir)) rmSync(dir, { recursive: true, force: true });
+    try {
+      renameSync(tmp, dir);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'EXDEV') {
+        cpSync(tmp, dir, { recursive: true, force: true });
+        rmSync(tmp, { recursive: true, force: true });
+      } else {
+        throw error;
+      }
+    }
+  } catch (error) {
+    rmSync(tmp, { recursive: true, force: true });
+    throw error;
+  }
+  return dir;
+}
+
 async function ensureCloned(cacheRoot: string, url: string, resolvedSha: string): Promise<void> {
   const dir = packCacheDir(cacheRoot, url, resolvedSha);
   if (existsSync(dir)) return;

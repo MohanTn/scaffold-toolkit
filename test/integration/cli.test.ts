@@ -6,7 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { syncTemplates, defaultCacheRoot } from '../../src/templates/sync.js';
@@ -54,14 +54,19 @@ test('scaffold -v prints the installed package version', () => {
 });
 
 test('scaffold init --pack seeds .scaffold/config.json with the given project type and a path-based pack', () => {
+  const packRepo = buildFixturePackRepo();
   const targetRepo = buildFixtureTargetRepo();
-  const { status } = runCli(['init', '--project-type', 'dotnet', '--pack', 'backend=templates/templates-dotnet@v8-controller'], targetRepo);
+  const { status } = runCli(['init', '--project-type', 'dotnet', '--pack', `backend=${packRepo}@v8-controller`], targetRepo);
   assert.equal(status, 0);
   const config = JSON.parse(readFileSync(path.join(targetRepo, '.scaffold', 'config.json'), 'utf8'));
   assert.equal(config.projectType, 'dotnet');
-  assert.equal(config.packs.backend.path, 'templates/templates-dotnet');
   assert.equal(config.packs.backend.version, 'v8-controller');
   assert.equal(config.packs.backend.url, undefined);
+  // `path` is rewritten to a .scaffold/cache entry — a copy of the --pack
+  // source, not the source directory itself — so the repo no longer depends
+  // on packRepo staying reachable.
+  assert.match(config.packs.backend.path, /^\.scaffold\/cache\//);
+  assert.ok(existsSync(path.join(targetRepo, config.packs.backend.path, 'v1', 'manifest.templates.json')));
 });
 
 test('scaffold init --pack rejects a git-URL spec with a clear error instead of silently accepting it', () => {
@@ -85,15 +90,20 @@ test('scaffold init --pack rejects the scp-style shorthand "host:path" git remot
 test('scaffold init --pack does not false-positive the scp-style check on a real local path that happens to contain a colon (Windows drive letter, or a relative path with a colon in a segment)', () => {
   const targetRepo = buildFixtureTargetRepo();
 
+  // `init` now copies the --pack source into .scaffold/cache, so these need
+  // to be real (if empty) directories — the point under test is the regex
+  // not false-positiving on the colon, not the directory's contents.
+  mkdirSync(path.join(targetRepo, 'C:\\templates-dotnet'), { recursive: true });
   const windowsPath = runCli(['init', '--project-type', 'dotnet', '--pack', 'backend=C:\\templates-dotnet@v1'], targetRepo);
   assert.equal(windowsPath.status, 0, JSON.stringify(windowsPath));
   const configAfterWindows = JSON.parse(readFileSync(path.join(targetRepo, '.scaffold', 'config.json'), 'utf8'));
-  assert.equal(configAfterWindows.packs.backend.path, 'C:\\templates-dotnet');
+  assert.match(configAfterWindows.packs.backend.path, /^\.scaffold\/cache\//);
 
+  mkdirSync(path.join(targetRepo, 'foo:bar'), { recursive: true });
   const relativeWithColon = runCli(['init', '--project-type', 'dotnet', '--pack', 'backend=./foo:bar@v1'], targetRepo);
   assert.equal(relativeWithColon.status, 0, JSON.stringify(relativeWithColon));
   const configAfterRelative = JSON.parse(readFileSync(path.join(targetRepo, '.scaffold', 'config.json'), 'utf8'));
-  assert.equal(configAfterRelative.packs.backend.path, './foo:bar');
+  assert.match(configAfterRelative.packs.backend.path, /^\.scaffold\/cache\//);
 });
 
 test('scaffold generate then scaffold status end to end through the CLI: non-zero while unfilled, filling resolves it', async () => {
